@@ -11,7 +11,9 @@ use Try::Tiny;
 use autodie;
 
 my ( $dsn, $user, $pass, $idx );
-my $out = 'curator_report.txt';
+my $out    = 'curator_report.txt';
+my $logger = 'output_log.txt';
+my $option = { LongReadLen => 2**25 };
 
 GetOptions(
     'h|help'            => sub { pod2usage(1) },
@@ -20,20 +22,21 @@ GetOptions(
     'p|pass|password=s' => \$pass,
     'idx|index=s'       => \$idx,
     'o|out|output:s'    => \$out,
+    'l|log:s'           => \$logger,
+    'opt|dbopt:s'       => \$option,
 );
 
 pod2usage("no blast index file name given") if !$idx;
 
-my $writer = IO::File->new( $out, 'w' );
+my $writer = IO::File->new( $out,    'w' );
+my $log    = IO::File->new( $logger, 'w' );
 my $blast = Bio::Index::Blast->new( -filename => $idx );
-my $option = { LongReadLen => 2**25 };
 my $schema = Bio::Chado::Schema->connect( $dsn, $user, $pass, $option );
 
 my $gene_rs = $schema->resultset('Sequence::Feature')->search(
-    { 'type.name' => 'gene', },
-    {   join     => [qw/type dbxref featureloc_feature_ids/],
+    { 'type.name' => 'gene', 'is_deleted' => 0 },
+    {   join     => [qw/type dbxref/],
         prefetch => [qw/dbxref/],
-        rows     => 1000,
     }
 );
 
@@ -53,9 +56,16 @@ while ( my $gene = $gene_rs->next ) {
     }
 
     my $floc_row = $gene->featureloc_feature_ids->single;
-    my $start    = $floc_row->fmin;
-    my $end      = $floc_row->fmax;
-    my $src_id   = $floc_row->srcfeature_id;
+    if ( !$floc_row ) {
+        warn "gene with no location ", $gene->dbxref->accession, "\n";
+        $log->print( "gene with no location ",
+            $gene->dbxref->accession, "\n" );
+        next GENE;
+    }
+
+    my $start  = $floc_row->fmin;
+    my $end    = $floc_row->fmax;
+    my $src_id = $floc_row->srcfeature_id;
 
     #overlapping ESTs
     my $where = {
@@ -81,39 +91,66 @@ while ( my $gene = $gene_rs->next ) {
         ]
     };
 
-    my $est_rs = $schema->resultset('Sequence::Feature')
-        ->search( $where, { join => [qw/featureloc_feature_ids type/] } );
+    my $est_rs = $schema->resultset('Sequence::Feature')->search(
+        $where,
+        {   join   => [qw/featureloc_feature_ids type/],
+            select => { 'count' => 'feature_id' }
+        }
+    );
 
-    my $gene_id = $gene->dbxref->accession;
-
-    #blast hit lookup
-    my $result;
+    my $est_count;
     try {
-        $result = $blast->fetch_report($gene_id);
+        $est_count = $est_rs->count;
+
+        my $gene_id = $gene->dbxref->accession;
+
+        #blast hit lookup
+        my $result;
+        try {
+            $result = $blast->fetch_report($gene_id);
+
+            #no result or no hit
+            if ( !$result or $result->num_hits == 0 ) {
+
+                #print $gene_id, "\t", $est_rs->count, "\tno\n";
+                $writer->print( $gene_id, "\t", $est_count, "\tno\n" );
+            }
+            else {
+                my $hit      = $result->next_hit;
+                my $hsp      = $hit->hsp;
+                my $hit_name = ( ( split( /\|/, $hit->name ) )[1] );
+
+                my $out_string = sprintf "%s\t%d\tyes\t%s\t%s\t%d%%\n",
+                    $gene_id,
+                    $est_count, $hit_name, $hsp->evalue,
+                    $hsp->frac_identical * 100;
+                $writer->print($out_string);
+            }
+
+        }
+        catch {
+            $writer->print( $gene_id, "\t", $est_count, "\tno\n" );
+        };
+
     }
+
     catch {
         warn $_;
-        print $gene_id, "\t", $est_rs->count, "\tno\n";
-        $writer->print( $gene_id, "\t", $est_rs->count, "\tno\n" );
-        next GENE;
+        $log->print( $_, "\n" );
+        warn "issue with est count for ", $gene->dbxref->accession, "\n";
+        $log->print( "issue with est count for ",
+            $gene->dbxref->accession, "\n" );
+
     };
 
-    #no result or no hit
-    if ( !$result or $result->num_hits == 0 ) {
-        print $gene_id, "\t", $est_rs->count, "\tno\n";
-        $writer->print( $gene_id, "\t", $est_rs->count, "\tno\n" );
-        next GENE;
-    }
-
-    print $gene_id, "\t", $est_rs->count, "\tyes\n";
-    $writer->print( $gene_id, "\t", $est_rs->count, "\tyes\n" );
 }
-
 $writer->close;
+$log->close;
 
 =head1 NAME
 
-B<Application name> - [One line description of application purpose]
+B<curation_targets.pl> - [Report gives a list of uncurated genes along with est count and
+presence or absence of blast hit]
 
 
 =head1 SYNOPSIS
@@ -136,7 +173,7 @@ may interact (e.g., mutual exclusions, required combinations, etc.)
 	may be omitted entirely.
 
 
-	=head1 OPTIONS
+=head1 OPTIONS
 
 	B<[-h|-help]> - display this documentation.
 
@@ -147,22 +184,26 @@ may interact (e.g., mutual exclusions, required combinations, etc.)
 	If the application has no options, this section may be omitted entirely.
 
 
-	=head1 DESCRIPTION
+=head1 DESCRIPTION
 
 	=for author to fill in:
 	Write a full description of the module and its features here.
 	Use subsections (=head2, =head3) as appropriate.
 
 
-	=head1 DIAGNOSTICS
+=head1 DIAGNOSTICS
 
-	=head1 CONFIGURATION AND ENVIRONMENT
+=head1 CONFIGURATION AND ENVIRONMENT
 
-	=head1 DEPENDENCIES
+=head1 DEPENDENCIES
 
-	=head1 BUGS AND LIMITATIONS
+=head1 BUGS AND LIMITATIONS
 
-	=for author to fill in:
+=head1 TODO
+
+Start getting the genes from chromosomes,  in that case the orphan genes could be avoided
+
+=for author to fill in:
 	A list of known problems with the module, together with some
 	indication Whether they are likely to be fixed in an upcoming
 	release. Also a list of restrictions on the features the module
@@ -176,11 +217,11 @@ may interact (e.g., mutual exclusions, required combinations, etc.)
 	B<Siddhartha Basu>
 
 
-	=head1 AUTHOR
+=head1 AUTHOR
 
 	I<Siddhartha Basu>  B<siddhartha-basu@northwestern.edu>
 
-	=head1 LICENCE AND COPYRIGHT
+=head1 LICENCE AND COPYRIGHT
 
 	Copyright (c) B<2009>, Siddhartha Basu C<<siddhartha-basu@northwestern.edu>>. All rights reserved.
 
