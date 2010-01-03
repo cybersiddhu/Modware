@@ -138,74 +138,100 @@ B<prune_alignment.pl> - [Delete all blast alignments from chado database]
 
 =head1 SYNOPSIS
 
-=for author to fill in:
-Brief code example(s) here showing commonest usage(s).
-This section will be as far as many users bother reading
-so make it as educational and exeplary as possible.
+perl prune_alignment.pl -dsn "dbi:Pg:database=mygmod;host=localhost" -u user -p pass
+
+perl prune_alignment.pl -dsn "dbi:Pg:database=mygmod;host=localhost" -u user -p pass -mt
+protein_match
+
+
+perl prune_alignment.pl -dsn "dbi:Oracle:sid=oramod;host=localhost" -u user -p pass -mt
+protein_match -qorg fly -torg worm
 
 
 =head1 REQUIRED ARGUMENTS
 
-=for author to fill in:
-A complete list of every argument that must appear on the command line.
-when the application  is invoked, explaining what each of them does, any
-restrictions on where each one may appear (i.e., flags that must appear
-		before or after filenames), and how the various arguments and options
-may interact (e.g., mutual exclusions, required combinations, etc.)
-	If all of the application's arguments are optional, this section
-	may be omitted entirely.
+B<[-dsn|--dsn]> - dsn for the chado database, to know more about dsn string look at the
+documentation of L<DBI> module.
+
+B<[-u|-user]> - database user name 
+
+B<[-p|-pass]> - database password
 
 
-	=head1 OPTIONS
 
-	B<[-h|-help]> - display this documentation.
+=head1 OPTIONS
 
-	=for author to fill in:
-	A complete list of every available option with which the application
-	can be invoked, explaining what each does, and listing any restrictions,
-	or interactions.
-	If the application has no options, this section may be omitted entirely.
+B<[-h|-help]> - display this documentation.
+
+B<[-qorg|-query_org]> - Organism name to which the query sequence belongs to,  will be
+used to restrict the query record.
+
+B<[-torg|-target_org]> - Organism name to which the target sequence belongs to,  will be
+used to restrict the target record.
+
+B<[-so|seq_onto]> - Sequence ontology namespace under which SO is loaded,  default is
+B<sequence>
+
+B<[-mt}-match_type]> - SO term that will be used for hit features in database,  default is
+B<match>.
+
+=head1 DESCRIPTION
+
+The script by default deletes all algnments from chado database that are stored using the
+GMOD recommended standardized data model. The details of the data model is described here
+....
+
+L<http://gmod.org/wiki/Chado_Companalysis_Module#General_implementation>
+L<http://gmod.org/wiki/Chado_Tutorial#Example:_Computational_Analysis>
+
+Of course,  the entries to be removed can be fine tuned using the provided command line
+parameters. 
+
+=head1 DIAGNOSTICS
+
+The entire deletion is done in a single transaction,  in case of any failure the script is
+aborted.
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+None.
+
+=head1 DEPENDENCIES
+
+Bio::Chado::Schema
+
+Try::Tiny
+
+=head2 Optional dependencies[Depending on database server] 
+
+DBD::mysql 
+
+DBD::Pg
+
+DBD::Oracle
 
 
-	=head1 DESCRIPTION
+=head1 BUGS AND LIMITATIONS
 
-	=for author to fill in:
-	Write a full description of the module and its features here.
-	Use subsections (=head2, =head3) as appropriate.
+On each only one particular type of hit features will be deleted. For example, if the
+chado instance has various kinds of match feature such as B<match>,  B<protein_match>,
+B<nucleotide_match> only one of them can be selected at a time.  
 
+=head1 TO DO
 
-	=head1 DIAGNOSTICS
+To get rid of limitation described above by getting a list of match and its descendents
+from the Cvterm table of chado. 
 
-	=head1 CONFIGURATION AND ENVIRONMENT
+=head1 AUTHOR
 
-	=head1 DEPENDENCIES
+I<Siddhartha Basu>  B<siddhartha-basu@northwestern.edu>
 
-	=head1 BUGS AND LIMITATIONS
+=head1 LICENCE AND COPYRIGHT
 
-	=for author to fill in:
-	A list of known problems with the module, together with some
-	indication Whether they are likely to be fixed in an upcoming
-	release. Also a list of restrictions on the features the module
-	does provide: data types that cannot be handled, performance issues
-	and the circumstances in which they may arise, practical
-	limitations on the size of data sets, special cases that are not
-	(yet) handled, etc.
+Copyright (c) B<2009>, Siddhartha Basu C<<siddhartha-basu@northwestern.edu>>. All rights reserved.
 
-	No bugs have been reported.Please report any bugs or feature requests to
-
-	B<Siddhartha Basu>
-
-
-	=head1 AUTHOR
-
-	I<Siddhartha Basu>  B<siddhartha-basu@northwestern.edu>
-
-	=head1 LICENCE AND COPYRIGHT
-
-	Copyright (c) B<2009>, Siddhartha Basu C<<siddhartha-basu@northwestern.edu>>. All rights reserved.
-
-	This module is free software; you can redistribute it and/or
-	modify it under the same terms as Perl itself. See L<perlartistic>.
+This module is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself. See L<perlartistic>.
 
 
 

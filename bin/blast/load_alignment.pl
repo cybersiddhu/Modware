@@ -208,7 +208,7 @@ while ( my $result = $searchio->next_result ) {
         };
     }
 
-    delete_alignments($query_row) if $update;
+    remove_alignments($query_row) if $update;
 
 HIT:
     while ( my $hit = $result->next_hit ) {
@@ -285,7 +285,7 @@ HIT:
             my $hsp_create = sub {
                 $schema->resultset('Sequence::Feature')->create(
                     {   uniquename  => $hsp_id,
-                        name        => $query_id . '-' . $hit_id,
+                        name        => $hsp_id,
                         organism_id => $hit_row->organism_id,
                         is_analysis => 1,
                         type_id     => $match_part->cvterm_id,
@@ -346,58 +346,51 @@ sub generate_uniq_id {
 
 }
 
-sub delete_alignments {
+sub remove_alignments {
     my $query = shift;
 
     #get all HSPs
-    my $loc_rs
-        = $query->featureloc_srcfeature_ids->search(
-        { 'rank' => 1,  'type.name' => 'match_part' },
-        { join => { 'feature' => 'type' }, prefetch => 'feature' } );
-    return if $loc_rs->count == 0;
+    my $hsp_rs
+        = $query->featureloc_srcfeature_ids->search( { 'rank' => 1 } )
+        ->search_related(
+        'feature',
+        { 'type.name' => 'match_part', is_analysis => 1 },
+        { join        => 'type' }
+        );
+    return if $hsp_rs->count == 0;
 
-    my $schema = $query->result_source->schema;
-    while ( my $floc = $loc_rs->next ) {
-        my $hsp = $floc->feature;
-        my $rel_rs
-            = $hsp->feat_relationship_subject_ids->search(
-            { 'type.name' => 'part_of' },
-            { join        => 'type' } );
+#get all Hits
+#If the same relationship name is being used it get aliased by DBIC and which should be
+#used
+    my $hit_rs = $hsp_rs->search_related(
+        'feat_relationship_subject_ids',
+        {   'type_2.name'  => 'part_of',
+            'type_2.cv_id' => $query->type->cv_id
+        },
+        { join => 'type' }
+    )->search_related( 'object', { 'is_analysis' => 1 }, );
 
-        while ( my $rel = $rel_rs->next ) {
-            my $hit = $rel->object;
-            try {
-                $schema->txn_do(
-                    sub {
-                        $hit->dbxref->delete;
-                        $hit->delete;
-                    }
-                );
-            }
-            catch {
-                warn 'unable to delete hit ', $hit->name, " $_\n";
-                return;
-            };
-        }
-
-        try {
-            $schema->txn_do(
-                sub {
-                    $hsp->dbxref->delete;
-                    $hsp->delete;
+    try {
+        $schema->txn_do(
+            sub {
+                foreach my $rs ( ( $hit_rs, $hsp_rs ) ) {
+                    $rs->search_related('dbxref')->delete_all;
+                    $rs->delete_all;
                 }
-            );
-        }
 
-        catch {
-            warn 'unable to delete hsp ', $hsp->name, " $_\n";
-        };
+            }
+        );
     }
+    catch {
+        warn 'unable to clean alignment for query ', $query->name, " $_\n";
+        return;
+    };
+
 }
 
 =head1 NAME
 
-B<load_alignment.pl> - [Load blast alignment to chado database]
+B<load_alignment.pl> - [Load blast alignment in chado database]
 
 
 =head1 SYNOPSIS
@@ -572,6 +565,15 @@ Bio::SearchIO
 Try::Tiny
 
 
+=head2 Optional dependencies[Depending on database server] 
+
+DBD::mysql 
+
+DBD::Pg
+
+DBD::Oracle
+
+
 =head1 BUGS AND LIMITATIONS
 
 It does not store any sequences. The HSP alignments is also not stored. 
@@ -579,14 +581,14 @@ It does not store any sequences. The HSP alignments is also not stored.
 
 =head1 AUTHOR
 
-	I<Siddhartha Basu>  B<siddhartha-basu@northwestern.edu>
+I<Siddhartha Basu>  B<siddhartha-basu@northwestern.edu>
 
 =head1 LICENCE AND COPYRIGHT
 
-	Copyright (c) B<2009>, Siddhartha Basu C<<siddhartha-basu@northwestern.edu>>. All rights reserved.
+Copyright (c) B<2009>, Siddhartha Basu C<<siddhartha-basu@northwestern.edu>>. All rights reserved.
 
-	This module is free software; you can redistribute it and/or
-	modify it under the same terms as Perl itself. See L<perlartistic>.
+This module is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself. See L<perlartistic>.
 
 
 
