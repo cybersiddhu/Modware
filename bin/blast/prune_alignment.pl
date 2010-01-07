@@ -8,6 +8,7 @@ use Bio::Chado::Schema;
 use Try::Tiny;
 
 my ( $dsn, $user, $pass, $query_type, $update, $query_org, $target_org );
+my $debug;
 my $db_source  = 'GFF_source';
 my $seq_onto   = 'sequence';
 my $option     = { LongReadLen => 2**15 };
@@ -24,11 +25,11 @@ GetOptions(
     'opt|dbopt:s'        => \$option,
     'so|seq_onto:s'      => \$seq_onto,
     'mt|match_type:s'    => \$match_type,
+    'debug'              => \$debug,
 );
 
 my $schema = Bio::Chado::Schema->connect( $dsn, $user, $pass, $option );
-
-#$schema->storage->debug(1);
+$schema->storage->debug(1) if $debug;
 
 #check if the sequence ontology namespace exists
 my $so = $schema->resultset('Cv::Cv')->find( { name => $seq_onto } );
@@ -130,7 +131,6 @@ catch {
     warn "Alignment cannot be deleted $_\n";
 }
 
-
 =head1 NAME
 
 B<prune_alignment.pl> - [Delete all blast alignments from chado database]
@@ -172,8 +172,11 @@ used to restrict the target record.
 B<[-so|seq_onto]> - Sequence ontology namespace under which SO is loaded,  default is
 B<sequence>
 
-B<[-mt}-match_type]> - SO term that will be used for hit features in database,  default is
+B<[-mt|-match_type]> - SO term that will be used for hit features in database,  default is
 B<match>.
+
+B<[-debug]> - Turn on displaying of SQL statement that is being used,  default is off.
+
 
 =head1 DESCRIPTION
 
@@ -186,6 +189,7 @@ L<http://gmod.org/wiki/Chado_Tutorial#Example:_Computational_Analysis>
 
 Of course,  the entries to be removed can be fine tuned using the provided command line
 parameters. 
+
 
 =head1 DIAGNOSTICS
 

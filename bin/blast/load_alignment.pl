@@ -181,7 +181,10 @@ while ( my $result = $searchio->next_result ) {
                 ]
             ]
         },
-        { join => 'dbxref', select => 'feature_id', rows => 1 }
+        {   join   => 'dbxref',
+            select => [qw/feature_id type_id uniquename name/],
+            rows   => 1
+        }
     )->single;
 
     if ( !$query_row ) {
@@ -235,112 +238,128 @@ HIT:
             next HIT;
         }
 
-        my $hit_value = sprintf "%s:%s", $query_id, $hit_id;
-        my $hit_create = sub {
-            my $hit_row = $schema->resultset('Sequence::Feature')->create(
-                {   uniquename  => $hit_value,
-                    name        => $hit_value,
-                    organism_id => $target_row->organism_id,
-                    is_analysis => 1,
-                    seqlen      => $hit->length,
-                    type_id     => $match_type->cvterm_id,
-                    dbxref      => {
-                        accession => $hit_id,
-                        db_id     => $db->db_id
-                    },
-                    analysisfeatures => [
-                        {   analysis_id  => $analysis->analysis_id,
-                            rawscore     => $hit->bits,
-                            normscore    => $hit->score,
-                            significance => $hit->significance
-                        }
-                    ],
-                    feature_dbxrefs => [ { dbxref_id => $dbxref->dbxref_id } ]
-                }
-            );
-            my $floc_row = $schema->resultset('Sequence::Featureloc')
-                ->create( { feature_id => $hit_row->feature_id } );
-            $floc_row->srcfeature_id( $target_row->feature_id );
-            $floc_row->rank(0);
-            $floc_row->strand( $hit->strand('hit') );
-            $floc_row->fmin( $hit->start('hit') - 1 );
-            $floc_row->fmax( $hit->end('hit') );
-            $floc_row->update;
-
-            $hit_row;
-        };
-
-        my $hit_row;
-        try {
-            $hit_row = $schema->txn_do($hit_create);
-        }
-        catch {
-            warn "cannot create record for hit $hit_id $_";
-            next HIT;
-        };
-
-    HSP:
+		#additional grouping of hsp's by the hit strand as in case of tblastn hsp
+		#belonging to separate strand of query could be grouped into the same hit,  however
+		#they denotes separate matches and should be separated.
+        my $hsp_group;
         while ( my $hsp = $hit->next_hsp ) {
-            my $hsp_id = generate_uniq_id( $query_id, $hit_id, $hsp );
-            my $hsp_create = sub {
-                $schema->resultset('Sequence::Feature')->create(
-                    {   uniquename  => $hsp_id,
-                        name        => $hsp_id,
-                        organism_id => $hit_row->organism_id,
+            my $strand = $hsp->strand('hit') == 1 ? 'plus' : 'minus';
+            push @{ $hsp_group->{$strand} }, $hsp;
+        }
+
+    STRAND:
+        foreach my $strand ( keys %$hsp_group ) {
+            my $hit_value = sprintf "%s:%s-%s", $query_id, $hit_id, $strand;
+            my $hit_create = sub {
+                my $hit_row = $schema->resultset('Sequence::Feature')->create(
+                    {   uniquename  => $hit_value,
+                        name        => $hit_value,
+                        organism_id => $target_row->organism_id,
                         is_analysis => 1,
-                        type_id     => $match_part->cvterm_id,
-                        seqlen      => $hsp->length,
+                        seqlen      => $hit->length,
+                        type_id     => $match_type->cvterm_id,
                         dbxref      => {
-                            accession => $hsp_id,
+                            accession => $hit_value,
                             db_id     => $db->db_id
                         },
-                        featureloc_feature_ids => [
-                            {   'srcfeature_id' => $query_row->feature_id,
-                                'rank'          => 1,
-                                'strand'        => $hsp->strand('hit'),
-                                'fmin'          => $hsp->start('query') - 1,
-                                'fmax'          => $hsp->end('query'),
-
-                            },
-                            {   'srcfeature_id' => $target_row->feature_id,
-                                'rank'          => 0,
-                                'strand'        => $hsp->strand('hit'),
-                                'fmin'          => $hsp->start('subject') - 1,
-                                'fmax'          => $hsp->end('subject'),
-
-                            },
-                        ],
                         analysisfeatures => [
                             {   analysis_id  => $analysis->analysis_id,
-                                rawscore     => $hsp->bits,
-                                normscore    => $hsp->score,
-                                significance => $hsp->significance,
-                                identity     => $hsp->percent_identity,
+                                rawscore     => $hit->bits,
+                                normscore    => $hit->score,
+                                significance => $hit->significance
                             }
                         ],
-                        feat_relationship_subject_ids => [
-                            {   type_id   => $part_of->cvterm_id,
-                                object_id => $hit_row->feature_id,
-                                rank      => $hsp->rank,
-                            },
-                        ],
+                        feature_dbxrefs =>
+                            [ { dbxref_id => $dbxref->dbxref_id } ]
                     }
                 );
+                my $floc_row = $schema->resultset('Sequence::Featureloc')
+                    ->create( { feature_id => $hit_row->feature_id } );
+                $floc_row->srcfeature_id( $target_row->feature_id );
+                $floc_row->rank(0);
+                $floc_row->strand( $hit->strand('hit') );
+                $floc_row->fmin( $hit->start('hit') - 1 );
+                $floc_row->fmax( $hit->end('hit') );
+                $floc_row->update;
+
+                $hit_row;
             };
 
+            my $hit_row;
             try {
-                my $hsp_row = $schema->txn_do($hsp_create);
+                $hit_row = $schema->txn_do($hit_create);
             }
             catch {
-                warn "Unable to create hit record for $hit_id $_";
+                warn "cannot create record for hit $hit_id $_";
+                next STRAND;
             };
+
+        HSP:
+            foreach my $hsp ( @{ $hsp_group->{$strand} } ) {
+                my $hsp_id = generate_uniq_id( $query_id, $hit_value, $hsp );
+                my $hsp_create = sub {
+                    $schema->resultset('Sequence::Feature')->create(
+                        {   uniquename  => $hsp_id,
+                            name        => $hsp_id,
+                            organism_id => $hit_row->organism_id,
+                            is_analysis => 1,
+                            type_id     => $match_part->cvterm_id,
+                            seqlen      => $hsp->length,
+                            dbxref      => {
+                                accession => $hsp_id,
+                                db_id     => $db->db_id
+                            },
+                            featureloc_feature_ids => [
+                                {   'srcfeature_id' => $query_row->feature_id,
+                                    'rank'          => 1,
+                                    'strand'        => $hsp->strand('hit'),
+                                    'fmin' => $hsp->start('query') - 1,
+                                    'fmax' => $hsp->end('query'),
+
+                                },
+                                {   'srcfeature_id' =>
+                                        $target_row->feature_id,
+                                    'rank'   => 0,
+                                    'strand' => $hsp->strand('hit'),
+                                    'fmin'   => $hsp->start('subject') - 1,
+                                    'fmax'   => $hsp->end('subject'),
+
+                                },
+                            ],
+                            analysisfeatures => [
+                                {   analysis_id  => $analysis->analysis_id,
+                                    rawscore     => $hsp->bits,
+                                    normscore    => $hsp->score,
+                                    significance => $hsp->significance,
+                                    identity     => $hsp->percent_identity,
+                                }
+                            ],
+                            feat_relationship_subject_ids => [
+                                {   type_id   => $part_of->cvterm_id,
+                                    object_id => $hit_row->feature_id,
+                                    rank      => $hsp->rank,
+                                },
+                            ],
+                        }
+                    );
+                };
+
+                try {
+                    my $hsp_row = $schema->txn_do($hsp_create);
+                }
+                catch {
+                    warn "Unable to create hit record for $hit_id $_";
+                };
+
+            }
         }
     }
 }
 
 sub generate_uniq_id {
     my ( $query, $hit, $hsp ) = @_;
-    sprintf "%s:%s:%d..%d::%d..%d", $query, $hit, $hsp->start('query'),
+    sprintf "%s:%s:%d..%d::%d..%d", $query, $hit,
+        $hsp->start('query'),
         $hsp->end('query'),
         $hsp->start('subject'), $hsp->end('subject');
 
