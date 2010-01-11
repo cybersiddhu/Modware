@@ -94,7 +94,7 @@ while ( my $hit_row = $hit_rs->next ) {
                     'featureprops',
                     {   value   => $gp_row->locus_gene_product->gene_product,
                         type_id => $desc
-                    },
+                   },
                 );
             }
         );

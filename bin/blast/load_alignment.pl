@@ -6,8 +6,9 @@ use Getopt::Long;
 use Bio::SearchIO;
 use Bio::Chado::Schema;
 use Try::Tiny;
+use YAML qw/LoadFile/;
 
-my ( $dsn, $user, $pass, $query_org, $query_type, $update );
+my ( $dsn, $user, $pass, $query_org, $query_type, $update ,  $config);
 my $query_parser = 'none';
 my $hit_parser   = 'none';
 my $db_source    = 'GFF_source';
@@ -29,7 +30,29 @@ GetOptions(
     'so|seq_onto:s'      => \$seq_onto,
     'update'             => \$update,
     'db_src|db_source'   => \$db_source,
+    'c|config' => \$config
 );
+
+if ($config) {
+	my $str = LoadFile($config);
+	my $db = $str->{database};
+	if ($db) {
+		$dsn = $db->{dsn} || $dsn;
+		$user = $db->{user} || $user;
+		$pass = $db->{password} || $pass;
+	}
+	my $query = $str->{query};
+	if ($query) {
+		$query_org = $query->{organism} || $query_org;
+		$query_org = $query->{parser} || $query_parser;
+	}
+
+	$hit_parser = $str->{target}->{parser} ||$hit_parser;
+	$seq_onto = $str->{so} || $seq_onto;
+	$db_source = $str->{database_source} || $db_source;
+	$source = $str->{source} || $source;
+
+}
 
 pod2usage("no blast alignment file is given") if !$ARGV[0];
 
@@ -238,9 +261,9 @@ HIT:
             next HIT;
         }
 
-		#additional grouping of hsp's by the hit strand as in case of tblastn hsp
-		#belonging to separate strand of query could be grouped into the same hit,  however
-		#they denotes separate matches and should be separated.
+#additional grouping of hsp's by the hit strand as in case of tblastn hsp
+#belonging to separate strand of query could be grouped into the same hit,  however
+#they denotes separate matches and should be separated.
         my $hsp_group;
         while ( my $hsp = $hit->next_hsp ) {
             my $strand = $hsp->strand('hit') == 1 ? 'plus' : 'minus';
@@ -249,7 +272,7 @@ HIT:
 
     STRAND:
         foreach my $strand ( keys %$hsp_group ) {
-            my $hit_value = sprintf "%s:%s-%s", $query_id, $hit_id, $strand;
+            my $hit_value = uniq_hit_id( $query_id, $hit_id, $strand, $hit );
             my $hit_create = sub {
                 my $hit_row = $schema->resultset('Sequence::Feature')->create(
                     {   uniquename  => $hit_value,
@@ -296,7 +319,7 @@ HIT:
 
         HSP:
             foreach my $hsp ( @{ $hsp_group->{$strand} } ) {
-                my $hsp_id = generate_uniq_id( $query_id, $hit_value, $hsp );
+                my $hsp_id = uniq_hsp_id( $query_id, $hit_value, $hsp );
                 my $hsp_create = sub {
                     $schema->resultset('Sequence::Feature')->create(
                         {   uniquename  => $hsp_id,
@@ -356,13 +379,20 @@ HIT:
     }
 }
 
-sub generate_uniq_id {
+sub uniq_hsp_id {
     my ( $query, $hit, $hsp ) = @_;
     sprintf "%s:%s:%d..%d::%d..%d", $query, $hit,
         $hsp->start('query'),
         $hsp->end('query'),
         $hsp->start('subject'), $hsp->end('subject');
 
+}
+
+sub uniq_hit_id {
+    my ( $query_id, $hit_id, $strand, $hit ) = @_;
+    sprintf "%s:%s-%s:%d..%d:%d..%d", $query_id, $hit_id, $strand,
+        $hit->start('query'),
+        $hit->end('query'), $hit->start('hit'), $hit->end('hit');
 }
 
 sub remove_alignments {
@@ -427,6 +457,9 @@ perl load_alignment.pl -dsn "dbi:Pg:host=localhost;database=mygmod" -u user -p p
 
 perl load_alignment.pl -dsn "dbi:Pg:host=localhost;database=mygmod" -u user -p pass
 -qorg fly --update blast_data.out
+
+
+perl load_alignment.pl -c config.yaml
 
 
 =head1 REQUIRED ARGUMENTS
@@ -506,6 +539,53 @@ flag.
 
 B<[-db_src|db_source]> - Name of the database authority to which every entry will be tied
 to in this blast loading. By default B<GFF_source> will be used.
+
+B<[-c|-config]> - Configuration in YAML format from where options will be read. Here is an
+example of it .....
+
+
+=over
+
+
+#The main datasource where the blast alignment will be stored 
+database:
+  dsn: "dbi:Oracle:host=yada;sid=yada"
+  user: yada
+  password: yada
+
+#The database from where the hit id will be looked up 
+ #Absolutely dictybase specific
+meta:
+  dsn: "dbi:Oracle:host=yada;sid=yada"
+  user: yada
+  password: yada
+
+#Where the gene product name is stored
+ #Absolutely dictybase specific
+legacy:
+  dsn: "dbi:Oracle:host=yada;sid=yada"
+  user: yada
+  password: yada
+
+query:
+  organism: dicty
+  parser: dicty
+
+target:
+  parser: none
+  organism: dpur
+
+so: sequence
+
+source: dictyBase_blast
+
+database_source : GFF_source
+
+match_type: protein_match
+
+
+=back
+
 
 =head1 DESCRIPTION
 
