@@ -1,6 +1,8 @@
 #!/usr/bin/perl -w
 
 use strict;
+use local::lib '~/modern-perl';
+use lib '../../lib';
 use Pod::Usage;
 use Getopt::Long;
 use Bio::Chado::Schema;
@@ -9,7 +11,6 @@ use YAML qw/LoadFile/;
 use Log::Log4perl qw/:easy/;
 use Log::Log4perl::Appender;
 use Log::Log4perl::Layout::PatternLayout;
-use lib '../../lib';
 use MOD::SGD;
 
 my ( $dsn, $user, $pass, $mdsn, $muser, $mpass, $verbose, $config );

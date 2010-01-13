@@ -1,6 +1,7 @@
 #!/usr/bin/perl -w
 
 use strict;
+use local::lib '~/modern-perl';
 use Pod::Usage;
 use Getopt::Long;
 use Bio::SearchIO;
