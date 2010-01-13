@@ -251,7 +251,7 @@ while ( my $result = $searchio->next_result ) {
         };
     }
 
-    remove_alignments($query_row) if $update;
+    remove_alignments( $schema, $query_row, $match_type->name ) if $update;
 
 HIT:
     while ( my $hit = $result->next_hit ) {
@@ -389,6 +389,7 @@ HIT:
                 try {
                     my $hsp_row = $schema->txn_do($hsp_create);
                     $logger->info("created hsp record $hsp_id") if $debug;
+
                 }
                 catch {
                     warn "Unable to create hit record for $hit_id $_";
@@ -416,7 +417,7 @@ sub uniq_hit_id {
 }
 
 sub remove_alignments {
-    my $query = shift;
+    my ( $schema, $query, $hit_type ) = @_;
 
     #get all HSPs
     my $hsp_rs
@@ -436,13 +437,18 @@ sub remove_alignments {
 #get all Hits
 #If the same relationship name is being used it get aliased by DBIC and which should be
 #used
-    my $hit_rs = $hsp_rs->search_related(
-        'feat_relationship_subject_ids',
-        {   'type_2.name'  => 'part_of',
-            'type_2.cv_id' => $query->type->cv_id
+    my $hit_rs = $schema->resultset('Sequence::Feature')->search(
+        {   'type.name'   => $hit_type,
+            'type_2.name' => 'part_of',
+            'subject.feature_id' =>
+                { -in => [ map { $_->feature_id } $hsp_rs->all ] }
         },
-        { join => 'type' }
-    )->search_related( 'object', { 'is_analysis' => 1 }, );
+        {   join => [
+                'type',
+                { 'feat_relationship_object_ids' => [ 'type', 'subject' ] }
+            ]
+        }
+    );
 
     try {
         $schema->txn_do(
@@ -455,13 +461,8 @@ sub remove_alignments {
                     $dbxref_rs->delete_all;
                     $logger->info( 'Going to delete ', $rs->count, ' record' )
                         if $debug;
-                    while ( my $row = $rs->next ) {
-                        $logger->info( 'deleting ', $row->uniquename )
-                            if $debug;
-                        $row->delete;
-                    }
+                    $rs->delete_all;
                 }
-
             }
         );
     }
@@ -473,6 +474,22 @@ sub remove_alignments {
 }
 
 sub setup_logger {
+    my $appender
+        = Log::Log4perl::Appender->new(
+        'Log::Log4perl::Appender::ScreenColoredLevels',
+        stderr => 1 );
+
+    my $layout = Log::Log4perl::Layout::PatternLayout->new(
+        "[%d{MM-dd-yyyy hh:mm}] %p > %F{1}:%L - %m%n");
+
+    my $log = Log::Log4perl->get_logger();
+    $appender->layout($layout);
+    $log->add_appender($appender);
+    $log->level($DEBUG);
+    $log;
+}
+
+sub setup_file_logger {
     my $appender
         = Log::Log4perl::Appender->new( 'Log::Log4perl::Appender::File',
         filename => 'load_alignment.log' );

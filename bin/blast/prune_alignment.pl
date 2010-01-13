@@ -6,8 +6,14 @@ use Getopt::Long;
 use Bio::SearchIO;
 use Bio::Chado::Schema;
 use Try::Tiny;
+use YAML qw/LoadFile/;
+use Log::Log4perl qw/:easy/;
+use Log::Log4perl::Appender;
+use Log::Log4perl::Layout::PatternLayout;
 
-my ( $dsn, $user, $pass, $query_type, $update, $query_org, $target_org );
+my ($dsn,       $user,       $pass,   $query_type, $update,
+    $query_org, $target_org, $config, $sql_debug
+);
 my $debug;
 my $db_source  = 'GFF_source';
 my $seq_onto   = 'sequence';
@@ -26,10 +32,41 @@ GetOptions(
     'so|seq_onto:s'      => \$seq_onto,
     'mt|match_type:s'    => \$match_type,
     'debug'              => \$debug,
+    'sql_debug'          => \$sql_debug,
+    'c|config:s'         => \$config
 );
 
+if ($config) {
+    my $str = LoadFile($config);
+    my $db  = $str->{database};
+    if ($db) {
+        $dsn  = $db->{dsn}      || $dsn;
+        $user = $db->{user}     || $user;
+        $pass = $db->{password} || $pass;
+    }
+    my $query = $str->{query};
+    if ($query) {
+        $query_org  = $query->{organism} || $query_org;
+        $query_type = $query->{type}     || $query_type;
+    }
+
+    my $target = $str->{target};
+    if ($target) {
+        $target_org = $target->{organism} || $target_org;
+    }
+
+    $seq_onto   = $str->{so}         || $seq_onto;
+    $match_type = $str->{match_type} || $match_type;
+
+}
+
+my $logger;
+if ($debug) {
+    $logger = setup_logger();
+}
+
 my $schema = Bio::Chado::Schema->connect( $dsn, $user, $pass, $option );
-$schema->storage->debug(1) if $debug;
+$schema->storage->debug(1) if $sql_debug;
 
 #check if the sequence ontology namespace exists
 my $so = $schema->resultset('Cv::Cv')->find( { name => $seq_onto } );
@@ -117,10 +154,24 @@ my $orphan_hit_rs = $schema->resultset('Sequence::Feature')->search(
 
 my $delete_alignment = sub {
     foreach my $rs ( ( $query_rs, $hit_rs, $hsp_rs ) ) {
-        $rs->search_related('dbxref')->delete_all;
+        my $dbxref_rs = $rs->search_related('dbxref');
+        $logger->info(
+            'Going to delete  ',
+            $dbxref_rs->count,
+            ' dbxref records'
+        ) if $debug;
+        $dbxref_rs->delete_all;
+
+        $logger->info( 'Going to delete ', $rs->count, ' records' ) if $debug;
         $rs->delete_all;
+
     }
     $orphan_hit_rs->search_related('dbxref')->delete_all;
+    $logger->info(
+        'Going to delete ',
+        $orphan_hit_rs->count,
+        ' orphan hit records'
+    ) if $debug;
     $orphan_hit_rs->delete_all;
 };
 
@@ -128,7 +179,24 @@ try {
     $schema->txn_do($delete_alignment);
 }
 catch {
-    warn "Alignment cannot be deleted $_\n";
+    $logger->warn("Alignment cannot be deleted $_") if $debug;
+    warn "Alignment cannot be deleted $_\n" if !$debug;
+};
+
+sub setup_logger {
+    my $appender
+        = Log::Log4perl::Appender->new(
+        'Log::Log4perl::Appender::ScreenColoredLevels',
+        stderr => 1 );
+
+    my $layout = Log::Log4perl::Layout::PatternLayout->new(
+        "[%d{MM-dd-yyyy hh:mm}] %p > %F{1}:%L - %m%n");
+
+    my $log = Log::Log4perl->get_logger();
+    $appender->layout($layout);
+    $log->add_appender($appender);
+    $log->level($DEBUG);
+    $log;
 }
 
 =head1 NAME
