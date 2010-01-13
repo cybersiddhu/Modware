@@ -7,8 +7,13 @@ use Bio::SearchIO;
 use Bio::Chado::Schema;
 use Try::Tiny;
 use YAML qw/LoadFile/;
+use Log::Log4perl qw/:easy/;
+use Log::Log4perl::Appender;
+use Log::Log4perl::Layout::PatternLayout;
 
-my ( $dsn, $user, $pass, $query_org, $query_type, $update ,  $config);
+my ($dsn,    $user,   $pass,  $query_org, $query_type,
+    $update, $config, $debug, $sql_debug
+);
 my $query_parser = 'none';
 my $hit_parser   = 'none';
 my $db_source    = 'GFF_source';
@@ -30,31 +35,35 @@ GetOptions(
     'so|seq_onto:s'      => \$seq_onto,
     'update'             => \$update,
     'db_src|db_source'   => \$db_source,
-    'c|config' => \$config
+    'c|config:s'         => \$config,
+    'debug'              => \$debug,
+    'sql_debug'          => \$sql_debug,
 );
 
 if ($config) {
-	my $str = LoadFile($config);
-	my $db = $str->{database};
-	if ($db) {
-		$dsn = $db->{dsn} || $dsn;
-		$user = $db->{user} || $user;
-		$pass = $db->{password} || $pass;
-	}
-	my $query = $str->{query};
-	if ($query) {
-		$query_org = $query->{organism} || $query_org;
-		$query_org = $query->{parser} || $query_parser;
-	}
+    my $str = LoadFile($config);
+    my $db  = $str->{database};
+    if ($db) {
+        $dsn  = $db->{dsn}      || $dsn;
+        $user = $db->{user}     || $user;
+        $pass = $db->{password} || $pass;
+    }
+    my $query = $str->{query};
+    if ($query) {
+        $query_org    = $query->{organism} || $query_org;
+        $query_parser = $query->{parser}   || $query_parser;
+    }
 
-	$hit_parser = $str->{target}->{parser} ||$hit_parser;
-	$seq_onto = $str->{so} || $seq_onto;
-	$db_source = $str->{database_source} || $db_source;
-	$source = $str->{source} || $source;
+    $hit_parser = $str->{target}->{parser} || $hit_parser;
+    $seq_onto   = $str->{so}               || $seq_onto;
+    $db_source  = $str->{database_source}  || $db_source;
+    $source     = $str->{source}           || $source;
 
 }
 
 pod2usage("no blast alignment file is given") if !$ARGV[0];
+
+my $logger = setup_logger() if $debug;
 
 my %type_map = (
     blastn  => 'DNA',
@@ -97,6 +106,7 @@ my %hit_parser_map = (
 
 my $searchio = Bio::SearchIO->new( -file => $ARGV[0], -format => 'blast' );
 my $schema = Bio::Chado::Schema->connect( $dsn, $user, $pass );
+$schema->storage->debug(1) if $sql_debug;
 
 #check if the sequence ontology namespace exists
 my $so = $schema->resultset('Cv::Cv')->find( { name => $seq_onto } );
@@ -196,8 +206,9 @@ while ( my $result = $searchio->next_result ) {
     my $query_id  = $query_parser_map{$query_parser}->( $result->query_name );
     my $query_row = $schema->resultset('Sequence::Feature')->search(
         {   -and => [
-                'is_deleted' => 0,
-                -or          => [
+                'is_deleted'  => 0,
+                'is_analysis' => 1,
+                -or           => [
                     'dbxref.accession' => $query_id,
                     'uniquename'       => $query_id,
                     'name'             => $query_id
@@ -210,7 +221,12 @@ while ( my $result = $searchio->next_result ) {
         }
     )->single;
 
-    if ( !$query_row ) {
+    if ($query_row) {
+        $logger->info("query record $query_id is present") if $debug;
+        $logger->info( $query_row->uniquename );
+
+    }
+    else {
         my $create = sub {
             $schema->resultset('Sequence::Feature')->create(
                 {   uniquename  => $query_id,
@@ -227,10 +243,11 @@ while ( my $result = $searchio->next_result ) {
         };
         try {
             $query_row = $schema->txn_do($create);
+            $logger->info("created record for query $query_id") if $debug;
         }
         catch {
             warn "failed to create record for $query_id $_";
-            next;
+            next RESULT;
         };
     }
 
@@ -311,15 +328,17 @@ HIT:
             my $hit_row;
             try {
                 $hit_row = $schema->txn_do($hit_create);
+                $logger->info("created hit record $hit_value") if $debug;
             }
             catch {
                 warn "cannot create record for hit $hit_id $_";
+                $logger->warn("cannot create record for hit $hit_id $_");
                 next STRAND;
             };
 
         HSP:
             foreach my $hsp ( @{ $hsp_group->{$strand} } ) {
-                my $hsp_id = uniq_hsp_id( $query_id, $hit_value, $hsp );
+                my $hsp_id = uniq_hsp_id( $query_id, $hit_id, $strand, $hsp );
                 my $hsp_create = sub {
                     $schema->resultset('Sequence::Feature')->create(
                         {   uniquename  => $hsp_id,
@@ -369,6 +388,7 @@ HIT:
 
                 try {
                     my $hsp_row = $schema->txn_do($hsp_create);
+                    $logger->info("created hsp record $hsp_id") if $debug;
                 }
                 catch {
                     warn "Unable to create hit record for $hit_id $_";
@@ -380,7 +400,7 @@ HIT:
 }
 
 sub uniq_hsp_id {
-    my ( $query, $hit, $hsp ) = @_;
+    my ( $query, $hit, $strand, $hsp ) = @_;
     sprintf "%s:%s:%d..%d::%d..%d", $query, $hit,
         $hsp->start('query'),
         $hsp->end('query'),
@@ -406,7 +426,12 @@ sub remove_alignments {
         { 'type.name' => 'match_part', is_analysis => 1 },
         { join        => 'type' }
         );
-    return if $hsp_rs->count == 0;
+    if ( $hsp_rs->count == 0 ) {
+        $logger->info( "No hsps for ", $query->uniquename ) if $debug;
+        return;
+    }
+
+    $logger->info( "updating alignment for ", $query->uniquename ) if $debug;
 
 #get all Hits
 #If the same relationship name is being used it get aliased by DBIC and which should be
@@ -423,8 +448,18 @@ sub remove_alignments {
         $schema->txn_do(
             sub {
                 foreach my $rs ( ( $hit_rs, $hsp_rs ) ) {
-                    $rs->search_related('dbxref')->delete_all;
-                    $rs->delete_all;
+                    my $dbxref_rs = $rs->search_related('dbxref');
+                    $logger->info( "Going to delete dbxref ",
+                        $dbxref_rs->count, " record" )
+                        if $debug;
+                    $dbxref_rs->delete_all;
+                    $logger->info( 'Going to delete ', $rs->count, ' record' )
+                        if $debug;
+                    while ( my $row = $rs->next ) {
+                        $logger->info( 'deleting ', $row->uniquename )
+                            if $debug;
+                        $row->delete;
+                    }
                 }
 
             }
@@ -435,6 +470,21 @@ sub remove_alignments {
         return;
     };
 
+}
+
+sub setup_logger {
+    my $appender
+        = Log::Log4perl::Appender->new( 'Log::Log4perl::Appender::File',
+        filename => 'load_alignment.log' );
+
+    my $layout = Log::Log4perl::Layout::PatternLayout->new(
+        "[%d{MM-dd-yyyy hh:mm}] %p > %F{1}:%L - %m%n");
+
+    my $log = Log::Log4perl->get_logger();
+    $appender->layout($layout);
+    $log->add_appender($appender);
+    $log->level($DEBUG);
+    $log;
 }
 
 =head1 NAME
