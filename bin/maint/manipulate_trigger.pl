@@ -36,6 +36,8 @@ if ($config) {
     }
 }
 
+pod2usage "no dsn is given" if !$dsn;
+
 my $logger = setup_logger() if $verbose;
 
 my $dbh = DBI->connect(
@@ -62,7 +64,7 @@ while ( my ( $trigger, $table ) = $tgsth->fetchrow_array() ) {
         next TRIGGER;
     }
     $dbh->commit();
-    $logger->info("disable trigger $trigger") if $verbose;
+    $logger->info("$action trigger $trigger") if $verbose;
 }
 
 $dbh->disconnect;
