@@ -5,10 +5,15 @@ use Pod::Usage;
 use Getopt::Long;
 use Bio::Chado::Schema;
 use Try::Tiny;
+use YAML qw/LoadFile/;
+use Log::Log4perl qw/:easy/;
+use Log::Log4perl::Appender;
+use Log::Log4perl::Layout::PatternLayout;
 use lib '../../lib';
 use MOD::SGD;
 
-my ( $dsn, $user, $pass, $mdsn, $muser, $mpass, $verbose );
+my ( $dsn, $user, $pass, $mdsn, $muser, $mpass, $verbose, $config );
+my ( $luser, $lpass, $ldsn );
 my $match_type = 'match';
 
 GetOptions(
@@ -17,21 +22,52 @@ GetOptions(
     'u|user=s'             => \$user,
     'p|pass|password=s'    => \$pass,
     'mdsn=s'               => \$mdsn,
+    'ldsn=s'               => \$ldsn,
+    'luser=s'              => \$luser,
+    'lpass=s'              => \$lpass,
     'mu|muser=s'           => \$muser,
     'mp|mpass|mpassword=s' => \$mpass,
     'mt|match_type:s'      => \$match_type,
-    'verbose'              => \$verbose
+    'verbose'              => \$verbose,
+    'c|config:s'           => \$config
 );
 
+$mdsn  = $dsn   if !$mdsn;
+$ldsn  = $mdsn  if !$ldsn;
+$luser = $muser if !$luser;
+$lpass = $mpass if !$lpass;
+
+if ($config) {
+    my $str = LoadFile($config);
+    my $db  = $str->{database};
+    if ($db) {
+        $dsn  = $db->{dsn}      || $dsn;
+        $user = $db->{user}     || $user;
+        $pass = $db->{password} || $pass;
+    }
+    my $meta = $str->{meta};
+    if ($meta) {
+        $mdsn  = $meta->{dsn}      || $mdsn;
+        $muser = $meta->{user}     || $muser;
+        $mpass = $meta->{password} || $mpass;
+    }
+    my $legacy = $str->{legacy};
+    if ($legacy) {
+        $ldsn  = $legacy->{dsn}      || $ldsn;
+        $luser = $legacy->{user}     || $luser;
+        $lpass = $legacy->{password} || $lpass;
+    }
+    $match_type = $str->{match_type} || $match_type;
+}
+
 pod2usage "dsn not given" if !$dsn;
-$mdsn = $dsn if !$mdsn;
 
-( my $legacy_user = $muser ) =~ s/CHADO/DDB/;
-( my $legacy_pass = $mpass ) =~ s/CHADO/DDB/;
+my $logger = setup_logger() if $verbose;
 
+#database connection
 my $schema       = Bio::Chado::Schema->connect( $dsn,  $user,  $pass );
 my $dicty_schema = Bio::Chado::Schema->connect( $mdsn, $muser, $mpass );
-my $sgd_schema = MOD::SGD->connect( $mdsn, $legacy_user, $legacy_pass );
+my $sgd_schema = MOD::SGD->connect( $ldsn, $luser, $lpass );
 
 my $desc = $schema->resultset('Cv::Cvterm')->find( { name => 'description' } )
     ->cvterm_id;
@@ -42,8 +78,7 @@ my $hit_rs = $schema->resultset('Sequence::Feature')->search(
 );
 
 while ( my $hit_row = $hit_rs->next ) {
-    my $gene_id = parse_gene_id( $hit_row->uniquename );
-
+    my $gene_id  = parse_gene_id( $hit_row->uniquename );
     my $feat_row = $dicty_schema->resultset('Sequence::Feature')->search(
         {   -and => [
                 'is_deleted' => 0,
@@ -61,8 +96,8 @@ while ( my $hit_row = $hit_rs->next ) {
     )->single;
 
     if ( !$feat_row ) {
-        warn $hit_row->uniquename,
-            "not found in meta source: no featureprop will be created\n"
+        $logger->warn( $hit_row->uniquename,
+            "not found in meta source: no featureprop will be created" )
             if $verbose;
         next;
     }
@@ -72,7 +107,8 @@ while ( my $hit_row = $hit_rs->next ) {
         ->search( { locus_no => $feat_row->feature_id, }, { rows => 1 } )
         ->single;
     if ( !$gp_row ) {
-        warn $hit_row->uniquename, " no gene product name\n" if $verbose;
+        $logger->warn( $hit_row->uniquename, " no gene product name" )
+            if $verbose;
         next;
     }
 
@@ -81,8 +117,8 @@ while ( my $hit_row = $hit_rs->next ) {
         = $hit_row->featureprops->search( { 'type.name' => 'description' },
         { join => 'type' } );
     if ( $prop_rs->count > 0 ) {
-        warn $hit_row->uniquename,
-            " already has a featureprop : not overwritten \n"
+        $logger->warn( $hit_row->uniquename,
+            " already has a featureprop : not overwritten" )
             if $verbose;
         next;
     }
@@ -94,13 +130,16 @@ while ( my $hit_row = $hit_rs->next ) {
                     'featureprops',
                     {   value   => $gp_row->locus_gene_product->gene_product,
                         type_id => $desc
-                   },
+                    },
                 );
             }
         );
+        $logger->info( "created featureprop for ", $hit_row->uniquename )
+            if $verbose;
     }
     catch {
-        warn "cannot create featureprop $_";
+        $logger->error("cannot create featureprop $_") if $verbose;
+
     };
 
 }
@@ -108,8 +147,38 @@ while ( my $hit_row = $hit_rs->next ) {
 sub parse_gene_id {
     my ($str) = @_;
     my $label = ( ( split /:/,  $str ) )[0];
-    my $id    = ( ( split /\|/, $label ) )[1];
-    $id;
+    $label;
+}
+
+sub setup_file_logger {
+    my $appender
+        = Log::Log4perl::Appender->new( 'Log::Log4perl::Appender::File',
+        filename => 'load_alignment.log' );
+
+    my $layout = Log::Log4perl::Layout::PatternLayout->new(
+        "[%d{MM-dd-yyyy hh:mm}] %p > %F{1}:%L - %m%n");
+
+    my $log = Log::Log4perl->get_logger();
+    $appender->layout($layout);
+    $log->add_appender($appender);
+    $log->level($DEBUG);
+    $log;
+}
+
+sub setup_logger {
+    my $appender
+        = Log::Log4perl::Appender->new(
+        'Log::Log4perl::Appender::ScreenColoredLevels',
+        stderr => 1 );
+
+    my $layout = Log::Log4perl::Layout::PatternLayout->new(
+        "[%d{MM-dd-yyyy hh:mm}] %p > %F{1}:%L - %m%n");
+
+    my $log = Log::Log4perl->get_logger();
+    $appender->layout($layout);
+    $log->add_appender($appender);
+    $log->level($DEBUG);
+    $log;
 }
 
 =head1 NAME
