@@ -1,27 +1,17 @@
-This is Perl module ModwareX.
+NAME
+    ModwareX -
 
-INSTALLATION
+SYNOPSIS
+      use ModwareX;
 
-ModwareX installation is straightforward. If your CPAN shell is set up,
-you should just be able to do
+DESCRIPTION
+    ModwareX is
 
-    % cpan ModwareX
+AUTHOR
+    Siddhartha Basu <sidd.basu@gmail.com>
 
-Download it, unpack it, then build it as per the usual:
+SEE ALSO
+LICENSE
+    This library is free software; you can redistribute it and/or modify it
+    under the same terms as Perl itself.
 
-    % perl Makefile.PL
-    % make && make test
-
-Then install it:
-
-    % make install
-
-DOCUMENTATION
-
-ModwareX documentation is available as in POD. So you can do:
-
-    % perldoc ModwareX
-
-to read the documentation online with your favorite pager.
-
-Siddhartha Basu
