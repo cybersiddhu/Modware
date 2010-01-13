@@ -12,9 +12,9 @@ use Log::Log4perl::Appender;
 use Log::Log4perl::Layout::PatternLayout;
 
 my ($dsn,       $user,       $pass,   $query_type, $update,
-    $query_org, $target_org, $config, $sql_debug
+    $query_org, $target_org, $config, $sql_verbose
 );
-my $debug;
+my $verbose;
 my $db_source  = 'GFF_source';
 my $seq_onto   = 'sequence';
 my $option     = { LongReadLen => 2**15 };
@@ -31,8 +31,8 @@ GetOptions(
     'opt|dbopt:s'        => \$option,
     'so|seq_onto:s'      => \$seq_onto,
     'mt|match_type:s'    => \$match_type,
-    'debug'              => \$debug,
-    'sql_debug'          => \$sql_debug,
+    'v|verbose'          => \$verbose,
+    'sql_verbose'        => \$sql_verbose,
     'c|config:s'         => \$config
 );
 
@@ -61,12 +61,12 @@ if ($config) {
 }
 
 my $logger;
-if ($debug) {
+if ($verbose) {
     $logger = setup_logger();
 }
 
 my $schema = Bio::Chado::Schema->connect( $dsn, $user, $pass, $option );
-$schema->storage->debug(1) if $sql_debug;
+$schema->storage->verbose(1) if $sql_verbose;
 
 #check if the sequence ontology namespace exists
 my $so = $schema->resultset('Cv::Cv')->find( { name => $seq_onto } );
@@ -159,10 +159,11 @@ my $delete_alignment = sub {
             'Going to delete  ',
             $dbxref_rs->count,
             ' dbxref records'
-        ) if $debug;
+        ) if $verbose;
         $dbxref_rs->delete_all;
 
-        $logger->info( 'Going to delete ', $rs->count, ' records' ) if $debug;
+        $logger->info( 'Going to delete ', $rs->count, ' records' )
+            if $verbose;
         $rs->delete_all;
 
     }
@@ -171,7 +172,7 @@ my $delete_alignment = sub {
         'Going to delete ',
         $orphan_hit_rs->count,
         ' orphan hit records'
-    ) if $debug;
+    ) if $verbose;
     $orphan_hit_rs->delete_all;
 };
 
@@ -179,8 +180,8 @@ try {
     $schema->txn_do($delete_alignment);
 }
 catch {
-    $logger->warn("Alignment cannot be deleted $_") if $debug;
-    warn "Alignment cannot be deleted $_\n" if !$debug;
+    $logger->warn("Alignment cannot be deleted $_") if $verbose;
+    warn "Alignment cannot be deleted $_\n" if !$verbose;
 };
 
 sub setup_logger {
@@ -243,7 +244,7 @@ B<sequence>
 B<[-mt|-match_type]> - SO term that will be used for hit features in database,  default is
 B<match>.
 
-B<[-debug]> - Turn on displaying of SQL statement that is being used,  default is off.
+B<[-verbose]> - Turn on displaying of SQL statement that is being used,  default is off.
 
 
 =head1 DESCRIPTION

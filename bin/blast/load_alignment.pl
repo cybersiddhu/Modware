@@ -11,8 +11,8 @@ use Log::Log4perl qw/:easy/;
 use Log::Log4perl::Appender;
 use Log::Log4perl::Layout::PatternLayout;
 
-my ($dsn,    $user,   $pass,  $query_org, $query_type,
-    $update, $config, $debug, $sql_debug
+my ($dsn,    $user,   $pass,    $query_org, $query_type,
+    $update, $config, $verbose, $sql_verbose
 );
 my $query_parser = 'none';
 my $hit_parser   = 'none';
@@ -36,8 +36,8 @@ GetOptions(
     'update'             => \$update,
     'db_src|db_source'   => \$db_source,
     'c|config:s'         => \$config,
-    'debug'              => \$debug,
-    'sql_debug'          => \$sql_debug,
+    'v|verbose'          => \$verbose,
+    'sql_verbose'        => \$sql_verbose,
 );
 
 if ($config) {
@@ -63,7 +63,7 @@ if ($config) {
 
 pod2usage("no blast alignment file is given") if !$ARGV[0];
 
-my $logger = setup_logger() if $debug;
+my $logger = setup_logger() if $verbose;
 
 my %type_map = (
     blastn  => 'DNA',
@@ -106,7 +106,7 @@ my %hit_parser_map = (
 
 my $searchio = Bio::SearchIO->new( -file => $ARGV[0], -format => 'blast' );
 my $schema = Bio::Chado::Schema->connect( $dsn, $user, $pass );
-$schema->storage->debug(1) if $sql_debug;
+$schema->storage->verbose(1) if $sql_verbose;
 
 #check if the sequence ontology namespace exists
 my $so = $schema->resultset('Cv::Cv')->find( { name => $seq_onto } );
@@ -222,7 +222,7 @@ while ( my $result = $searchio->next_result ) {
     )->single;
 
     if ($query_row) {
-        $logger->info("query record $query_id is present") if $debug;
+        $logger->info("query record $query_id is present") if $verbose;
         $logger->info( $query_row->uniquename );
 
     }
@@ -243,7 +243,7 @@ while ( my $result = $searchio->next_result ) {
         };
         try {
             $query_row = $schema->txn_do($create);
-            $logger->info("created record for query $query_id") if $debug;
+            $logger->info("created record for query $query_id") if $verbose;
         }
         catch {
             warn "failed to create record for $query_id $_";
@@ -328,7 +328,7 @@ HIT:
             my $hit_row;
             try {
                 $hit_row = $schema->txn_do($hit_create);
-                $logger->info("created hit record $hit_value") if $debug;
+                $logger->info("created hit record $hit_value") if $verbose;
             }
             catch {
                 warn "cannot create record for hit $hit_id $_";
@@ -388,7 +388,7 @@ HIT:
 
                 try {
                     my $hsp_row = $schema->txn_do($hsp_create);
-                    $logger->info("created hsp record $hsp_id") if $debug;
+                    $logger->info("created hsp record $hsp_id") if $verbose;
 
                 }
                 catch {
@@ -428,11 +428,12 @@ sub remove_alignments {
         { join        => 'type' }
         );
     if ( $hsp_rs->count == 0 ) {
-        $logger->info( "No hsps for ", $query->uniquename ) if $debug;
+        $logger->info( "No hsps for ", $query->uniquename ) if $verbose;
         return;
     }
 
-    $logger->info( "updating alignment for ", $query->uniquename ) if $debug;
+    $logger->info( "updating alignment for ", $query->uniquename )
+        if $verbose;
 
 #get all Hits
 #If the same relationship name is being used it get aliased by DBIC and which should be
@@ -457,10 +458,10 @@ sub remove_alignments {
                     my $dbxref_rs = $rs->search_related('dbxref');
                     $logger->info( "Going to delete dbxref ",
                         $dbxref_rs->count, " record" )
-                        if $debug;
+                        if $verbose;
                     $dbxref_rs->delete_all;
                     $logger->info( 'Going to delete ', $rs->count, ' record' )
-                        if $debug;
+                        if $verbose;
                     $rs->delete_all;
                 }
             }
@@ -609,6 +610,8 @@ to in this blast loading. By default B<GFF_source> will be used.
 
 B<[-c|-config]> - Configuration in YAML format from where options will be read. Here is an
 example of it .....
+
+B<[-v|-verbose]> - Show more output of every step,  by default it goes to STDERR 
 
 
 =over
