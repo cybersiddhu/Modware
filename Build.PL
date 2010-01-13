@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 use strict;
 use warnings;
-use lib '.';
+use lib '~/modern-perl';
 use Module::Build;
 
 my $builder = Module::Build->new(
@@ -14,7 +14,8 @@ my $builder = Module::Build->new(
         'Try::Tiny' => '', 
         'Bio::Chado::Schema' => '0.05', 
         'Log::Log4perl' => '', 
-        'YAML' => '' 
+        'YAML' => '', 
+        'local::lib' => '', 
     },
     add_to_cleanup => ['ModwareX-*'],
     create_readme  => 1,
