@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 
 use strict;
-use local::lib '~/modern-perl';
+use local::lib '~/dictyBase/Libs/modern-perl';
 use YAML qw/LoadFile/;
 use Pod::Usage;
 use Getopt::Long;
