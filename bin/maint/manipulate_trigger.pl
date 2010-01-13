@@ -8,7 +8,7 @@ use Getopt::Long;
 use DBI;
 use Log::Log4perl qw/:easy/;
 use Log::Log4perl::Appender;
-use Log::Log4perl::Layout::PatternLayout;
+use Log::Log4perl::Layout::SimpleLayout;
 
 my ( $dsn, $user, $pass );
 my $verbose;
@@ -57,6 +57,12 @@ while ( my ( $trigger, $table ) = $tgsth->fetchrow_array() ) {
     next TRIGGER if $table =~ /\$0$/;
     next TRIGGER if $trigger !~ /^AUD/;
 
+    if ( $action eq 'list' ) {
+        print "$table\t$trigger\n";
+        $logger->info("$table\t$trigger") if $verbose;
+        next TRIGGER;
+    }
+
     eval { $dbh->do(qq { alter trigger $trigger $action }) };
     if ($@) {
         $logger->error( $@, "\n" ) if $verbose;
@@ -75,8 +81,7 @@ sub setup_logger {
         'Log::Log4perl::Appender::ScreenColoredLevels',
         stderr => 1 );
 
-    my $layout = Log::Log4perl::Layout::PatternLayout->new(
-        "[%d{MM-dd-yyyy hh:mm}] %p > %F{1}:%L - %m%n");
+    my $layout = Log::Log4perl::Layout::SimpleLayout->new();
 
     my $log = Log::Log4perl->get_logger();
     $appender->layout($layout);
