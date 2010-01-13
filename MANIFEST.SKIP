@@ -47,3 +47,4 @@
 \bModwareX-[\d\.\_]+
 
 \btmp/
+^MYMETA.yml$

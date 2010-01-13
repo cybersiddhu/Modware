@@ -20,7 +20,6 @@ my $hit_parser   = 'none';
 my $db_source    = 'GFF_source';
 my $source       = 'dictyBase_blast';
 my $seq_onto     = 'sequence';
-my $option       = { LongReadLen => 2**15 };
 
 GetOptions(
     'h|help'             => sub { pod2usage(1); },
@@ -29,7 +28,6 @@ GetOptions(
     'dsn=s'              => \$dsn,
     'u|user=s'           => \$user,
     'p|pass|password=s'  => \$pass,
-    'opt|dbopt:s'        => \$option,
     'qp|query_parser:s'  => \$query_parser,
     'hp|hit_parser:s'    => \$hit_parser,
     's|src|source:s'     => \$source,

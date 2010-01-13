@@ -29,7 +29,6 @@ GetOptions(
     'dsn=s'              => \$dsn,
     'u|user=s'           => \$user,
     'p|pass|password=s'  => \$pass,
-    'opt|dbopt:s'        => \$option,
     'so|seq_onto:s'      => \$seq_onto,
     'mt|match_type:s'    => \$match_type,
     'v|verbose'          => \$verbose,
@@ -66,7 +65,7 @@ if ($verbose) {
     $logger = setup_logger();
 }
 
-my $schema = Bio::Chado::Schema->connect( $dsn, $user, $pass, $option );
+my $schema = Bio::Chado::Schema->connect( $dsn, $user, $pass);
 $schema->storage->verbose(1) if $sql_verbose;
 
 #check if the sequence ontology namespace exists
@@ -182,7 +181,7 @@ try {
 }
 catch {
     $logger->warn("Alignment cannot be deleted $_") if $verbose;
-    warn "Alignment cannot be deleted $_\n" if !$verbose;
+    warn "Alignment cannot be deleted $_\n"         if !$verbose;
 };
 
 sub setup_logger {
