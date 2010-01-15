@@ -1,0 +1,811 @@
+#!/usr/bin/perl -w
+
+use strict;
+use local::lib '~/dictyBase/Libs/modern-perl';
+use Pod::Usage;
+use Getopt::Long;
+use Bio::SearchIO;
+use Bio::Chado::Schema;
+use Try::Tiny;
+use YAML qw/LoadFile/;
+use Log::Log4perl qw/:easy/;
+use Log::Log4perl::Appender;
+use Log::Log4perl::Layout::PatternLayout;
+
+my ($dsn,    $user,   $pass,    $query_org, $query_type,
+    $update, $config, $verbose, $sql_verbose
+);
+
+my $program;
+my $version;
+my $name;
+my $desc;
+
+my $chunk        = 500;
+my $query_parser = 'none';
+my $hit_parser   = 'none';
+my $db_source    = 'GFF_source';
+my $source       = 'dictyBase_blast';
+my $seq_onto     = 'sequence';
+
+GetOptions(
+    'h|help'             => sub { pod2usage(1); },
+    'qorg|query_org=s'   => \$query_org,
+    'qtype|query_type:s' => \$query_type,
+    'dsn=s'              => \$dsn,
+    'u|user=s'           => \$user,
+    'p|pass|password=s'  => \$pass,
+    'qp|query_parser:s'  => \$query_parser,
+    'hp|hit_parser:s'    => \$hit_parser,
+    's|src|source:s'     => \$source,
+    'so|seq_onto:s'      => \$seq_onto,
+    'update'             => \$update,
+    'db_src|db_source'   => \$db_source,
+    'c|config:s'         => \$config,
+    'v|verbose'          => \$verbose,
+    'sql_verbose'        => \$sql_verbose,
+    'chunk=i'            => \$chunk,
+) or exit(1);
+
+if ($config) {
+    my $str = LoadFile($config);
+    my $db  = $str->{database};
+    if ($db) {
+        $dsn  = $db->{dsn}      || $dsn;
+        $user = $db->{user}     || $user;
+        $pass = $db->{password} || $pass;
+    }
+    my $query = $str->{query};
+    if ($query) {
+        $query_org    = $query->{organism} || $query_org;
+        $query_parser = $query->{parser}   || $query_parser;
+    }
+    my $blast = $str->{blast};
+
+    $hit_parser = $str->{target}->{parser} || $hit_parser;
+    $seq_onto   = $str->{so}               || $seq_onto;
+    $db_source  = $str->{database_source}  || $db_source;
+    $source     = $str->{source}           || $source;
+
+    if ($blast) {
+        $program = $blast->{program};
+        $version = $blast->{version};
+        $name    = $program . '_' . $source;
+        $desc    = $program . ' alignment';
+    }
+}
+
+pod2usage("no blast alignment file is given") if !$ARGV[0];
+
+my $logger = setup_logger() if $verbose;
+
+my %type_map = (
+    blastn  => 'DNA',
+    blastp  => 'protein',
+    tblastn => 'protein',
+    blastx  => 'DNA',
+    tblastx => 'DNA',
+);
+
+my %match_map = (
+    blastn  => 'nucleotide_match',
+    blastp  => 'protein_match',
+    tblastn => 'protein_match',
+    blastx  => 'translated_protein_match',
+    tblastx => 'translated_protein_match',
+);
+
+my %query_parser_map = (
+    'ncbi'    => sub { ( ( split /\|/, $_[0] ) )[1] },
+    'regular' => sub { ( ( split /\|/, $_[0] ) )[0] },
+    'dicty' => sub {
+        my $id = ( ( split /\|/, $_[0] ) )[1];
+        $id =~ s/\s+$//;
+        $id;
+    },
+    'none' => sub { my $id = $_[0]; $id =~ s/\s+$//; $id; }
+);
+
+my %hit_parser_map = (
+    'ncbi'    => sub { ( ( split /\|/, $_[0] ) )[1] },
+    'regular' => sub { ( ( split /\|/, $_[0] ) )[0] },
+    'dicty' => sub {
+        my $id = ( ( split /\|/, $_[0] ) )[0];
+        $id =~ s/\s+$//;
+        $id;
+
+    },
+    'none' => sub { my $id = $_[0]; $id =~ s/\s+$//; $id; }
+);
+
+my $searchio = Bio::SearchIO->new( -file => $ARGV[0], -format => 'blast' );
+my $schema = Bio::Chado::Schema->connect( $dsn, $user, $pass );
+$schema->storage->verbose(1) if $sql_verbose;
+
+#check if the sequence ontology namespace exists
+my $so = $schema->resultset('Cv::Cv')->find( { name => $seq_onto } );
+pod2usage("sequence ontology namespace $seq_onto does not exist") if !$so;
+
+#get the dbsource
+my $db = $schema->resultset('General::Db')->find( { name => $db_source } );
+
+if ( !$db ) {
+    try {
+        $db = $schema->txn_do(
+            sub {
+                $schema->resultset('General::Db')
+                    ->create( { name => $db_source } );
+            }
+        );
+    }
+    catch {
+        die "unable to create source record $source $_";
+    };
+}
+
+my $dbxref;
+try {
+    $dbxref = $schema->txn_do(
+        sub {
+            $schema->resultset('General::Dbxref')->find_or_create(
+                {   accession => $source,
+                    db_id     => $db->db_id
+                }
+            );
+        }
+    );
+}
+catch {
+    die "unable to create dbxref record for source: $source $_ \n";
+};
+
+my $match_part = $schema->resultset('Cv::Cvterm')->find(
+    {   name  => 'match_part',
+        cv_id => $so->cv_id
+    }
+);
+
+pod2usage("unable to fetch *match_part* cvterm:  please insert that first")
+    if !$match_part;
+
+my $part_of = $schema->resultset('Cv::Cvterm')
+    ->find( { name => 'part_of', cv_id => $so->cv_id }, );
+
+my $description
+    = $schema->resultset('Cv::Cvterm')->find( { name => 'description' } );
+
+pod2usage("unable to find description cvterm in database") if !$description;
+
+#get the query organism
+my $organism = $schema->resultset('Organism::Organism')->search(
+    {   -or => [
+            'common_name'  => $query_org,
+            'abbreviation' => $query_org,
+            'species'      => $query_org,
+
+        ],
+    },
+    { 'select' => [qw/species organism_id common_name/], rows => 1 }
+)->single;
+
+pod2usage("$organism organism does not exist in our database") if !$organism;
+
+my $analysis;
+my $match_type;
+my $hit_storage;
+my $hsp_storage;
+my $query_storage;
+
+RESULT:
+while ( my $result = $searchio->next_result ) {
+    next RESULT if $result->num_hits == 0;
+
+    if ( defined $hit_storage and scalar @$hit_storage >= $chunk ) {
+        save_chunk( $schema, $query_storage, $hit_storage, $hsp_storage );
+        undef $hit_storage;
+        undef $hsp_storage;
+        undef $query_storage;
+    }
+
+    $analysis
+        ||= $schema->resultset('Companalysis::Analysis')->find_or_create(
+        {   program        => $program || $result->algorithm,
+            programversion => $version || $result->algorithm_version,
+            sourcename     => $source,
+            name           => $name    || $result->algorithm . '_' . $source,
+            description    => $desc    || $result->algorithm . ' alignment'
+        }
+        );
+
+    $query_type ||= $schema->resultset('Cv::Cvterm')->find(
+        {   name => $type_map{ lc( $program || $result->algorithm ) },
+            cv_id => $so->cv_id
+        }
+    );
+    $match_type ||= $schema->resultset('Cv::Cvterm')->find(
+        {   name => $match_map{ lc( $program || $result->algorithm ) },
+            cv_id => $so->cv_id
+        }
+    );
+
+    my $query_id  = $query_parser_map{$query_parser}->( $result->query_name );
+    my $query_row = $schema->resultset('Sequence::Feature')->search(
+        {   -and => [
+                'is_deleted'  => 0,
+                'is_analysis' => 1,
+                -or           => [
+                    'dbxref.accession' => $query_id,
+                    'uniquename'       => $query_id,
+                    'name'             => $query_id
+                ]
+            ]
+        },
+        {   join   => 'dbxref',
+            select => [qw/feature_id type_id uniquename name/],
+            rows   => 1
+        }
+    )->single;
+
+    if ($query_row) {
+        $logger->info("query record $query_id is present") if $verbose;
+    }
+    else {
+        my $query_create = {
+            uniquename  => $query_id,
+            name        => $query_id,
+            organism_id => $organism->organism_id,
+            is_analysis => 1,
+            type_id     => $query_type->cvterm_id,
+            dbxref      => {
+                accession => $query_id,
+                db_id     => $db->db_id
+            },
+        };
+        push @$query_storage, $query_create;
+        $logger->info("Defering query_id $query_id") if $verbose;
+    }
+
+    #remove_alignments( $schema, $query_row, $match_type->name ) if $update;
+
+HIT:
+    while ( my $hit = $result->next_hit ) {
+        my $hit_id     = $hit_parser_map{$hit_parser}->( $hit->name );
+        my $target_row = $schema->resultset('Sequence::Feature')->search(
+            {   -and => [
+                    'is_deleted' => 0,
+                    -or          => [
+                        'uniquename'       => $hit_id,
+                        'dbxref.accession' => $hit_id,
+                        'name'             => $hit_id
+                    ]
+                ]
+            },
+            {   join     => 'dbxref',
+                'select' => [qw/feature_id organism_id/],
+                rows     => 1
+            }
+
+        )->single;
+
+        if ( !$target_row ) {
+            warn "unable to find hit for hit id: $hit_id\n";
+            next HIT;
+        }
+
+#additional grouping of hsp's by the hit strand as in case of tblastn hsp
+#belonging to separate strand of query could be grouped into the same hit,  however
+#they denotes separate matches and should be separated.
+        my $hsp_group;
+        while ( my $hsp = $hit->next_hsp ) {
+            my $strand = $hsp->strand('hit') == 1 ? 'plus' : 'minus';
+            push @{ $hsp_group->{$strand} }, $hsp;
+        }
+
+    STRAND:
+        foreach my $strand ( keys %$hsp_group ) {
+            my $hit_value = uniq_hit_id( $query_id, $hit_id, $strand, $hit );
+            my $hit_create = {
+                uniquename  => $hit_value,
+                name        => $hit_value,
+                organism_id => $target_row->organism_id,
+                is_analysis => 1,
+                seqlen      => $hit->length,
+                type_id     => $match_type->cvterm_id,
+                dbxref      => {
+                    accession => $hit_value,
+                    db_id     => $db->db_id
+                },
+                analysisfeatures => [
+                    {   analysis_id  => $analysis->analysis_id,
+                        rawscore     => $hit->bits,
+                        normscore    => $hit->score,
+                        significance => $hit->significance
+                    }
+                ],
+                feature_dbxrefs => [ { dbxref_id => $dbxref->dbxref_id } ],
+                featureloc_feature_ids => [
+                    {   'srcfeature_id' => $target_row->feature_id,
+                        'rank'          => 0,
+                        'strand'        => $hit->strand('hit') - 1,
+                        'fmin'          => $hit->start('hit') - 1,
+                        'fmax'          => $hit->end('hit') - 1
+                    }
+                ]
+            };
+            push @$hit_storage, $hit_create;
+
+        HSP:
+            foreach my $hsp ( @{ $hsp_group->{$strand} } ) {
+                my $hsp_id = uniq_hsp_id( $query_id, $hit_id, $strand, $hsp );
+                my $hsp_create = {
+                    uniquename  => $hsp_id,
+                    name        => $hsp_id,
+                    organism_id => $target_row->organism_id,
+                    is_analysis => 1,
+                    type_id     => $match_part->cvterm_id,
+                    seqlen      => $hsp->length,
+                    dbxref      => {
+                        accession => $hsp_id,
+                        db_id     => $db->db_id
+                    },
+                    featureloc_feature_ids => [
+                        {    #'srcfeature_id' => $query_row->feature_id,
+                            'rank'   => 1,
+                            'strand' => $hsp->strand('hit'),
+                            'fmin'   => $hsp->start('query') - 1,
+                            'fmax'   => $hsp->end('query'),
+                        },
+                        {   'srcfeature_id' => $target_row->feature_id,
+                            'rank'          => 0,
+                            'strand'        => $hsp->strand('hit'),
+                            'fmin'          => $hsp->start('subject') - 1,
+                            'fmax'          => $hsp->end('subject'),
+                        },
+                    ],
+                    analysisfeatures => [
+                        {   analysis_id  => $analysis->analysis_id,
+                            rawscore     => $hsp->score,
+                            normscore    => $hsp->score,
+                            significance => $hsp->evalue,
+                            identity     => $hsp->percent_identity,
+                        }
+                    ],
+                    feat_relationship_subject_ids => [
+                        {   type_id => $part_of->cvterm_id,
+
+                            #object_id => $hit_row->feature_id,
+                            rank => $hsp->rank,
+                        },
+                    ],
+                    hit_id    => $hit_value,
+                    query_id  => $query_id,
+                    query_row => $query_row ? $query_row : undef
+                };
+                push @$hsp_storage, $hsp_create;
+            }
+        }
+    }
+}
+
+#any leftover
+save_chunk( $schema, $query_storage, $hit_storage, $hsp_storage )
+    if scalar @$hit_storage > 0;
+
+#Now doing everything in one transaction
+sub save_chunk {
+    my ( $schema, $query_storage, $hit_storage, $hsp_storage ) = @_;
+    try {
+        $schema->txn_do(
+            sub {
+                my ( $hit_map, $query_map );
+                foreach my $query_data (@$query_storage) {
+                    my $query_row = $schema->resultset('Sequence::Feature')
+                        ->create($query_data);
+                    $query_map->{ $query_row->uniquename }
+                        = $query_row->feature_id;
+                }
+                foreach my $hit_data (@$hit_storage) {
+                    my $hit_row = $schema->resultset('Sequence::Feature')
+                        ->create($hit_data);
+                    $hit_map->{ $hit_row->uniquename } = $hit_row->feature_id;
+                }
+
+                foreach my $hsp_data (@$hsp_storage) {
+                    my $hit_id = $hsp_data->{hit_id};
+                    delete $hsp_data->{hit_id};
+                    $hsp_data->{feat_relationship_subject_ids}->[0]
+                        ->{object_id} = $hit_map->{$hit_id};
+
+                    my $query_id;
+                    if ( defined $hsp_data->{query_row} ) {
+                        $query_id = $hsp_data->{query_row};
+                    }
+                    else {
+                        $query_id = $query_map->{ $hsp_data->{query_id} };
+                    }
+                    delete $hsp_data->{query_id};
+                    delete $hsp_data->{query_row};
+                    $hsp_data->{featureloc_feature_ids}->[0]
+                        ->{srcfeature_id} = $query_id;
+
+                    my $hsp_row = $schema->resultset('Sequence::Feature')
+                        ->create($hsp_data);
+                }
+                $logger->info(
+                    "done creating chunk of hit: ",
+                    scalar @$hit_storage,
+                    " and chunk hsps: ",
+                    scalar @$hit_storage
+                ) if $verbose;
+
+            }
+        );
+    }
+    catch {
+        warn "Unable to create data $_\n";
+        $logger->error("Unable to create data $_") if $verbose;
+    };
+}
+
+sub uniq_hsp_id {
+    my ( $query, $hit, $strand, $hsp ) = @_;
+    sprintf "%s:%s:%d..%d::%d..%d", $query, $hit, $hsp->start('query'),
+        $hsp->end('query'), $hsp->start('subject'), $hsp->end('subject');
+
+}
+
+sub uniq_hit_id {
+    my ( $query_id, $hit_id, $strand, $hit ) = @_;
+    sprintf "%s:%s-%s:%d..%d:%d..%d", $query_id, $hit_id, $strand,
+        $hit->start('query'), $hit->end('query'), $hit->start('hit'),
+        $hit->end('hit');
+}
+
+sub remove_alignments {
+    my ( $schema, $query, $hit_type ) = @_;
+
+    #get all HSPs
+    my $hsp_rs
+        = $query->featureloc_srcfeature_ids->search( { 'rank' => 1 } )
+        ->search_related(
+        'feature',
+        { 'type.name' => 'match_part', is_analysis => 1 },
+        { join        => 'type' }
+        );
+    if ( $hsp_rs->count == 0 ) {
+        $logger->info( "No hsps for ", $query->uniquename )
+            if $verbose;
+        return;
+    }
+
+    $logger->info( "updating alignment for ", $query->uniquename )
+        if $verbose;
+
+#get all Hits
+#If the same relationship name is being used it get aliased by DBIC and which should be
+#used
+    my $hit_rs = $schema->resultset('Sequence::Feature')->search(
+        {   'type.name'   => $hit_type,
+            'type_2.name' => 'part_of',
+            'subject.feature_id' =>
+                { -in => [ map { $_->feature_id } $hsp_rs->all ] }
+        },
+        {   join => [
+                'type',
+                { 'feat_relationship_object_ids' => [ 'type', 'subject' ] }
+            ]
+        }
+    );
+
+    try {
+        $schema->txn_do(
+            sub {
+                foreach my $rs ( ( $hit_rs, $hsp_rs ) ) {
+                    my $dbxref_rs = $rs->search_related('dbxref');
+                    $logger->info( "Going to delete dbxref ",
+                        $dbxref_rs->count, " record" )
+                        if $verbose;
+                    $dbxref_rs->delete_all;
+                    $logger->info( 'Going to delete ', $rs->count, ' record' )
+                        if $verbose;
+                    $rs->delete_all;
+                }
+            }
+        );
+    }
+    catch {
+        warn 'unable to clean alignment for query ', $query->name, " $_\n";
+        return;
+    };
+
+}
+
+sub setup_logger {
+    my $appender
+        = Log::Log4perl::Appender->new(
+        'Log::Log4perl::Appender::ScreenColoredLevels',
+        stderr => 1 );
+
+    my $layout = Log::Log4perl::Layout::PatternLayout->new(
+        "[%d{MM-dd-yyyy hh:mm}] %p > %F{1}:%L - %m%n");
+
+    my $log = Log::Log4perl->get_logger();
+    $appender->layout($layout);
+    $log->add_appender($appender);
+    $log->level($DEBUG);
+    $log;
+}
+
+sub setup_file_logger {
+    my $appender
+        = Log::Log4perl::Appender->new( 'Log::Log4perl::Appender::File',
+        filename => 'load_alignment.log' );
+
+    my $layout = Log::Log4perl::Layout::PatternLayout->new(
+        "[%d{MM-dd-yyyy hh:mm}] %p > %F{1}:%L - %m%n");
+
+    my $log = Log::Log4perl->get_logger();
+    $appender->layout($layout);
+    $log->add_appender($appender);
+    $log->level($DEBUG);
+    $log;
+}
+
+=head1 NAME
+
+B<load_alignment.pl> - [Load blast alignment in chado database with optimized transaction]
+
+
+=head1 SYNOPSIS
+
+perl load_alignment.pl -dsn "dbi:Oracle:host=localhost;sid=oraclesid" -u user -p pass
+-qorg worm blast_data.out`:w
+
+
+perl load_alignment.pl -dsn "dbi:Oracle:host=localhost;sid=oraclesid" -u user -p pass
+-qorg dicty -hp dicty -qp dicty blast_data.out
+
+
+perl load_alignment.pl -dsn "dbi:Pg:host=localhost;database=mygmod" -u user -p pass
+-qorg fly -hp ncbi -qp regular blast_data.out
+
+perl load_alignment.pl -dsn "dbi:Pg:host=localhost;database=mygmod" -u user -p pass
+-qorg fly --update blast_data.out
+
+
+perl load_alignment.pl -c config.yaml
+
+
+=head1 REQUIRED ARGUMENTS
+
+B<[-dsn|--dsn]> - dsn for the chado database, to know more about dsn string look at the
+documentation of L<DBI> module.
+
+B<[-u|-user]> - database user name 
+
+B<[-p|-pass]> - database password
+
+B<[-qorg|-query_org]> - Organism name to which the query sequence belongs to,  will be
+used to store the query record.
+
+=head1 OPTIONS
+
+B<[-h|-help]> - display this documentation.
+
+B<[-qtype|query_type]> - Sequence ontology(SO) cvterm that will be used for storing the
+query record. By default,  it will be choosen from the type of blast search performed. The
+following map is being used by the program to decide that .....
+
+=over
+
+=item
+
+blastn => nucleotide_match
+
+=item
+
+blastp or tblastn => protein_match
+
+=item
+
+blastx or tblastx => translated_protein_match
+
+=back
+
+
+B<[-qp|-query_parser]> - The parser that will be used to extract the query Id from the
+query blast header. Three parsers are available B<ncbi>, B<regular> and B<dicty>. By
+default,  no parsing is performed. Here are the logic of the available parsers ...
+
+=over
+
+=item
+
+ncbi : The first Id that comes after gi.
+
+=item
+
+regular : It assumes there are at least 2 or more Ids present in the header separated by
+pipe(|) character. It returns the 2nd one.
+
+
+=item
+
+dicty : It is specific to header generated by dictyBase software. 
+
+=back
+
+B<[-hp|-hit_parser]> - Works on blast header of the hit entry,  works exactly like the
+query parser option.
+
+B<[-s|-src|-source]> - The source name that will be linked to every hit entry and
+ultimately can be used in the gbrowse configuration after the method name. It will be
+stored in accession of dbxref table linked via feature_dbxref table. By default,
+B<dictyBase_blast> is used.
+
+B<[-so|seq_onto]> - Sequence ontology namespace under which SO is loaded,  default is
+B<sequence>
+
+B<[-update]> - Updates the alignments,  here the loader tries to find the query in the
+database after parsing the header. If found,  it deletes all Hit and HSPs that are linked
+to each of them. Then it creates new entires as it happens in case of a run without update
+flag.
+
+B<[-db_src|db_source]> - Name of the database authority to which every entry will be tied
+to in this blast loading. By default B<GFF_source> will be used.
+
+B<[-c|-config]> - Configuration in YAML format from where options will be read. Here is an
+example of it .....
+
+
+
+=over
+
+
+#The main datasource where the blast alignment will be stored 
+database:
+  dsn: "dbi:Oracle:host=yada;sid=yada"
+  user: yada
+  password: yada
+
+#The database from where the hit id will be looked up 
+ #Absolutely dictybase specific
+meta:
+  dsn: "dbi:Oracle:host=yada;sid=yada"
+  user: yada
+  password: yada
+
+#Where the gene product name is stored
+ #Absolutely dictybase specific
+legacy:
+  dsn: "dbi:Oracle:host=yada;sid=yada"
+  user: yada
+  password: yada
+
+query:
+  organism: dicty
+  parser: dicty
+
+target:
+  parser: none
+  organism: dpur
+
+so: sequence
+
+source: dictyBase_blast
+
+database_source : GFF_source
+
+match_type: protein_match
+
+
+=back
+
+
+B<[-v|-verbose]> - Show more output of every step,  by default it goes to STDERR 
+
+
+=head1 DESCRIPTION
+
+The blast data is loaded following the best practices of GMOD community,  particular
+making it compatible with bulk GFF3 loader script. The following storage model is followed
+...
+
+------------------------------------------ genome
+ 		^      ^      ^     ^
+ 		|   ___|____A_|___  |     alignment feature type = match
+ floc   |    ^          ^   | floc (rank = 0)
+        |    | f_r  f_r |   |
+      --B-----        ----C---     hsp feature type = match_part
+             |        | 
+        floc |        | floc (rank = 1)
+             V        V
+             ----D-----  aligned feature type(protein/DNA/EST)     
+
+=over
+
+=item *
+
+The query gets a feature record,  its id gets parsed from its blast header.
+
+=item *
+
+Each hit gets a feature record along with its entry in analysisfeature table. In addition,
+the hit also adds a featureloc record tied to the genome. This is done to make it gbrowse
+compatible as the gbrowse-chado adaptor needs a featureloc entry for displaying.
+
+=item *
+
+The hsps gets a feature entry along with two featureloc entries both to genome and query
+feature and another feature relationship entry with its corresponding hit.
+
+=back
+
+
+=head2 OTHER FEATURES OF THE SCRIPT
+
+=over
+
+=item *
+
+No attempts is made to store the sequence of query.
+
+=item *
+
+The hit id is parsed from its header and then used to look up for reference
+feature(genome) in chado. If absent,  that particular alignment is skipped. So,  it is
+neccessary to use id of reference feature in the fasta file of target sequence.
+
+=item *
+
+As per chado database constraint, the unique id of each hit is constructed by combining
+both query and hit id. In gbrowse callback,  the query id is parsed for display.
+
+=back
+
+
+=head1 DIAGNOSTICS
+
+Each insertion is done in its separate transaction. In case of failure,  the scripts warns
+and moves on to the next alignment.
+
+=head1 CONFIGURATION AND ENVIRONMENT
+
+None.
+
+=head1 DEPENDENCIES
+
+Bio::Chado::Schema
+
+Bio::SearchIO
+
+Try::Tiny
+
+
+=head2 Optional dependencies[Depending on database server] 
+
+DBD::mysql 
+
+DBD::Pg
+
+DBD::Oracle
+
+
+=head1 BUGS AND LIMITATIONS
+
+It does not store any sequences. The HSP alignments is also not stored. 
+
+
+=head1 AUTHOR
+
+I<Siddhartha Basu>  B<siddhartha-basu@northwestern.edu>
+
+=head1 LICENCE AND COPYRIGHT
+
+Copyright (c) B<2009>, Siddhartha Basu C<<siddhartha-basu@northwestern.edu>>. All rights reserved.
+
+This module is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself. See L<perlartistic>.
+
+
+
