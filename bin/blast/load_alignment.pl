@@ -20,6 +20,10 @@ my $hit_parser   = 'none';
 my $db_source    = 'GFF_source';
 my $source       = 'dictyBase_blast';
 my $seq_onto     = 'sequence';
+my $program;
+my $version;
+my $name;
+my $desc;
 
 GetOptions(
     'h|help'             => sub { pod2usage(1); },
@@ -37,7 +41,7 @@ GetOptions(
     'c|config:s'         => \$config,
     'v|verbose'          => \$verbose,
     'sql_verbose'        => \$sql_verbose,
-);
+) or exit(1);
 
 if ($config) {
     my $str = LoadFile($config);
@@ -52,12 +56,19 @@ if ($config) {
         $query_org    = $query->{organism} || $query_org;
         $query_parser = $query->{parser}   || $query_parser;
     }
+    my $blast = $str->{blast};
 
     $hit_parser = $str->{target}->{parser} || $hit_parser;
     $seq_onto   = $str->{so}               || $seq_onto;
     $db_source  = $str->{database_source}  || $db_source;
     $source     = $str->{source}           || $source;
 
+    if ($blast) {
+        $program = $blast->{program};
+        $version = $blast->{version};
+        $name    = $program . '_' . $source;
+        $desc    = $program . ' alignment';
+    }
 }
 
 pod2usage("no blast alignment file is given") if !$ARGV[0];
@@ -83,7 +94,7 @@ my %match_map = (
 my %query_parser_map = (
     'ncbi'    => sub { ( ( split /\|/, $_[0] ) )[1] },
     'regular' => sub { ( ( split /\|/, $_[0] ) )[0] },
-    'dicty'   => sub {
+    'dicty' => sub {
         my $id = ( ( split /\|/, $_[0] ) )[1];
         $id =~ s/\s+$//;
         $id;
@@ -94,7 +105,7 @@ my %query_parser_map = (
 my %hit_parser_map = (
     'ncbi'    => sub { ( ( split /\|/, $_[0] ) )[1] },
     'regular' => sub { ( ( split /\|/, $_[0] ) )[0] },
-    'dicty'   => sub {
+    'dicty' => sub {
         my $id = ( ( split /\|/, $_[0] ) )[0];
         $id =~ s/\s+$//;
         $id;
@@ -103,7 +114,8 @@ my %hit_parser_map = (
     'none' => sub { my $id = $_[0]; $id =~ s/\s+$//; $id; }
 );
 
-my $searchio = Bio::SearchIO->new( -file => $ARGV[0], -format => 'blast' );
+my $searchio
+    = Bio::SearchIO->new( -file => $ARGV[0], -format => 'blast' );
 my $schema = Bio::Chado::Schema->connect( $dsn, $user, $pass );
 $schema->storage->verbose(1) if $sql_verbose;
 
@@ -180,26 +192,26 @@ my $match_type;
 
 RESULT:
 while ( my $result = $searchio->next_result ) {
-    next RESULT if $result->no_hits_found;
+    next RESULT if $result->num_hits == 0;
 
     $analysis
         ||= $schema->resultset('Companalysis::Analysis')->find_or_create(
-        {   program        => $result->algorithm,
-            programversion => $result->algorithm_version,
+        {   program        => $program || $result->algorithm,
+            programversion => $version || $result->algorithm_version,
             sourcename     => $source,
-            name           => $result->algorithm . '_' . $source,
-            description    => $result->algorithm . ' alignment'
+            name           => $name    || $result->algorithm . '_' . $source,
+            description    => $desc    || $result->algorithm . ' alignment'
         }
         );
 
     $query_type
         ||= $schema->resultset('Cv::Cvterm')
         ->find(
-        { name => $type_map{ lc $result->algorithm }, cv_id => $so->cv_id } );
+        { name => $type_map{ lc ($program || $result->algorithm) }, cv_id => $so->cv_id } );
     $match_type
         ||= $schema->resultset('Cv::Cvterm')
         ->find(
-        { name => $match_map{ lc $result->algorithm }, cv_id => $so->cv_id }
+        { name => $match_map{ lc ($program || $result->algorithm) }, cv_id => $so->cv_id }
         );
 
     my $query_id  = $query_parser_map{$query_parser}->( $result->query_name );
@@ -309,17 +321,27 @@ HIT:
                             }
                         ],
                         feature_dbxrefs =>
-                            [ { dbxref_id => $dbxref->dbxref_id } ]
+                            [ { dbxref_id => $dbxref->dbxref_id } ], 
+									
+						featureloc_feature_ids => [
+							{
+								'srcfeature_id' => $target_row->feature_id,  
+								'rank' => 0, 
+								'strand' => $hit->strand('hit') - 1, 
+								'fmin' => $hit->start('hit') - 1, 
+								'fmax' => $hit->end('hit') - 1
+							}
+						]
                     }
                 );
-                my $floc_row = $schema->resultset('Sequence::Featureloc')
-                    ->create( { feature_id => $hit_row->feature_id } );
-                $floc_row->srcfeature_id( $target_row->feature_id );
-                $floc_row->rank(0);
-                $floc_row->strand( $hit->strand('hit') );
-                $floc_row->fmin( $hit->start('hit') - 1 );
-                $floc_row->fmax( $hit->end('hit') );
-                $floc_row->update;
+                #my $floc_row = $schema->resultset('Sequence::Featureloc')
+                #    ->create( { feature_id => $hit_row->feature_id } );
+                #$floc_row->srcfeature_id( $target_row->feature_id );
+                #$floc_row->rank(0);
+                #$floc_row->strand( $hit->strand('hit') );
+                #$floc_row->fmin( $hit->start('hit') - 1 );
+                #$floc_row->fmax( $hit->end('hit') );
+                #$floc_row->update;
 
                 $hit_row;
             };
@@ -369,9 +391,9 @@ HIT:
                             ],
                             analysisfeatures => [
                                 {   analysis_id  => $analysis->analysis_id,
-                                    rawscore     => $hsp->bits,
+                                    rawscore     => $hsp->score,
                                     normscore    => $hsp->score,
-                                    significance => $hsp->significance,
+                                    significance => $hsp->evalue,
                                     identity     => $hsp->percent_identity,
                                 }
                             ],
@@ -401,18 +423,16 @@ HIT:
 
 sub uniq_hsp_id {
     my ( $query, $hit, $strand, $hsp ) = @_;
-    sprintf "%s:%s:%d..%d::%d..%d", $query, $hit,
-        $hsp->start('query'),
-        $hsp->end('query'),
-        $hsp->start('subject'), $hsp->end('subject');
+    sprintf "%s:%s:%d..%d::%d..%d", $query, $hit, $hsp->start('query'),
+        $hsp->end('query'), $hsp->start('subject'), $hsp->end('subject');
 
 }
 
 sub uniq_hit_id {
     my ( $query_id, $hit_id, $strand, $hit ) = @_;
     sprintf "%s:%s-%s:%d..%d:%d..%d", $query_id, $hit_id, $strand,
-        $hit->start('query'),
-        $hit->end('query'), $hit->start('hit'), $hit->end('hit');
+        $hit->start('query'), $hit->end('query'), $hit->start('hit'),
+        $hit->end('hit');
 }
 
 sub remove_alignments {
@@ -610,7 +630,6 @@ to in this blast loading. By default B<GFF_source> will be used.
 B<[-c|-config]> - Configuration in YAML format from where options will be read. Here is an
 example of it .....
 
-B<[-v|-verbose]> - Show more output of every step,  by default it goes to STDERR 
 
 
 =over
@@ -654,6 +673,9 @@ match_type: protein_match
 
 
 =back
+
+
+B<[-v|-verbose]> - Show more output of every step,  by default it goes to STDERR 
 
 
 =head1 DESCRIPTION

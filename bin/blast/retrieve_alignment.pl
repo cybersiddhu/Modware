@@ -9,15 +9,14 @@ use YAML qw/LoadFile/;
 
 my ( $dsn, $user, $pass, $config, $debug, $sql_debug );
 my $seq_onto = 'sequence';
-my $option = { LongReadLen => 2**15 };
 
 GetOptions(
     'h|help'            => sub { pod2usage(1); },
     'dsn=s'             => \$dsn,
     'u|user=s'          => \$user,
     'p|pass|password=s' => \$pass,
-    'opt|dbopt:s'       => \$option,
     'c|config:s'        => \$config,
+    'sql_debug'         => \$sql_debug
 );
 
 if ($config) {
@@ -33,7 +32,7 @@ if ($config) {
 pod2usage "no id given for search" if !$ARGV[0];
 
 my $schema = Bio::Chado::Schema->connect( $dsn, $user, $pass );
-$schema->storage->debug(1);
+$schema->storage->debug(1) if $sql_debug;
 
 my $query_row = $schema->resultset('Sequence::Feature')->search(
     {   -and => [
