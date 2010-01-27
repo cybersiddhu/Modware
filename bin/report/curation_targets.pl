@@ -91,10 +91,27 @@ while ( my $gene = $gene_rs->next ) {
         ]
     };
 
+    my $repred_where = {
+        'type.name'                            => 'mRNA',
+        'featureloc_feature_ids.srcfeature_id' => $src_id,
+        'featureloc_feature_ids.fmin'          => { '>=', $start },
+        'featureloc_feature_ids.fmax'          => { '<=', $end },
+        'dbxref.accession'                     => 'geneID reprediction'
+    };
+
     my $est_rs = $schema->resultset('Sequence::Feature')->search(
         $where,
         {   join   => [qw/featureloc_feature_ids type/],
             select => { 'count' => 'feature_id' }
+        }
+    );
+
+    my $repred_rs = $schema->resulset('Sequence::Feature')->count(
+        $repred_where,
+        {   join => [
+                'featureloc_feature_ids', 'type',
+                { 'feature_dbxrefs' => 'dbxref' }
+            ]
         }
     );
 
