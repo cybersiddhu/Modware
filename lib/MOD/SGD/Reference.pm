@@ -96,10 +96,20 @@ __PACKAGE__->add_unique_constraint(
   "ref_citation_uk",
   ["citation", "citation", "citation", "citation"],
 );
+__PACKAGE__->has_many(
+  "abstracts",
+  "MOD::SGD::Abstract",
+  { "foreign.reference_no" => "self.reference_no" },
+);
+__PACKAGE__->has_many(
+  "locus_gene_infoes",
+  "MOD::SGD::LocusGeneInfo",
+  { "foreign.reference_no" => "self.reference_no" },
+);
 
 
-# Created by DBIx::Class::Schema::Loader v0.04006 @ 2010-01-07 10:55:58
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:okzigjcYLlSjO5VeBR9XUg
+# Created by DBIx::Class::Schema::Loader v0.04006 @ 2010-01-29 16:13:09
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:02KoDqN4U6ozVTGt+BkceQ
 
 
 # You can replace this text with custom content, and it will be preserved on regeneration

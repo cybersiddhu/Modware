@@ -35,10 +35,15 @@ __PACKAGE__->add_columns(
   },
 );
 __PACKAGE__->set_primary_key("locus_no", "reference_no", "literature_topic");
+__PACKAGE__->belongs_to(
+  "reference_no",
+  "MOD::SGD::Reference",
+  { reference_no => "reference_no" },
+);
 
 
-# Created by DBIx::Class::Schema::Loader v0.04006 @ 2010-01-07 10:55:58
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:EvcPYYR7zXVJsCWIsM3GyA
+# Created by DBIx::Class::Schema::Loader v0.04006 @ 2010-01-29 16:13:09
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:AMllljP/hXD49Xp6yD1AEw
 
 
 # You can replace this text with custom content, and it will be preserved on regeneration
