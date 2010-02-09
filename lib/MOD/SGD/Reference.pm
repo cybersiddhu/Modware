@@ -102,7 +102,7 @@ __PACKAGE__->has_many(
   { "foreign.reference_no" => "self.reference_no" },
 );
 __PACKAGE__->has_many(
-  "locus_gene_infoes",
+  "locus_gene_infos",
   "MOD::SGD::LocusGeneInfo",
   { "foreign.reference_no" => "self.reference_no" },
 );

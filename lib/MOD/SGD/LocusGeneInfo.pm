@@ -34,7 +34,7 @@ __PACKAGE__->add_columns(
     size => 12,
   },
 );
-__PACKAGE__->set_primary_key("locus_no", "reference_no", "literature_topic");
+__PACKAGE__->set_primary_key("locus_no");
 __PACKAGE__->belongs_to(
   "reference_no",
   "MOD::SGD::Reference",
