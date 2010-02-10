@@ -6,7 +6,7 @@ use Pod::Usage;
 use Getopt::Long;
 use Bio::Chado::Schema;
 use Bio::Index::Blast;
-use List::MoreUtils qw/any/;
+use List::MoreUtils qw/any firstval/;
 use IO::File;
 use Try::Tiny;
 use autodie;
@@ -34,23 +34,28 @@ my $blast = Bio::Index::Blast->new( -filename => $idx );
 my $schema = Bio::Chado::Schema->connect( $dsn, $user, $pass, $option );
 
 my $gene_rs = $schema->resultset('Sequence::Feature')->search(
-    { 'type.name' => 'gene', 'is_deleted' => 0 },
+    {   'type.name'  => 'gene',
+        'me.is_deleted' => 0,
+        'me.name'       => { -not_like => '%RTE' }
+    },
     {   join     => [qw/type dbxref/],
         prefetch => [qw/dbxref/],
+        rows     => 500
     }
 );
 
 GENE:
 while ( my $gene = $gene_rs->next ) {
+
     my $trans_rs = $gene->feat_relationship_object_ids->search_related(
         'subject',
         { 'type.name' => 'mRNA' },
-        { join        => 'type', },
+        { join        => 'type' }
     );
 
     my $gene_id = $gene->dbxref->accession;
     if ( $trans_rs->count == 0 ) {
-        $log->print("skipped $gene_id \n");
+        $log->print("skipped curated $gene_id \n");
         next GENE;
     }
 
@@ -58,11 +63,12 @@ while ( my $gene = $gene_rs->next ) {
 
     #checking for curated model
     while ( my $row = $trans_rs->next ) {
-        if ( any { $_->accession =~ /Curator/i } $row->secondary_dbxrefs ) {
+        if ( any { $_->accession eq 'dictyBase Curator' }
+            $row->secondary_dbxrefs )
+        {
             next GENE;
         }
         $transcript = $row;
-        last;
     }
 
     my $floc_row = $gene->featureloc_feature_ids->single;
@@ -132,6 +138,8 @@ while ( my $gene = $gene_rs->next ) {
         $repred = 'yes' if feature_matches( $transcript, $repred_trans );
     }
 
+    my $seqlen = seqlen($transcript);
+
     #-- now generate the report
 
     #blast hit lookup
@@ -141,29 +149,38 @@ while ( my $gene = $gene_rs->next ) {
 
         #no result or no hit
         if ( !$result or $result->num_hits == 0 ) {
-            $writer->print( $gene_id, "\t$repred\t", $est_count, "\tno\n" );
+            $writer->print( $gene_id, "\t$repred\t$seqlen\t", $est_count,
+                "\tno\n" );
         }
         else {
-            my $hit      = $result->next_hit;
-            my $hsp      = $hit->hsp;
-            my $hit_name = ( ( split( /\|/, $hit->name ) )[1] );
-
-            my $out_string = sprintf "%s\t%s\t%d\tyes\t%s\t%s\t%d%%\n",
-                $gene_id, $repred, $est_count, $hit_name, $hsp->evalue,
-                $hsp->frac_identical * 100;
+            my $hit        = $result->next_hit;
+            my $hsp        = $hit->hsp;
+            my $hit_name   = ( ( split( /\|/, $hit->name ) )[1] );
+            my $out_string = sprintf "%s\t%s\t%d\t%d\tyes\t%s\t%s\t%d%%\n",
+                $gene_id, $repred, $seqlen, $est_count, $hit_name,
+                $hsp->evalue, $hsp->frac_identical * 100;
             $writer->print($out_string);
         }
 
     }
     catch {
         $log->print("Issue getting blast result for $gene_id => $_\n");
-        $writer->print( $gene_id, "\t$repred\t", $est_count, "\tno\n" );
+        $writer->print( $gene_id, "\t$repred\t$seqlen\t", $est_count,
+            "\tno\n" );
     };
 
 }
 
 $writer->close;
 $log->close;
+
+sub seqlen {
+	#need to change it to polypeptide 
+    my ($trans) = @_;
+    my $seqrow = firstval { $_->type->name eq 'DNA coding sequence' }
+    $trans->featureprops;
+    return length $seqrow->value;
+}
 
 sub feature_matches {
     my ( $trans, $repred_trans ) = @_;
