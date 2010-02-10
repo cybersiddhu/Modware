@@ -48,6 +48,12 @@ while ( my $gene = $gene_rs->next ) {
         { join        => 'type', },
     );
 
+    my $gene_id = $gene->dbxref->accession;
+    if ( $trans_rs->count == 0 ) {
+        $log->print("skipped $gene_id \n");
+        next GENE;
+    }
+
     my $transcript;
 
     #checking for curated model
@@ -120,14 +126,13 @@ while ( my $gene = $gene_rs->next ) {
             rows => 1,
         }
     )->single;
+    $log->print("writing report for $gene_id \n");
 
     if ($repred_trans) {
         $repred = 'yes' if feature_matches( $transcript, $repred_trans );
     }
 
     #-- now generate the report
-
-    my $gene_id = $gene->dbxref->accession;
 
     #blast hit lookup
     my $result;
@@ -151,7 +156,7 @@ while ( my $gene = $gene_rs->next ) {
 
     }
     catch {
-    	$log->print("Issue getting blast result for $gene_id => $_\n");
+        $log->print("Issue getting blast result for $gene_id => $_\n");
         $writer->print( $gene_id, "\t$repred\t", $est_count, "\tno\n" );
     };
 
