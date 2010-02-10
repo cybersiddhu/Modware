@@ -1,6 +1,7 @@
 #!/usr/bin/perl -w
 
 use strict;
+use local::lib '~/dictyBase/Libs/modern-perl';
 use Pod::Usage;
 use Getopt::Long;
 use Bio::Chado::Schema;
@@ -23,7 +24,6 @@ GetOptions(
     'idx|index=s'       => \$idx,
     'o|out|output:s'    => \$out,
     'l|log:s'           => \$logger,
-    'opt|dbopt:s'       => \$option,
 );
 
 pod2usage("no blast index file name given") if !$idx;
@@ -48,11 +48,15 @@ while ( my $gene = $gene_rs->next ) {
         { join        => 'type', },
     );
 
+    my $transcript;
+
     #checking for curated model
-    while ( my $trans = $trans_rs->next ) {
-        if ( any { $_->accession =~ /Curator/i } $trans->secondary_dbxrefs ) {
+    while ( my $row = $trans_rs->next ) {
+        if ( any { $_->accession =~ /Curator/i } $row->secondary_dbxrefs ) {
             next GENE;
         }
+        $transcript = $row;
+        last;
     }
 
     my $floc_row = $gene->featureloc_feature_ids->single;
@@ -99,70 +103,106 @@ while ( my $gene = $gene_rs->next ) {
         'dbxref.accession'                     => 'geneID reprediction'
     };
 
-    my $est_rs = $schema->resultset('Sequence::Feature')->search(
+    my $est_count = $schema->resultset('Sequence::Feature')->count(
         $where,
         {   join   => [qw/featureloc_feature_ids type/],
             select => { 'count' => 'feature_id' }
         }
     );
 
-    my $repred_rs = $schema->resulset('Sequence::Feature')->count(
+    my $repred       = 'no';
+    my $repred_trans = $schema->resultset('Sequence::Feature')->search(
         $repred_where,
         {   join => [
                 'featureloc_feature_ids', 'type',
                 { 'feature_dbxrefs' => 'dbxref' }
-            ]
+            ],
+            rows => 1,
         }
-    );
+    )->single;
 
-    my $est_count;
-    try {
-        $est_count = $est_rs->count;
-
-        my $gene_id = $gene->dbxref->accession;
-
-        #blast hit lookup
-        my $result;
-        try {
-            $result = $blast->fetch_report($gene_id);
-
-            #no result or no hit
-            if ( !$result or $result->num_hits == 0 ) {
-
-                #print $gene_id, "\t", $est_rs->count, "\tno\n";
-                $writer->print( $gene_id, "\t", $est_count, "\tno\n" );
-            }
-            else {
-                my $hit      = $result->next_hit;
-                my $hsp      = $hit->hsp;
-                my $hit_name = ( ( split( /\|/, $hit->name ) )[1] );
-
-                my $out_string = sprintf "%s\t%d\tyes\t%s\t%s\t%d%%\n",
-                    $gene_id,
-                    $est_count, $hit_name, $hsp->evalue,
-                    $hsp->frac_identical * 100;
-                $writer->print($out_string);
-            }
-
-        }
-        catch {
-            $writer->print( $gene_id, "\t", $est_count, "\tno\n" );
-        };
-
+    if ($repred_trans) {
+        $repred = 'yes' if feature_matches( $transcript, $repred_trans );
     }
 
-    catch {
-        warn $_;
-        $log->print( $_, "\n" );
-        warn "issue with est count for ", $gene->dbxref->accession, "\n";
-        $log->print( "issue with est count for ",
-            $gene->dbxref->accession, "\n" );
+    #-- now generate the report
 
+    my $gene_id = $gene->dbxref->accession;
+
+    #blast hit lookup
+    my $result;
+    try {
+        $result = $blast->fetch_report($gene_id);
+
+        #no result or no hit
+        if ( !$result or $result->num_hits == 0 ) {
+            $writer->print( $gene_id, "\t$repred\t", $est_count, "\tno\n" );
+        }
+        else {
+            my $hit      = $result->next_hit;
+            my $hsp      = $hit->hsp;
+            my $hit_name = ( ( split( /\|/, $hit->name ) )[1] );
+
+            my $out_string = sprintf "%s\t%s\t%d\tyes\t%s\t%s\t%d%%\n",
+                $gene_id, $repred, $est_count, $hit_name, $hsp->evalue,
+                $hsp->frac_identical * 100;
+            $writer->print($out_string);
+        }
+
+    }
+    catch {
+    	$log->print("Issue getting blast result for $gene_id => $_\n");
+        $writer->print( $gene_id, "\t$repred\t", $est_count, "\tno\n" );
     };
 
 }
+
 $writer->close;
 $log->close;
+
+sub feature_matches {
+    my ( $trans, $repred_trans ) = @_;
+
+    #get all exons with its coordinates
+    my @trans_exons = $trans->feat_relationship_object_ids->search_related(
+        'subject',
+        { 'type.name' => 'CDS' },
+        { join        => 'type' },
+        )
+        ->search_related( 'featureloc_feature_ids', {},
+        { order_by => { -asc => 'featureloc_feature_ids.fmin' } } );
+
+    my @repred_exons
+        = $repred_trans->feat_relationship_object_ids->search_related(
+        'subject',
+        { 'type.name' => 'CDS' },
+        { join        => 'type' },
+        )
+        ->search_related( 'featureloc_feature_ids', {},
+        { order_by => { -asc => 'featureloc_feature_ids.fmin' } } );
+
+    #should have equal number of exons
+    return 0 if $#trans_exons != $#repred_exons;
+
+    my ( @texons_loc, @rexons_loc );
+    push @texons_loc, $_->fmin, $_->fmax for @trans_exons;
+    push @rexons_loc, $_->fmin, $_->fmax for @repred_exons;
+
+    #now comapre them
+    for my $i ( 0 .. $#texons_loc ) {
+        return 0 if $texons_loc[$i] != $rexons_loc[$i];
+    }
+    return 1;
+
+    #$log->print(
+    #    $trans->uniquename, "\t", scalar @trans_exons, "\t",
+    #    join( "\t", @texons_loc ), "\t"
+    #);
+    #$log->print(
+    #    $repred_trans->uniquename, "\t", scalar @repred_exons, "\t",
+    #    join( "\t", @rexons_loc ), "\n"
+    #);
+}
 
 =head1 NAME
 
