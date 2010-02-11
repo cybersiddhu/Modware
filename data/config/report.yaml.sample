@@ -1,0 +1,10 @@
+database:
+  dsn: "dbi:Oracle:host=192.168.60.10;sid=dictybase"
+  user: CGM_CHADO
+  pass: CGM_CHADO
+
+blast:
+  folder: /home/ubuntu/dictyBase/Libs/Modware/data/tmp  
+  index: "ddis_dpur_blast.idx"
+
+
