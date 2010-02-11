@@ -6,14 +6,24 @@ use Pod::Usage;
 use Getopt::Long;
 use Bio::Chado::Schema;
 use Bio::Index::Blast;
-use List::MoreUtils qw/any firstval/;
-use IO::File;
+use List::MoreUtils qw/any/;
 use Try::Tiny;
 use autodie;
+use Time::Piece;
+use Path::Class::File;
+use Path::Class::Dir;
+use FindBin qw/$Bin/;
 
 my ( $dsn, $user, $pass, $idx );
-my $out    = 'curator_report.txt';
-my $logger = 'output_log.txt';
+my $t = localtime;
+my $out
+    = Path::Class::Dir->new($Bin)->parent->parent->subdir( 'data', 'report' )
+    ->file( 'curator_report_' . $t->mdy . '.txt' )->stringify;
+my $logfile
+    = Path::Class::Dir->new($Bin)->parent->parent->subdir('log')
+    ->file( 'curator_report_log_' . $t->mdy . '_' . $t->hms(':') . '.txt' )
+    ->stringify;
+
 my $option = { LongReadLen => 2**25 };
 
 GetOptions(
@@ -23,24 +33,26 @@ GetOptions(
     'p|pass|password=s' => \$pass,
     'idx|index=s'       => \$idx,
     'o|out|output:s'    => \$out,
-    'l|log:s'           => \$logger,
+    'l|log:s'           => \$logfile,
 );
 
 pod2usage("no blast index file name given") if !$idx;
 
-my $writer = IO::File->new( $out,    'w' );
-my $log    = IO::File->new( $logger, 'w' );
-my $blast = Bio::Index::Blast->new( -filename => $idx );
+my $log    = MyLogger->file_logger($logfile);
+my $writer = Path::Class::File->new($out)->openw;
+my $blast  = Bio::Index::Blast->new( -filename => $idx );
 my $schema = Bio::Chado::Schema->connect( $dsn, $user, $pass, $option );
 
+$writer->print(
+    "Gene_ID\tReprediction\tProtein_Sequence_Length(aa)\tEST_count\tDpur_hit\te-value\tpercent_identity\n\n");
+
 my $gene_rs = $schema->resultset('Sequence::Feature')->search(
-    {   'type.name'  => 'gene',
+    {   'type.name'     => 'gene',
         'me.is_deleted' => 0,
         'me.name'       => { -not_like => '%RTE' }
     },
     {   join     => [qw/type dbxref/],
         prefetch => [qw/dbxref/],
-        rows     => 500
     }
 );
 
@@ -53,9 +65,11 @@ while ( my $gene = $gene_rs->next ) {
         { join        => 'type' }
     );
 
-    my $gene_id = $gene->dbxref->accession;
+    my $gene_id   = $gene->dbxref->accession;
+    my $gene_name = $gene->name;
+
     if ( $trans_rs->count == 0 ) {
-        $log->print("skipped curated $gene_id \n");
+        $log->info("skipped curated $gene_id");
         next GENE;
     }
 
@@ -73,9 +87,8 @@ while ( my $gene = $gene_rs->next ) {
 
     my $floc_row = $gene->featureloc_feature_ids->single;
     if ( !$floc_row ) {
-        warn "gene with no location ", $gene->dbxref->accession, "\n";
-        $log->print( "gene with no location ",
-            $gene->dbxref->accession, "\n" );
+        warn "gene with no location", $gene->dbxref->accession, "\n";
+        $log->warn( "gene with no location ", $gene->dbxref->accession );
         next GENE;
     }
 
@@ -132,7 +145,8 @@ while ( my $gene = $gene_rs->next ) {
             rows => 1,
         }
     )->single;
-    $log->print("writing report for $gene_id \n");
+
+    $log->info(" writing report for $gene_id $gene_name ");
 
     if ($repred_trans) {
         $repred = 'yes' if feature_matches( $transcript, $repred_trans );
@@ -164,7 +178,7 @@ while ( my $gene = $gene_rs->next ) {
 
     }
     catch {
-        $log->print("Issue getting blast result for $gene_id => $_\n");
+        $log->info(" Issue getting blast result for $gene_id => $_ ");
         $writer->print( $gene_id, "\t$repred\t$seqlen\t", $est_count,
             "\tno\n" );
     };
@@ -172,14 +186,19 @@ while ( my $gene = $gene_rs->next ) {
 }
 
 $writer->close;
-$log->close;
 
 sub seqlen {
-	#need to change it to polypeptide 
     my ($trans) = @_;
-    my $seqrow = firstval { $_->type->name eq 'DNA coding sequence' }
-    $trans->featureprops;
-    return length $seqrow->value;
+    my $poly = $trans->search_related(
+        'feat_relationship_object_ids',
+        { 'type.name' => 'derived_from' },
+        { join        => 'type' }
+        )->search_related(
+        'subject',
+        { 'type_2.name' => 'polypeptide' },
+        { join          => 'type', row => 1 }
+        )->single;
+    $poly->seqlen;
 }
 
 sub feature_matches {
@@ -217,14 +236,41 @@ sub feature_matches {
     return 1;
 
     #$log->print(
-    #    $trans->uniquename, "\t", scalar @trans_exons, "\t",
-    #    join( "\t", @texons_loc ), "\t"
+    #    $trans->uniquename, " \t ", scalar @trans_exons, " \t ",
+    #    join( " \t ", @texons_loc ), " \t "
     #);
     #$log->print(
-    #    $repred_trans->uniquename, "\t", scalar @repred_exons, "\t",
-    #    join( "\t", @rexons_loc ), "\n"
+    #    $repred_trans->uniquename, " \t ", scalar @repred_exons, " \t ",
+    #    join( " \t ", @rexons_loc ), " \n "
     #);
 }
+
+package MyLogger;
+
+use Log::Log4perl qw/:easy/;
+use Log::Log4perl::Appender;
+use Log::Log4perl::Layout::PatternLayout;
+
+sub file_logger {
+    my ( $class, $file ) = @_;
+    my $appender
+        = Log::Log4perl::Appender->new( 'Log::Log4perl::Appender::File',
+        filename => $file );
+
+    my $layout = Log::Log4perl::Layout::PatternLayout->new(
+        "[%d{MM-dd-yyyy hh:mm}] %p > %F{1}:%L - %m%n");
+
+    my $log = Log::Log4perl->get_logger($class);
+    $appender->layout($layout);
+    $log->add_appender($appender);
+    $log->level($DEBUG);
+    $log;
+}
+
+1;
+
+__END__
+
 
 =head1 NAME
 
@@ -234,11 +280,6 @@ presence or absence of blast hit]
 
 =head1 SYNOPSIS
 
-=for author to fill in:
-Brief code example(s) here showing commonest usage(s).
-This section will be as far as many users bother reading
-so make it as educational and exeplary as possible.
-
 
 =head1 REQUIRED ARGUMENTS
 
@@ -246,17 +287,17 @@ so make it as educational and exeplary as possible.
 A complete list of every argument that must appear on the command line.
 when the application  is invoked, explaining what each of them does, any
 restrictions on where each one may appear (i.e., flags that must appear
-		before or after filenames), and how the various arguments and options
+before or after filenames), and how the various arguments and options
 may interact (e.g., mutual exclusions, required combinations, etc.)
-	If all of the application's arguments are optional, this section
-	may be omitted entirely.
+If all of the application's arguments are optional, this section
+may be omitted entirely.
 
 
 =head1 OPTIONS
 
-	B<[-h|-help]> - display this documentation.
+B<[-h|-help]> - display this documentation.
 
-	=for author to fill in:
+=for author to fill in:
 	A complete list of every available option with which the application
 	can be invoked, explaining what each does, and listing any restrictions,
 	or interactions.
@@ -265,9 +306,9 @@ may interact (e.g., mutual exclusions, required combinations, etc.)
 
 =head1 DESCRIPTION
 
-	=for author to fill in:
-	Write a full description of the module and its features here.
-	Use subsections (=head2, =head3) as appropriate.
+=for author to fill in:
+Write a full description of the module and its features here.
+Use subsections (=head2, =head3) as appropriate.
 
 
 =head1 DIAGNOSTICS
@@ -275,6 +316,18 @@ may interact (e.g., mutual exclusions, required combinations, etc.)
 =head1 CONFIGURATION AND ENVIRONMENT
 
 =head1 DEPENDENCIES
+
+Bio::Chado::Schema
+
+Try::Tiny
+
+autodie
+
+Log::Log4perl
+
+Bio::Index::Blast
+
+Path::Class
 
 =head1 BUGS AND LIMITATIONS
 
