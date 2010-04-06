@@ -2,18 +2,19 @@
 
 use strict;
 use Pod::Usage;
-use local::lib '~/dictyBase/Libs/modern-perl';
 use Bio::Chado::Schema;
 use autodie;
 use FindBin qw/$Bin/;
 use YAML qw/LoadFile/;
 use Time::Piece;
 use Path::Class;
+use Getopt::Long;
 
 my $t = Time::Piece->new;
 my $conf_file
     = Path::Class::Dir->new($Bin)->parent->parent->subdir( 'data', 'config' )
-    ->file('generic.yaml')->stringify;
+    ->file('sequence.yaml')->stringify;
+my $output;
 
 GetOptions(
     'h|help'         => sub { pod2usage(1); },
@@ -48,7 +49,7 @@ my $pass      = $db_config->{pass};
 my $option = { LongReadLen => 2**25 };
 my $schema = Bio::Chado::Schema->connect( $dsn, $user, $pass, $option );
 
-while ( my $line = $input->readline ) {
+while ( my $line = $reader->getline ) {
     chomp $line;
 
     #Assuming it is gene id get the gene object
