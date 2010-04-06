@@ -65,7 +65,7 @@ $writer->print(
 my $gene_rs = $schema->resultset('Sequence::Feature')->search(
     {   'type.name'     => 'gene',
         'me.is_deleted' => 0,
-        'me.name'       => { -not_like => '%RTE' }
+        'me.name'       => { -not_like => [ '%RTE', '%_ps' ] }
     },
     {   join     => [qw/type dbxref/],
         prefetch => [qw/dbxref/],
@@ -77,7 +77,7 @@ while ( my $gene = $gene_rs->next ) {
 
     my $trans_rs = $gene->feat_relationship_object_ids->search_related(
         'subject',
-        { 'type.name' => 'mRNA' },
+        { 'type.name' => [qw/mRNA pseudogene/] },
         { join        => 'type' }
     );
 
