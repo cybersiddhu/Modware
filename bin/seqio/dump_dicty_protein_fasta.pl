@@ -139,79 +139,73 @@ sub file_logger {
 
 =head1 NAME
 
-B<Application name> - [One line description of application purpose]
+B<dump_dicty_protein_fasta.pl> - [Given a list of dicty Gene IDs output the protein
+sequence]
 
 
 =head1 SYNOPSIS
 
-=for author to fill in:
-Brief code example(s) here showing commonest usage(s).
-This section will be as far as many users bother reading
-so make it as educational and exeplary as possible.
+perl dump_dicty_protein_fasta.pl <file>
 
 
 =head1 REQUIRED ARGUMENTS
 
+B<file> - Name of the input file,  should have one Gene ID per line
+
+=head1 OPTIONS
+
+B<[-h|-help]> - Display this documentation.
+
+B<[-c|-config>] - Yaml config file,  by default it picks up the sequence.yaml file from
+the data/config folder of this distribution. Look at I<sequence.yaml.sample> file for the
+various options this file take.
+
+B<[-o|-out|-output]> - Name of the output file,  if not given in the command try to get it
+from the config file.
+
+
+
+=head1 DESCRIPTION
+
 =for author to fill in:
-A complete list of every argument that must appear on the command line.
-when the application  is invoked, explaining what each of them does, any
-restrictions on where each one may appear (i.e., flags that must appear
-		before or after filenames), and how the various arguments and options
-may interact (e.g., mutual exclusions, required combinations, etc.)
-	If all of the application's arguments are optional, this section
-	may be omitted entirely.
+Write a full description of the module and its features here.
+Use subsections (=head2, =head3) as appropriate.
 
 
-	=head1 OPTIONS
+=head1 DIAGNOSTICS
 
-	B<[-h|-help]> - display this documentation.
+=head1 CONFIGURATION AND ENVIRONMENT
 
-	=for author to fill in:
-	A complete list of every available option with which the application
-	can be invoked, explaining what each does, and listing any restrictions,
-	or interactions.
-	If the application has no options, this section may be omitted entirely.
+=head1 DEPENDENCIES
 
+Bio::Chado::Schema
 
-	=head1 DESCRIPTION
+=head1 BUGS AND LIMITATIONS
 
-	=for author to fill in:
-	Write a full description of the module and its features here.
-	Use subsections (=head2, =head3) as appropriate.
+=for author to fill in:
+A list of known problems with the module, together with some
+indication Whether they are likely to be fixed in an upcoming
+release. Also a list of restrictions on the features the module
+does provide: data types that cannot be handled, performance issues
+and the circumstances in which they may arise, practical
+limitations on the size of data sets, special cases that are not
+(yet) handled, etc.
 
-
-	=head1 DIAGNOSTICS
-
-	=head1 CONFIGURATION AND ENVIRONMENT
-
-	=head1 DEPENDENCIES
-
-	=head1 BUGS AND LIMITATIONS
-
-	=for author to fill in:
-	A list of known problems with the module, together with some
-	indication Whether they are likely to be fixed in an upcoming
-	release. Also a list of restrictions on the features the module
-	does provide: data types that cannot be handled, performance issues
-	and the circumstances in which they may arise, practical
-	limitations on the size of data sets, special cases that are not
-	(yet) handled, etc.
-
-	No bugs have been reported.Please report any bugs or feature requests to
-
-	B<Siddhartha Basu>
+No bugs have been reported.Please report any bugs or feature requests to
+B<Siddhartha Basu>
 
 
-	=head1 AUTHOR
+=head1 AUTHOR
 
-	I<Siddhartha Basu>  B<siddhartha-basu@northwestern.edu>
+I<Siddhartha Basu>  B<siddhartha-basu@northwestern.edu>
 
-	=head1 LICENCE AND COPYRIGHT
 
-	Copyright (c) B<2010>, Siddhartha Basu C<<siddhartha-basu@northwestern.edu>>. All rights reserved.
+=head1 LICENCE AND COPYRIGHT
 
-	This module is free software; you can redistribute it and/or
-	modify it under the same terms as Perl itself. See L<perlartistic>.
+Copyright (c) B<2010>, Siddhartha Basu C<<siddhartha-basu@northwestern.edu>>. All rights reserved.
+
+This module is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself. See L<perlartistic>.
 
 
 
