@@ -14,6 +14,9 @@ my $t = Time::Piece->new;
 my $conf_file
     = Path::Class::Dir->new($Bin)->parent->parent->subdir( 'data', 'config' )
     ->file('sequence.yaml')->stringify;
+my $logfile = Path::Class::Dir->new($Bin)->parent->parent->subdir('log')
+    ->file( 'fasta_dump' . $t->mdy . '.log' )->stringify;
+
 my $output;
 
 GetOptions(
@@ -46,15 +49,25 @@ my $dsn       = $db_config->{dsn};
 my $user      = $db_config->{user};
 my $pass      = $db_config->{pass};
 
+# -- logger
+my $log = MyLogger->file_logger($logfile);
+
 my $option = { LongReadLen => 2**25 };
 my $schema = Bio::Chado::Schema->connect( $dsn, $user, $pass, $option );
 
+GENE:
 while ( my $line = $reader->getline ) {
     chomp $line;
 
     #Assuming it is gene id get the gene object
     my $gene = $schema->resultset('Sequence::Feature')
         ->find( { 'dbxref.accession' => $line }, { join => 'dbxref' } );
+
+    my $name = $gene->name;
+    if ( $name =~ /_ps\S{0,}$/ ) {
+        $log->warn("skipped gene $name");
+        next GENE;
+    }
 
     #now to the transcript
     my $trans_rs = $gene->search_related(
@@ -64,12 +77,65 @@ while ( my $line = $reader->getline ) {
         )->search_related(
         'subject',
         { 'type_2.name' => 'mRNA' },
-        { join          => 'type', row => 1 }
-        )->single;
+        { join          => 'type' }
+        );
 
-    print $gene->name, "\t", $trans_rs->name, "\n";
+    my $count = $trans_rs->count;
+    if ( $count == 0 or $count > 1 ) {
+        warn "issue with gene $line\n";
+        $log->warn("issue with gene $line:$name");
+        next GENE;
+    }
 
+    my $poly_rs = $trans_rs->first->search_related(
+        'feature_relationship_objects',
+        { 'type.name' => 'derived_from' },
+        { join        => 'type' }
+        )->search_related(
+        'subject',
+        { 'type_2.name' => 'polypeptide' },
+        { join          => 'type' }
+        );
+
+    if ( $poly_rs->count == 0 ) {
+        warn "no polypeptide found for $line:$name\n";
+        $log->warn("no polypeptide found for $line:$name");
+        next GENE;
+    }
+
+    my $seq = $poly_rs->first->residues;
+    $seq =~ s/(\S{1,60})/$1\n/g;
+    $writer->print(">$name\n$seq");
+
+    $log->info("wrote fasta sequence for $line:$name");
 }
+
+$reader->close;
+$writer->close;
+
+package MyLogger;
+
+use Log::Log4perl qw/:easy/;
+use Log::Log4perl::Appender;
+use Log::Log4perl::Layout::PatternLayout;
+
+sub file_logger {
+    my ( $class, $file ) = @_;
+    my $appender
+        = Log::Log4perl::Appender->new( 'Log::Log4perl::Appender::File',
+        filename => $file );
+
+    my $layout = Log::Log4perl::Layout::PatternLayout->new(
+        "[%d{MM-dd-yyyy hh:mm}] %p > %F{1}:%L - %m%n");
+
+    my $log = Log::Log4perl->get_logger($class);
+    $appender->layout($layout);
+    $log->add_appender($appender);
+    $log->level($DEBUG);
+    $log;
+}
+
+1;
 
 =head1 NAME
 
