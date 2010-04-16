@@ -1,8 +1,9 @@
-package ModwareX::Reference;
+package ModwareX::Chado::Reader::BCS::Publication;
+
+use strict;
+use Carp;
 
 use version; our $VERSION = qv('1.0.0');
-use Try::Tiny;
-use Moose;
 
 # Other modules:
 
