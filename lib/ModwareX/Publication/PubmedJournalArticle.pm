@@ -1,11 +1,8 @@
-package ModwareX::Role::Publication;
-
+package ModwareX::Publication::PubmedJournalArticle;
 
 use version; our $VERSION = qv('0.1');
 
 # Other modules:
-use Moose::Role;
-
 
 # Module implementation
 #
@@ -16,29 +13,26 @@ __END__
 
 =head1 NAME
 
-<ModwareX::Role::Publication> - [Moose role for publication module]
+B<ModwareX::Publication::PubmedJournalArticle> - [Module for handling pubmed journal article]
 
 
 =head1 VERSION
 
-This document describes B<ModwareX::Role::Publication> version 0.1.0
+This document describes <ModwareX::Publication::PubmedJournalArticle> version 0.1
 
 
 =head1 SYNOPSIS
 
-use Moose;
-with ModwareX::Role::Publication;
+use ModwareX::Publication::PubmedJournalArticle;
 
 
 =head1 DESCRIPTION
 
-The role in intended to be consumed by B<ModwareX::Publication> class. 
 
 =head1 INTERFACE 
 
-=for author to fill in:
-Only role specific but non-public internal methods will be documented here, meant for API
-developer.
+Look at B<ModwareX::Publication>, B<ModwareX::Publication::Article>, B<ModwareX::Publication::Journal> and B<ModwareX::Role::Publication::Pubmed>
+
 
 =head1 DIAGNOSTICS
 
@@ -47,6 +41,20 @@ List every single error and warning message that the module can
 generate (even the ones that will "never happen"), with a full
 explanation of each problem, one or more likely causes, and any
 suggested remedies.
+
+=over
+
+=item C<< Error message here, perhaps with %s placeholders >>
+
+[Description of error here]
+
+=item C<< Another error message here >>
+
+[Description of error here]
+
+[Et cetera, et cetera]
+
+=back
 
 
 =head1 CONFIGURATION AND ENVIRONMENT
@@ -58,10 +66,12 @@ files, and the meaning of any environment variables or properties
 that can be set. These descriptions must also include details of any
 configuration language used.
 
+<ModwareX::Publication::PubmedJournalArticle> requires no configuration files or environment variables.
+
 
 =head1 INCOMPATIBILITIES
 
-=for author to fill in:
+  =for author to fill in:
   A list of any modules that this module cannot be used in conjunction
   with. This may be due to name conflicts in the interface, or
   competition for system or program resources, or due to internal
@@ -73,7 +83,7 @@ configuration language used.
 
 =head1 BUGS AND LIMITATIONS
 
-=for author to fill in:
+  =for author to fill in:
   A list of known problems with the module, together with some
   indication Whether they are likely to be fixed in an upcoming
   release. Also a list of restrictions on the features the module
@@ -82,8 +92,8 @@ configuration language used.
   limitations on the size of data sets, special cases that are not
   (yet) handled, etc.
 
-No bugs have been reported.Please report any bugs or feature requests to
-dictybase@northwestern.edu
+  No bugs have been reported.Please report any bugs or feature requests to
+  dictybase@northwestern.edu
 
 
 

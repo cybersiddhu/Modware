@@ -28,12 +28,9 @@ use ModwareX::Publication::Journal;
 
 =head1 DESCRIPTION
 
-=for author to fill in:
-Write a full description of the module and its features here.
-Use subsections (=head2, =head3) as appropriate.
-
 
 =head1 INTERFACE 
+
 
 =head2 abbreviation
 
@@ -43,7 +40,9 @@ Use subsections (=head2, =head3) as appropriate.
 
 =head2 journal
 
-For more docs,  look at B<ModwareX::Publication>
+
+
+Also look at L<ModwareX::Publication::Role::Journal>
 
 
 =head1 DIAGNOSTICS

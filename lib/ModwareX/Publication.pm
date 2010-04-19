@@ -1,7 +1,5 @@
 package ModwareX::Publication;
 
-use warnings;
-use strict;
 use Carp;
 
 use version; our $VERSION = qv('1.0.0');
