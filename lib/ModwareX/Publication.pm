@@ -17,22 +17,17 @@ __END__
 
 =head1 NAME
 
-<MODULE NAME> - [One line description of module's purpose here]
+<ModwareX::Publication> - [Module for dealing with publication/bibliographic references]
 
 
 =head1 VERSION
 
-This document describes <MODULE NAME> version 0.0.1
+This document describes <ModwareX::Publication> version 0.1
 
 
 =head1 SYNOPSIS
 
 use <MODULE NAME>;
-
-=for author to fill in:
-Brief code example(s) here showing commonest usage(s).
-This section will be as far as many users bother reading
-so make it as educational and exeplary as possible.
 
 
 =head1 DESCRIPTION
@@ -44,55 +39,143 @@ Use subsections (=head2, =head3) as appropriate.
 
 =head1 INTERFACE 
 
-=for author to fill in:
-Write a separate section listing the public components of the modules
-interface. These normally consist of either subroutines that may be
-exported, or methods that may be called on objects belonging to the
-classes provided by the module.
-
-=head2 <METHOD NAME>
+=head2 id
 
 =over
 
-=item B<Use:> <Usage>
+=item B<Use:> $pub->id()
 
-[Detail text here]
+=item B<Functions:> Get the database id of this object. If it is undef then the object is
+still not saved in the database. It can also be used as *set* method,  however it is
+recommended for internal use only. 
 
-=item B<Functions:> [What id does]
+=item B<Return:> Integer
 
-[Details if neccessary]
-
-=item B<Return:> [Return type of value]
-
-[Details]
-
-=item B<Args:> [Arguments passed]
-
-[Details]
+=item B<Args:> None
 
 =back
 
-=head2 <METHOD NAME>
+
+=head2 authors
 
 =over
 
-=item B<Use:> <Usage>
+=item B<Use:> $pub->authors($authors_list)
 
-[Detail text here]
+=item B<Functions:> Get/Set list of authors
 
-=item B<Functions:> [What id does]
+=item B<Return:> Arrayref containing ModwareX::Publication::Author objects
 
-[Details if neccessary]
-
-=item B<Return:> [Return type of value]
-
-[Details]
-
-=item B<Args:> [Arguments passed]
-
-[Details]
+=item B<Args:> Arrayref containing ModwareX::Publication::Author objects
 
 =back
+
+
+=head2 add_author
+
+=over
+
+=item B<Use:> $pub->author($author) or $pub->author($author_hashref)
+
+=item B<Functions:> Add an author to the list 
+
+=item B<Return:> None.
+
+=item B<Args:> ModwareX::Publication::Author or an hashref(doc later)
+
+=back
+
+
+=head2 cross_references
+
+=over
+
+=item B<Use:> $pub->cross_references($cross_refs)
+
+=item B<Functions:> Get/Set list of cross_references
+
+ The ModwareX::Publication object is expected to be already present in the database,  i.e,.
+ the object should have a database id. 
+
+=item B<Return:> Arrayref containing ModwareX::Publication
+
+=item B<Args:> Arrayref containing ModwareX::Publication
+
+=back
+
+
+=head2 add_cross_reference
+
+=over
+
+=item B<Use:> $pub->add_cross_reference($cross_ref)
+
+=item B<Functions:> Add a cross_reference to the list
+
+ The ModwareX::Publication object is expected to be already present in the database,  i.e,.
+ the object should have a database id. 
+
+=item B<Return:> ModwareX::Publication
+
+=item B<Args:> None.
+
+=back
+
+
+=head2 add_cross_reference
+
+=over
+
+=item B<Use:> $pub->add_cross_reference($cross_ref)
+
+=item B<Functions:> Add a cross_reference to the list
+
+ The ModwareX::Publication object is expected to be already present in the database,  i.e,.
+ the object should have a database id. 
+
+=item B<Return:> ModwareX::Publication
+
+=item B<Args:> None.
+
+=back
+
+
+=head2 Other accessors
+
+=over
+
+=item abstract
+
+=item title
+
+=item year
+
+=item format
+
+=item date
+
+=item keywords
+
+=item publisher
+
+=item type
+
+=item status
+
+=item source
+
+=back
+
+=over
+
+B<Not implemented yet>
+
+=item abstract_language
+
+=item abstract_type
+
+=back
+
 
 
 =head1 DIAGNOSTICS
@@ -107,14 +190,6 @@ suggested remedies.
 
 =item C<< Error message here, perhaps with %s placeholders >>
 
-[Description of error here]
-
-=item C<< Another error message here >>
-
-[Description of error here]
-
-[Et cetera, et cetera]
-
 =back
 
 
@@ -127,33 +202,22 @@ files, and the meaning of any environment variables or properties
 that can be set. These descriptions must also include details of any
 configuration language used.
 
-<MODULE NAME> requires no configuration files or environment variables.
+B<ModwareX::Publication> requires no configuration files or environment variables.
 
 
-=head1 DEPENDENCIES
+=head1 INCOMPATIBILITIES
 
 =for author to fill in:
-A list of all the other modules that this module relies upon,
-  including any restrictions on versions, and an indication whether
-  the module is part of the standard Perl distribution, part of the
-  module's distribution, or must be installed separately. ]
-
-  None.
-
-
-  =head1 INCOMPATIBILITIES
-
-  =for author to fill in:
   A list of any modules that this module cannot be used in conjunction
   with. This may be due to name conflicts in the interface, or
   competition for system or program resources, or due to internal
   limitations of Perl (for example, many modules that use source code
 		  filters are mutually incompatible).
 
-  None reported.
+None reported.
 
 
-  =head1 BUGS AND LIMITATIONS
+=head1 BUGS AND LIMITATIONS
 
   =for author to fill in:
   A list of known problems with the module, together with some
@@ -164,32 +228,30 @@ A list of all the other modules that this module relies upon,
   limitations on the size of data sets, special cases that are not
   (yet) handled, etc.
 
-  No bugs have been reported.Please report any bugs or feature requests to
-  dictybase@northwestern.edu
+No bugs have been reported.Please report any bugs or feature requests to
+dictybase@northwestern.edu
 
 
 
-  =head1 TODO
+=head1 TODO
 
-  =over
+=over
 
-  =item *
-
-  [Write stuff here]
-
-  =item *
-
-  [Write stuff here]
-
-  =back
+=item *
 
 
-  =head1 AUTHOR
-
-  I<Siddhartha Basu>  B<siddhartha-basu@northwestern.edu>
+=item *
 
 
-  =head1 LICENCE AND COPYRIGHT
+=back
+
+
+=head1 AUTHOR
+
+I<Siddhartha Basu>  B<siddhartha-basu@northwestern.edu>
+
+
+=head1 LICENCE AND COPYRIGHT
 
   Copyright (c) B<2003>, Siddhartha Basu C<<siddhartha-basu@northwestern.edu>>. All rights reserved.
 
@@ -197,7 +259,7 @@ A list of all the other modules that this module relies upon,
   modify it under the same terms as Perl itself. See L<perlartistic>.
 
 
-  =head1 DISCLAIMER OF WARRANTY
+=head1 DISCLAIMER OF WARRANTY
 
   BECAUSE THIS SOFTWARE IS LICENSED FREE OF CHARGE, THERE IS NO WARRANTY
   FOR THE SOFTWARE, TO THE EXTENT PERMITTED BY APPLICABLE LAW. EXCEPT WHEN
