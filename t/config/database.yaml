@@ -1,0 +1,5 @@
+loader: bcs
+default:
+  dsn: "dbi:SQLite:file=tmp/chado.db
+  ddl: "data/chado.sqlite"
+

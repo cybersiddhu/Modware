@@ -1,56 +1,132 @@
+package Test::Chado::Role::Oracle;
+
 use version; our $VERSION = qv('1.0.0');
 
 # Other modules:
-use MooseX::Singleton;
-use YAML qw/LoadFile/;
-use FindBin qw/$Bin/;
-use File::Spec::Functions;
-use Test::Chado::Handler;
+use Moose::Role;
 
 # Module implementation
 #
+requires 'driver';
+requires 'connection_info';
+requires 'dsn';
+requires 'superuser';
+requires 'superpass';
+requires 'user';
+requires 'password';
 
-coerce 'HashRef' => from 'Str' => via { LoadFile($_) };
+sub create_db {
+    my ($self) = @_;
+    my $user   = $self->user;
+    my $pass   = $self->pass;
+    try {
+        $self->super_dbh->do("CREATE $user identified by $pass");
+    }
+    catch {
+        confess "unable to create database $_\n";
+    };
+}
 
-has 'load_config' => (
-    is         => 'rw',
-    isa        => 'HashRef',
-    lazy_build => 1,
-    coerce     => 1,
-    traits     => ['Hash'],
-    handles    => {
-        get_source   => 'get',
-        all_sources  => 'keys',
-        pair_sources => 'kv'
+sub drop_db {
+    my ($self) = @_;
+    my $user   = $self->user;
+    my $pass   = $self->pass;
+    try {
+        $self->super_dbh->do("DROP USER $user CASCADE");
+    }
+    catch {
+        confess "unable to drop database $_\n";
+    };
+
+}
+
+sub drop_schema {
+    my ($self) = @_;
+    my $dbh = $self->super_dbh;
+    my $sidx
+        = $dbh->prepare(
+        qq{select index_name, table_name FROM user_indexes where generated = 'N'}
+        );
+    my $tgsth = $dbh->prepare(
+        qq { select trigger_name,table_name FROM user_triggers });
+    my $vsth = $dbh->prepare(qq{ select view_name FROM user_views });
+    my $isth = $dbh->prepare(qq{ select sequence_name FROM user_sequences });
+    my $tsth = $dbh->prepare(qq{ select table_name FROM user_tables });
+
+    $tsth->execute() or croak $tsth->execute();
+TABLE:
+    while ( my ($table) = $tsth->fetchrow_array() ) {
+        try { $dbh->do(qq{ drop table $table cascade constraints purge }) }
+        catch {
+            $dbh->rollback();
+            confess "$_\n";
+        };
+    }
+
+    $isth->execute() or croak $isth->errstr();
+LINE:
+    while ( my ($seq) = $isth->fetchrow_array() ) {
+        if ( $seq =~ /^SQ/ ) {
+            try {
+                $dbh->do(qq{ drop sequence $seq });
+            }
+            catch {
+                $dbh->rollback();
+                confess "$_\n";
+            };
+        }
+    }
+
+    $sidx->execute() or croak $dbh->errstr();
+INDEX:
+    while ( my ( $name, $table ) = $sidx->fetchrow_array() ) {
+        try {
+            $dbh->do(qq{ alter table $table drop constraint $name cascade });
+        }
+        catch {
+            $dbh->rollback();
+            confess "$_\n";
+        };
+    }
+
+    $vsth->execute() or croak $dbh->errstr();
+VIEW:
+    while ( my ($view) = $vsth->fetchrow_array() ) {
+        try { $dbh->do(qq{ drop view $view cascade constraints }) }
+        catch {
+            $dbh->rollback();
+            confess "$_\n";
+        };
+    }
+
+    $tgsth->execute() or croak $dbh->errstr();
+TRIGGER:
+    while ( my ( $trigger, $table ) = $tgsth->fetchrow_array() ) {
+        next TRIGGER if $table =~ /\$0$/;
+        try { $dbh->do(qq { drop trigger $trigger }) }
+        catch {
+            $dbh->rollback();
+            confess "$_\n";
+        };
+    }
+    $dbh->commit;
+}
+
+
+has 'dbh' => (
+    is      => 'ro',
+    isa     => 'DBI',
+    default => sub {
+        DBI->connect( $self->connection_info ) or confess $DBI::errstr;
     }
 );
 
-sub _build_config {
-    LoadFile( catfile( $Bin, 't', 'conf', 'db.yaml' ) );
-}
-
-sub handlers {
-    my ($class) = @_;
-    my @sources;
-    for my $pair ( $class->pair_sources ) {
-        push @sources,
-            Test::Chado::Handler->new(
-            data => $pair->[1],
-            name => $pair->[0]
-            );
-    }
-    @sources;
-}
-
-has 'handler' => (
+has 'super_dbh' => (
     is      => 'ro',
-    isa     => 'Test::Chado::Handler',
+    isa     => 'DBI',
     default => sub {
-        my ($class) = @_;
-        Test::Chado::Handler->new(
-            name => 'default',
-            data => $class->get_source('default')
-        );
+        DBI->connect( $self->dsn, $self->superuser, $self->superpass )
+            or confess $DBI::errstr;
     }
 );
 
@@ -60,33 +136,22 @@ __END__
 
 =head1 NAME
 
-B<Test::Chado> - [Module for handling test chado databases]
+<MODULE NAME> - [One line description of module's purpose here]
 
 
 =head1 VERSION
 
-This document describes B<Test::Chado> version 0.1
+This document describes <MODULE NAME> version 0.0.1
 
 
 =head1 SYNOPSIS
 
-use Test::Chado;
+use <MODULE NAME>;
 
- Test::Chado->load_config; #loads the default test configuration
- my $handler = Test::Chado->handler; #default handler for test Sqlite database
-
- my $dbh = $handler->dbh; #DBI connection object
-
- $handler->create_db;
- $handler->deploy_schema;
- $handler->load_fixture;
-
- .... run your tests,  then
-
- $handler->purge_fixture;
- $handler->drop_schema;
- $handler->drop_db;
-
+=for author to fill in:
+Brief code example(s) here showing commonest usage(s).
+This section will be as far as many users bother reading
+so make it as educational and exeplary as possible.
 
 
 =head1 DESCRIPTION
@@ -155,7 +220,7 @@ classes provided by the module.
 List every single error and warning message that the module can
 generate (even the ones that will "never happen"), with a full
 explanation of each problem, one or more likely causes, and any
-suggested remedies.
+suggested remecroaks.
 
 =over
 
@@ -181,7 +246,7 @@ files, and the meaning of any environment variables or properties
 that can be set. These descriptions must also include details of any
 configuration language used.
 
-<Test::Chado> requires no configuration files or environment variables.
+<MODULE NAME> requires no configuration files or environment variables.
 
 
 =head1 DEPENDENCIES

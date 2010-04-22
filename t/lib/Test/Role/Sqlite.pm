@@ -1,58 +1,49 @@
+package Test::Chado::Role::Sqlite;
+
 use version; our $VERSION = qv('1.0.0');
 
 # Other modules:
-use MooseX::Singleton;
-use YAML qw/LoadFile/;
-use FindBin qw/$Bin/;
-use File::Spec::Functions;
-use Test::Chado::Handler;
+use Moose::Role;
 
 # Module implementation
 #
+requires 'driver';
+requires 'dsn';
+requires 'database';
 
-coerce 'HashRef' => from 'Str' => via { LoadFile($_) };
-
-has 'load_config' => (
-    is         => 'rw',
-    isa        => 'HashRef',
-    lazy_build => 1,
-    coerce     => 1,
-    traits     => ['Hash'],
-    handles    => {
-        get_source   => 'get',
-        all_sources  => 'keys',
-        pair_sources => 'kv'
+after 'driver_dsn' => sub {
+    my ( $self, $value ) = @_;
+    if ( $value =~ /file=(\w+)\;/ ) {
+        $self->database($1);
     }
-);
+};
 
-sub _build_config {
-    LoadFile( catfile( $Bin, 't', 'conf', 'db.yaml' ) );
+
+
+sub create_db {
+	my ($self) = @_;
+	if (!$self->has_db) {
+		$self->dbh;
+	}
 }
 
-sub handlers {
-    my ($class) = @_;
-    my @sources;
-    for my $pair ( $class->pair_sources ) {
-        push @sources,
-            Test::Chado::Handler->new(
-            data => $pair->[1],
-            name => $pair->[0]
-            );
-    }
-    @sources;
+sub drop_db {
+	my ($self) = @_;
+	$self->dbh->disconnect;
+	unlink $self->database;
 }
 
-has 'handler' => (
+has 'dbh' => (
     is      => 'ro',
-    isa     => 'Test::Chado::Handler',
+    isa     => 'DBI',
+    predicate => 'has_db';
     default => sub {
-        my ($class) = @_;
-        Test::Chado::Handler->new(
-            name => 'default',
-            data => $class->get_source('default')
-        );
+        DBI->connect( $self->connection_info ) or confess $DBI::errstr;
     }
 );
+
+
+
 
 1;    # Magic true value required at end of module
 
@@ -60,33 +51,22 @@ __END__
 
 =head1 NAME
 
-B<Test::Chado> - [Module for handling test chado databases]
+<MODULE NAME> - [One line description of module's purpose here]
 
 
 =head1 VERSION
 
-This document describes B<Test::Chado> version 0.1
+This document describes <MODULE NAME> version 0.0.1
 
 
 =head1 SYNOPSIS
 
-use Test::Chado;
+use <MODULE NAME>;
 
- Test::Chado->load_config; #loads the default test configuration
- my $handler = Test::Chado->handler; #default handler for test Sqlite database
-
- my $dbh = $handler->dbh; #DBI connection object
-
- $handler->create_db;
- $handler->deploy_schema;
- $handler->load_fixture;
-
- .... run your tests,  then
-
- $handler->purge_fixture;
- $handler->drop_schema;
- $handler->drop_db;
-
+=for author to fill in:
+Brief code example(s) here showing commonest usage(s).
+This section will be as far as many users bother reading
+so make it as educational and exeplary as possible.
 
 
 =head1 DESCRIPTION
@@ -181,7 +161,7 @@ files, and the meaning of any environment variables or properties
 that can be set. These descriptions must also include details of any
 configuration language used.
 
-<Test::Chado> requires no configuration files or environment variables.
+<MODULE NAME> requires no configuration files or environment variables.
 
 
 =head1 DEPENDENCIES

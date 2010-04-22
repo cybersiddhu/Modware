@@ -1,58 +1,103 @@
+package Test::Chado::Handler;
+
 use version; our $VERSION = qv('1.0.0');
 
 # Other modules:
-use MooseX::Singleton;
-use YAML qw/LoadFile/;
-use FindBin qw/$Bin/;
-use File::Spec::Functions;
-use Test::Chado::Handler;
+use Moose;
+use Moose::Util qw/apply_all_roles/;
+use Path::Class::File;
+use DBI;
+use Try::Tiny;
 
 # Module implementation
 #
 
-coerce 'HashRef' => from 'Str' => via { LoadFile($_) };
+has 'name' => ( is => 'rw', isa => 'Str' );
 
-has 'load_config' => (
-    is         => 'rw',
-    isa        => 'HashRef',
-    lazy_build => 1,
-    coerce     => 1,
-    traits     => ['Hash'],
-    handles    => {
-        get_source   => 'get',
-        all_sources  => 'keys',
-        pair_sources => 'kv'
+has 'data' => (
+    is      => 'rw',
+    isa     => 'HashRef',
+    default => sub { {} },
+    traits  => ['HashRef'],
+    handles => {
+        get_value => 'get',
+        has_value => 'defined'
     }
 );
 
-sub _build_config {
-    LoadFile( catfile( $Bin, 't', 'conf', 'db.yaml' ) );
-}
+after 'data' => sub {
+    my ($self) = @_;
+    $self->$_( $self->get($_) ) for qw/dsn user password ddl/;
+    $self->superuser(
+          $self->has_value('superuser')
+        ? $self->get_value('superuser')
+        : $self->get_value('user')
+    );
+    $self->superpass(
+          $self->has_value('superpass')
+        ? $self->get_value('superpass')
+        : $self->get_value('password')
+    );
 
-sub handlers {
-    my ($class) = @_;
-    my @sources;
-    for my $pair ( $class->pair_sources ) {
-        push @sources,
-            Test::Chado::Handler->new(
-            data => $pair->[1],
-            name => $pair->[0]
-            );
-    }
-    @sources;
-}
+};
 
-has 'handler' => (
+has [qw/dsn driver user password superuser superpass driver_dsn database/] =>
+    ( is => 'rw', isa => 'Str' );
+
+after 'dsn' => sub {
+    my ( $self, $value ) = @_;
+    my ( $scheme, $driver, $attr_string, $attr_hash, $driver_dsn )
+        = DBI->parse_dsn($value)
+        or confess "cannot parse dsn:$value\n";
+    $self->driver($driver);
+    $self->driver_dsn($driver_dsn);
+};
+
+after 'driver' => sub {
+    my ( $self, $driver ) = @_;
+    apply_all_roles( $self, 'Test::Chado::Role::' . ucfirst $driver );
+};
+
+coerce 'Path::Class::File' => from 'Str' =>
+    via { Path::Class::File->new($_) };
+
+has 'ddl' => (
+    is     => 'rw',
+    isa    => 'Path::Class::File',
+    corece => 1
+);
+
+has 'connection_info' => (
     is      => 'ro',
-    isa     => 'Test::Chado::Handler',
+    isa     => 'Str',
     default => sub {
-        my ($class) = @_;
-        Test::Chado::Handler->new(
-            name => 'default',
-            data => $class->get_source('default')
-        );
+        ( $self->dsn, $self->user, $self->password );
     }
 );
+
+sub deploy_schema {
+    my ($self) = @_;
+    my $dbh    = $self->dbh;
+    my $fh     = $self->ddl->openr;
+    my $data = do { local ($/); <$fh> };
+LINE:
+    foreach my $line ( split( /\n{2, }/, $data ) ) {
+        next LINE if $line =~ /^\-\-/;
+        $line =~ s{;$}{};
+        $line =~ s{/}{};
+        try {
+            $dbh->do($line);
+            $dbh->commit;
+        }
+        catch {
+            $dbh->rollback;
+            confess $_, "\n";
+        };
+    }
+    $fh->close();
+    $dbh->disconnect;
+
+}
 
 1;    # Magic true value required at end of module
 
@@ -60,33 +105,22 @@ __END__
 
 =head1 NAME
 
-B<Test::Chado> - [Module for handling test chado databases]
+<MODULE NAME> - [One line description of module's purpose here]
 
 
 =head1 VERSION
 
-This document describes B<Test::Chado> version 0.1
+This document describes <MODULE NAME> version 0.0.1
 
 
 =head1 SYNOPSIS
 
-use Test::Chado;
+use <MODULE NAME>;
 
- Test::Chado->load_config; #loads the default test configuration
- my $handler = Test::Chado->handler; #default handler for test Sqlite database
-
- my $dbh = $handler->dbh; #DBI connection object
-
- $handler->create_db;
- $handler->deploy_schema;
- $handler->load_fixture;
-
- .... run your tests,  then
-
- $handler->purge_fixture;
- $handler->drop_schema;
- $handler->drop_db;
-
+=for author to fill in:
+Brief code example(s) here showing commonest usage(s).
+This section will be as far as many users bother reading
+so make it as educational and exeplary as possible.
 
 
 =head1 DESCRIPTION
@@ -181,7 +215,7 @@ files, and the meaning of any environment variables or properties
 that can be set. These descriptions must also include details of any
 configuration language used.
 
-<Test::Chado> requires no configuration files or environment variables.
+<MODULE NAME> requires no configuration files or environment variables.
 
 
 =head1 DEPENDENCIES
