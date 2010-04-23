@@ -5,66 +5,75 @@ use version; our $VERSION = qv('1.0.0');
 # Other modules:
 use Moose;
 use Moose::Util qw/apply_all_roles/;
+use Moose::Util::TypeConstraints;
 use Path::Class::File;
 use DBI;
 use Try::Tiny;
+use Carp;
 
 # Module implementation
 #
 
 has 'name' => ( is => 'rw', isa => 'Str' );
 
-has 'data' => (
+has 'section' => (
     is      => 'rw',
     isa     => 'HashRef',
     default => sub { {} },
-    traits  => ['HashRef'],
+    traits  => ['Hash'],
+    trigger => \&_setup_values,
     handles => {
         get_value => 'get',
-        has_value => 'defined'
+        has_value => 'exists'
     }
 );
 
-after 'data' => sub {
-    my ($self) = @_;
-    $self->$_( $self->get_value($_) ) for qw/dsn user password ddl/;
-    $self->superuser(
-          $self->has_value('superuser')
-        ? $self->get_value('superuser')
-        : $self->get_value('user')
-    );
+sub _setup_values {
+    my ( $self, $value ) = @_;
+    for my $param (qw/dsn user password ddl/) {
+        $self->$param( $self->get_value($param) ) if $self->has_value($param);
+    }
+    my $superuser
+        = $self->has_value('superuser') ? $self->get_value('superuser')
+        : $self->has_value('user')      ? $self->get_value('user')
+        :                                 undef;
+    return if !$superuser;
+    $self->superuser($superuser);
     $self->superpass(
           $self->has_value('superpass')
         ? $self->get_value('superpass')
         : $self->get_value('password')
     );
 
-};
+}
 
 has [qw/dsn driver user password superuser superpass driver_dsn database/] =>
     ( is => 'rw', isa => 'Str' );
 
 after 'dsn' => sub {
     my ( $self, $value ) = @_;
+    return if !$value;
     my ( $scheme, $driver, $attr_string, $attr_hash, $driver_dsn )
         = DBI->parse_dsn($value)
-        or confess "cannot parse dsn:$value\n";
+        or confess "cannot parse dsn:$DBI::errstr\n";
     $self->driver($driver);
     $self->driver_dsn($driver_dsn);
 };
 
 after 'driver' => sub {
     my ( $self, $driver ) = @_;
+    return if !$driver;
+    $driver = lc $driver;
     apply_all_roles( $self, 'Test::Chado::Role::' . ucfirst $driver );
 };
 
-coerce 'Path::Class::File' => from 'Str' =>
-    via { Path::Class::File->new($_) };
+subtype 'FileClass' => as 'Object' => where { $_->isa('Path::Class::File') };
+coerce 'FileClass' => from 'Str' => via { Path::Class::File->new($_)->absolute };
 
 has 'ddl' => (
     is     => 'rw',
-    isa    => 'Path::Class::File',
-    corece => 1
+    isa    => 'FileClass',
+    coerce => 1
 );
 
 has 'attr_hash' => (
@@ -73,14 +82,6 @@ has 'attr_hash' => (
     default => sub { { AutoCommit => 0 } }
 );
 
-has 'connection_info' => (
-    is      => 'ro',
-    isa     => 'Str',
-    default => sub {
-        my ($self) = @_;
-        ( $self->dsn, $self->user, $self->password, $self->attr_hash );
-    }
-);
 
 sub deploy_schema {
     my ($self) = @_;
@@ -88,8 +89,12 @@ sub deploy_schema {
     my $fh     = $self->ddl->openr;
     my $data = do { local ($/); <$fh> };
 LINE:
-    foreach my $line ( split( /\n{2, }/, $data ) ) {
-        next LINE if $line =~ /^\-\-/;
+    foreach my $line ( split( /\n{2,}/, $data ) ) {
+        #next LINE if $line =~ /^\-\-/;
+        if ($line =~ /^\-\-/) {
+        	my @separated = grep { !/^\-\-/ } split (/\n/, $line);
+        	$line = join("\n", @separated);
+        }
         $line =~ s{;$}{};
         $line =~ s{/}{};
         try {
