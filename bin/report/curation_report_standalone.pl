@@ -65,7 +65,7 @@ $writer->print(
 my $gene_rs = $schema->resultset('Sequence::Feature')->search(
     {   'type.name'     => 'gene',
         'me.is_deleted' => 0,
-        'me.name'       => { -not_like => [ '%RTE', '%_ps' ] }
+        'me.name'       => { -not_like => [ '%_TE', '%RTE', '%_ps' ] }
     },
     {   join     => [qw/type dbxref/],
         prefetch => [qw/dbxref/],
