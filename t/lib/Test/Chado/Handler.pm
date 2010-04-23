@@ -27,7 +27,7 @@ has 'data' => (
 
 after 'data' => sub {
     my ($self) = @_;
-    $self->$_( $self->get($_) ) for qw/dsn user password ddl/;
+    $self->$_( $self->get_value($_) ) for qw/dsn user password ddl/;
     $self->superuser(
           $self->has_value('superuser')
         ? $self->get_value('superuser')
@@ -67,11 +67,18 @@ has 'ddl' => (
     corece => 1
 );
 
+has 'attr_hash' => (
+    is      => 'rw',
+    isa     => 'HashRef',
+    default => sub { { AutoCommit => 0 } }
+);
+
 has 'connection_info' => (
     is      => 'ro',
     isa     => 'Str',
     default => sub {
-        ( $self->dsn, $self->user, $self->password );
+        my ($self) = @_;
+        ( $self->dsn, $self->user, $self->password, $self->attr_hash );
     }
 );
 
@@ -95,8 +102,6 @@ LINE:
         };
     }
     $fh->close();
-    $dbh->disconnect;
-
 }
 
 1;    # Magic true value required at end of module

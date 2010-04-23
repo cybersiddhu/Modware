@@ -1,6 +1,6 @@
 package Test::Chado::Role::Sqlite;
 
-use version; our $VERSION = qv('1.0.0');
+use version; our $VERSION = qv('0.1');
 
 # Other modules:
 use Moose::Role;
@@ -14,7 +14,7 @@ requires 'database';
 after 'driver_dsn' => sub {
     my ( $self, $value ) = @_;
     if ( $value =~ /file=(\w+)\;/ ) {
-        $self->database($1);
+        $self->database(Path::Class::File->new($1)->absolute);
     }
 };
 

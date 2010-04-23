@@ -1,0 +1,2581 @@
+-- 
+-- Created by SQL::Translator::Producer::SQLite
+-- Created on Thu Apr 22 21:53:47 2010
+-- 
+BEGIN TRANSACTION;
+
+
+--
+-- Table: all_feature_names
+--
+CREATE TABLE all_feature_names (
+  feature_id integer,
+  name character varying(255),
+  organism_id integer
+);
+
+
+--
+-- Table: analysis
+--
+CREATE TABLE analysis (
+  analysis_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x9680d50)',
+  name character varying(255),
+  description text,
+  program character varying(255) NOT NULL,
+  programversion character varying(255) NOT NULL,
+  algorithm character varying(255),
+  sourcename character varying(255),
+  sourceversion character varying(255),
+  sourceuri text,
+  timeexecuted timestamp without time zone NOT NULL DEFAULT 'SCALAR(0x969385c)'
+);
+
+CREATE UNIQUE INDEX analysis_c1_analysis on analysis (program, programversion, sourcename);
+
+--
+-- Table: channel
+--
+CREATE TABLE channel (
+  channel_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x91d4664)',
+  name text NOT NULL,
+  definition text NOT NULL
+);
+
+CREATE UNIQUE INDEX channel_c1_channel on channel (name);
+
+--
+-- Table: common_ancestor_cvterm
+--
+CREATE TABLE common_ancestor_cvterm (
+  cvterm1_id integer,
+  cvterm2_id integer,
+  ancestor_cvterm_id integer,
+  pathdistance1 integer,
+  pathdistance2 integer,
+  total_pathdistance integer
+);
+
+
+--
+-- Table: common_descendant_cvterm
+--
+CREATE TABLE common_descendant_cvterm (
+  cvterm1_id integer,
+  cvterm2_id integer,
+  ancestor_cvterm_id integer,
+  pathdistance1 integer,
+  pathdistance2 integer,
+  total_pathdistance integer
+);
+
+
+--
+-- Table: cv
+--
+CREATE TABLE cv (
+  cv_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x949a4f0)',
+  name character varying(255) NOT NULL,
+  definition text
+);
+
+CREATE UNIQUE INDEX cv_c1_cv on cv (name);
+
+--
+-- Table: cv_cvterm_count
+--
+CREATE TABLE cv_cvterm_count (
+  name character varying(255),
+  num_terms_excl_obs bigint
+);
+
+
+--
+-- Table: cv_cvterm_count_with_obs
+--
+CREATE TABLE cv_cvterm_count_with_obs (
+  name character varying(255),
+  num_terms_incl_obs bigint
+);
+
+
+--
+-- Table: cv_leaf
+--
+CREATE TABLE cv_leaf (
+  cv_id integer,
+  cvterm_id integer
+);
+
+
+--
+-- Table: cv_link_count
+--
+CREATE TABLE cv_link_count (
+  cv_name character varying(255),
+  relation_name character varying(1024),
+  relation_cv_name character varying(255),
+  num_links bigint
+);
+
+
+--
+-- Table: cv_path_count
+--
+CREATE TABLE cv_path_count (
+  cv_name character varying(255),
+  relation_name character varying(1024),
+  relation_cv_name character varying(255),
+  num_paths bigint
+);
+
+
+--
+-- Table: cv_root
+--
+CREATE TABLE cv_root (
+  cv_id integer,
+  root_cvterm_id integer
+);
+
+
+--
+-- Table: db
+--
+CREATE TABLE db (
+  db_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x9370c8c)',
+  name character varying(255) NOT NULL,
+  description character varying(255),
+  urlprefix character varying(255),
+  url character varying(255)
+);
+
+CREATE UNIQUE INDEX db_c1_db on db (name);
+
+--
+-- Table: db_dbxref_count
+--
+CREATE TABLE db_dbxref_count (
+  name character varying(255),
+  num_dbxrefs bigint
+);
+
+
+--
+-- Table: dfeatureloc
+--
+CREATE TABLE dfeatureloc (
+  featureloc_id integer,
+  feature_id integer,
+  srcfeature_id integer,
+  nbeg integer,
+  is_nbeg_partial boolean,
+  nend integer,
+  is_nend_partial boolean,
+  strand smallint,
+  phase integer,
+  residue_info text,
+  locgroup integer,
+  rank integer
+);
+
+
+--
+-- Table: eimage
+--
+CREATE TABLE eimage (
+  eimage_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x943de88)',
+  eimage_data text,
+  eimage_type character varying(255) NOT NULL,
+  image_uri character varying(255)
+);
+
+
+--
+-- Table: environment
+--
+CREATE TABLE environment (
+  environment_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x932baa8)',
+  uniquename text NOT NULL,
+  description text
+);
+
+CREATE UNIQUE INDEX environment_c1_environment on environment (uniquename);
+
+--
+-- Table: expression
+--
+CREATE TABLE expression (
+  expression_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x944fa0c)',
+  uniquename text NOT NULL,
+  md5checksum character(32),
+  description text
+);
+
+CREATE UNIQUE INDEX expression_c1_expression on expression (uniquename);
+
+--
+-- Table: f_loc
+--
+CREATE TABLE f_loc (
+  feature_id integer,
+  name character varying(255),
+  dbxref_id integer,
+  nbeg integer,
+  nend integer,
+  strand smallint
+);
+
+
+--
+-- Table: f_type
+--
+CREATE TABLE f_type (
+  feature_id integer,
+  name character varying(255),
+  dbxref_id integer,
+  type character varying(1024),
+  residues text,
+  seqlen integer,
+  md5checksum character(32),
+  type_id integer,
+  timeaccessioned timestamp without time zone,
+  timelastmodified timestamp without time zone
+);
+
+
+--
+-- Table: feature_contains
+--
+CREATE TABLE feature_contains (
+  subject_id integer,
+  object_id integer
+);
+
+
+--
+-- Table: feature_difference
+--
+CREATE TABLE feature_difference (
+  subject_id integer,
+  object_id integer,
+  srcfeature_id smallint,
+  fmin integer,
+  fmax integer,
+  strand integer
+);
+
+
+--
+-- Table: feature_disjoint
+--
+CREATE TABLE feature_disjoint (
+  subject_id integer,
+  object_id integer
+);
+
+
+--
+-- Table: feature_distance
+--
+CREATE TABLE feature_distance (
+  subject_id integer,
+  object_id integer,
+  srcfeature_id integer,
+  subject_strand smallint,
+  object_strand smallint,
+  distance integer
+);
+
+
+--
+-- Table: feature_intersection
+--
+CREATE TABLE feature_intersection (
+  subject_id integer,
+  object_id integer,
+  srcfeature_id integer,
+  subject_strand smallint,
+  object_strand smallint,
+  fmin integer,
+  fmax integer
+);
+
+
+--
+-- Table: feature_meets
+--
+CREATE TABLE feature_meets (
+  subject_id integer,
+  object_id integer
+);
+
+
+--
+-- Table: feature_meets_on_same_strand
+--
+CREATE TABLE feature_meets_on_same_strand (
+  subject_id integer,
+  object_id integer
+);
+
+
+--
+-- Table: feature_union
+--
+CREATE TABLE feature_union (
+  subject_id integer,
+  object_id integer,
+  srcfeature_id integer,
+  subject_strand smallint,
+  object_strand smallint,
+  fmin integer,
+  fmax integer
+);
+
+
+--
+-- Table: featureset_meets
+--
+CREATE TABLE featureset_meets (
+  subject_id integer,
+  object_id integer
+);
+
+
+--
+-- Table: fnr_type
+--
+CREATE TABLE fnr_type (
+  feature_id integer,
+  name character varying(255),
+  dbxref_id integer,
+  type character varying(1024),
+  residues text,
+  seqlen integer,
+  md5checksum character(32),
+  type_id integer,
+  timeaccessioned timestamp without time zone,
+  timelastmodified timestamp without time zone
+);
+
+
+--
+-- Table: fp_key
+--
+CREATE TABLE fp_key (
+  feature_id integer,
+  pkey character varying(1024),
+  value text
+);
+
+
+--
+-- Table: genotype
+--
+CREATE TABLE genotype (
+  genotype_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x9363a30)',
+  name text,
+  uniquename text NOT NULL,
+  description character varying(255)
+);
+
+CREATE UNIQUE INDEX genotype_c1_genotype on genotype (uniquename);
+
+--
+-- Table: gff3atts
+--
+CREATE TABLE gff3atts (
+  feature_id integer,
+  type text,
+  attribute character varying
+);
+
+
+--
+-- Table: gff3view
+--
+CREATE TABLE gff3view (
+  feature_id integer,
+  ref character varying(255),
+  source character varying(255),
+  type character varying(1024),
+  fstart integer,
+  fend integer,
+  score double precision,
+  strand smallint,
+  phase integer,
+  seqlen integer,
+  name character varying(255),
+  organism_id integer
+);
+
+
+--
+-- Table: gffatts
+--
+CREATE TABLE gffatts (
+  feature_id integer,
+  type text,
+  attribute character varying
+);
+
+
+--
+-- Table: intron_combined_view
+--
+CREATE TABLE intron_combined_view (
+  exon1_id integer,
+  exon2_id integer,
+  fmin integer,
+  fmax integer,
+  strand smallint,
+  srcfeature_id integer,
+  intron_rank integer,
+  transcript_id integer
+);
+
+
+--
+-- Table: intronloc_view
+--
+CREATE TABLE intronloc_view (
+  exon1_id integer,
+  exon2_id integer,
+  fmin integer,
+  fmax integer,
+  strand smallint,
+  srcfeature_id integer
+);
+
+
+--
+-- Table: mageml
+--
+CREATE TABLE mageml (
+  mageml_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x90f5e08)',
+  mage_package text NOT NULL,
+  mage_ml text NOT NULL
+);
+
+
+--
+-- Table: organism
+--
+CREATE TABLE organism (
+  organism_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x903accc)',
+  abbreviation character varying(255),
+  genus character varying(255) NOT NULL,
+  species character varying(255) NOT NULL,
+  common_name character varying(255),
+  comment text
+);
+
+CREATE UNIQUE INDEX organism_c1_organism on organism (genus, species);
+
+--
+-- Table: project
+--
+CREATE TABLE project (
+  project_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x938cfa8)',
+  name character varying(255) NOT NULL,
+  description character varying(255) NOT NULL
+);
+
+CREATE UNIQUE INDEX project_c1_project on project (name);
+
+--
+-- Table: protein_coding_gene
+--
+CREATE TABLE protein_coding_gene (
+  feature_id integer,
+  dbxref_id integer,
+  organism_id integer,
+  name character varying(255),
+  uniquename text,
+  residues text,
+  seqlen integer,
+  md5checksum character(32),
+  type_id integer,
+  is_analysis boolean,
+  is_obsolete boolean,
+  timeaccessioned timestamp without time zone,
+  timelastmodified timestamp without time zone
+);
+
+
+--
+-- Table: stats_paths_to_root
+--
+CREATE TABLE stats_paths_to_root (
+  cvterm_id integer,
+  total_paths bigint,
+  avg_distance numeric,
+  min_distance integer,
+  max_distance integer
+);
+
+
+--
+-- Table: tableinfo
+--
+CREATE TABLE tableinfo (
+  tableinfo_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x93babc4)',
+  name character varying(30) NOT NULL,
+  primary_key_column character varying(30),
+  is_view integer NOT NULL DEFAULT '0',
+  view_on_table_id integer,
+  superclass_table_id integer,
+  is_updateable integer NOT NULL DEFAULT '1',
+  modification_date date NOT NULL DEFAULT 'SCALAR(0x93bb1f4)'
+);
+
+CREATE UNIQUE INDEX tableinfo_c1_tableinfo on tableinfo (name);
+
+--
+-- Table: type_feature_count
+--
+CREATE TABLE type_feature_count (
+  type character varying(1024),
+  num_features bigint
+);
+
+
+--
+-- Table: cell_line
+--
+CREATE TABLE cell_line (
+  cell_line_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x9701bf8)',
+  name character varying(255),
+  uniquename character varying(255) NOT NULL,
+  organism_id integer NOT NULL,
+  timeaccessioned timestamp without time zone NOT NULL DEFAULT 'SCALAR(0x9701e50)',
+  timelastmodified timestamp without time zone NOT NULL DEFAULT 'SCALAR(0x9701718)'
+);
+
+CREATE INDEX cell_line_idx_organism_id_cell on cell_line (organism_id);
+CREATE UNIQUE INDEX cell_line_c1_cell_line on cell_line (uniquename, organism_id);
+
+--
+-- Table: dbxref
+--
+CREATE TABLE dbxref (
+  dbxref_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x93bb698)',
+  db_id integer NOT NULL,
+  accession character varying(255) NOT NULL,
+  version character varying(255) NOT NULL DEFAULT '',
+  description text
+);
+
+CREATE INDEX dbxref_idx_db_id_dbxref on dbxref (db_id);
+CREATE UNIQUE INDEX dbxref_c1_dbxref on dbxref (db_id, accession, version);
+
+--
+-- Table: expression_image
+--
+CREATE TABLE expression_image (
+  expression_image_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x93cdfa0)',
+  expression_id integer NOT NULL,
+  eimage_id integer NOT NULL
+);
+
+CREATE INDEX expression_image_idx_eimage_id_expression_imag on expression_image (eimage_id);
+CREATE INDEX expression_image_idx_expression_id_expression_ on expression_image (expression_id);
+CREATE UNIQUE INDEX expression_image_c1_expression on expression_image (expression_id, eimage_id);
+
+--
+-- Table: magedocumentation
+--
+CREATE TABLE magedocumentation (
+  magedocumentation_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x90c59c0)',
+  mageml_id integer NOT NULL,
+  tableinfo_id integer NOT NULL,
+  row_id integer NOT NULL,
+  mageidentifier text NOT NULL
+);
+
+CREATE INDEX magedocumentation_idx_mageml_id_magedocumentati on magedocumentation (mageml_id);
+CREATE INDEX magedocumentation_idx_tableinfo_id_magedocument on magedocumentation (tableinfo_id);
+
+--
+-- Table: cvterm
+--
+CREATE TABLE cvterm (
+  cvterm_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x951be20)',
+  cv_id integer NOT NULL,
+  name character varying(1024) NOT NULL,
+  definition text,
+  dbxref_id integer NOT NULL,
+  is_obsolete integer NOT NULL DEFAULT '0',
+  is_relationshiptype integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX cvterm_idx_cv_id_cvterm on cvterm (cv_id);
+CREATE INDEX cvterm_idx_dbxref_id_cvterm on cvterm (dbxref_id);
+CREATE UNIQUE INDEX cvterm_c1_cvterm on cvterm (name, cv_id, is_obsolete);
+CREATE UNIQUE INDEX cvterm_c2_cvterm on cvterm (dbxref_id);
+
+--
+-- Table: organism_dbxref
+--
+CREATE TABLE organism_dbxref (
+  organism_dbxref_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x905b1d0)',
+  organism_id integer NOT NULL,
+  dbxref_id integer NOT NULL
+);
+
+CREATE INDEX organism_dbxref_idx_dbxref_id_ on organism_dbxref (dbxref_id);
+CREATE INDEX organism_dbxref_idx_organism_id_organism_dbxr on organism_dbxref (organism_id);
+CREATE UNIQUE INDEX organism_dbxref_c1_organism_db on organism_dbxref (organism_id, dbxref_id);
+
+--
+-- Table: cell_line_dbxref
+--
+CREATE TABLE cell_line_dbxref (
+  cell_line_dbxref_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x970c508)',
+  cell_line_id integer NOT NULL,
+  dbxref_id integer NOT NULL,
+  is_current boolean NOT NULL DEFAULT 'SCALAR(0x96f7f84)'
+);
+
+CREATE INDEX cell_line_dbxref_idx_cell_line_id_cell_line_db on cell_line_dbxref (cell_line_id);
+CREATE INDEX cell_line_dbxref_idx_dbxref_id_cell_line_dbxre on cell_line_dbxref (dbxref_id);
+CREATE UNIQUE INDEX cell_line_dbxref_c1_cell_line_ on cell_line_dbxref (cell_line_id, dbxref_id);
+
+--
+-- Table: contact
+--
+CREATE TABLE contact (
+  contact_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x953ae00)',
+  type_id integer,
+  name character varying(255) NOT NULL,
+  description character varying(255)
+);
+
+CREATE INDEX contact_idx_type_id_contact on contact (type_id);
+CREATE UNIQUE INDEX contact_c1_contact on contact (name);
+
+--
+-- Table: cvterm_dbxref
+--
+CREATE TABLE cvterm_dbxref (
+  cvterm_dbxref_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x94ef5a0)',
+  cvterm_id integer NOT NULL,
+  dbxref_id integer NOT NULL,
+  is_for_definition integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX cvterm_dbxref_idx_cvterm_id_cv on cvterm_dbxref (cvterm_id);
+CREATE INDEX cvterm_dbxref_idx_dbxref_id_cv on cvterm_dbxref (dbxref_id);
+CREATE UNIQUE INDEX cvterm_dbxref_c1_cvterm_dbxref on cvterm_dbxref (cvterm_id, dbxref_id);
+
+--
+-- Table: cvterm_relationship
+--
+CREATE TABLE cvterm_relationship (
+  cvterm_relationship_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x94f98b0)',
+  type_id integer NOT NULL,
+  subject_id integer NOT NULL,
+  object_id integer NOT NULL
+);
+
+CREATE INDEX cvterm_relationship_idx_object_id_cvterm_relation on cvterm_relationship (object_id);
+CREATE INDEX cvterm_relationship_idx_subject_id_cvterm_relatio on cvterm_relationship (subject_id);
+CREATE INDEX cvterm_relationship_idx_type_id_cvterm_relationsh on cvterm_relationship (type_id);
+CREATE UNIQUE INDEX cvterm_relationship_c1_cvterm_ on cvterm_relationship (subject_id, object_id, type_id);
+
+--
+-- Table: cvtermpath
+--
+CREATE TABLE cvtermpath (
+  cvtermpath_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x949e218)',
+  type_id integer,
+  subject_id integer NOT NULL,
+  object_id integer NOT NULL,
+  cv_id integer NOT NULL,
+  pathdistance integer
+);
+
+CREATE INDEX cvtermpath_idx_cv_id_cvtermpat on cvtermpath (cv_id);
+CREATE INDEX cvtermpath_idx_object_id_cvter on cvtermpath (object_id);
+CREATE INDEX cvtermpath_idx_subject_id_cvte on cvtermpath (subject_id);
+CREATE INDEX cvtermpath_idx_type_id_cvtermp on cvtermpath (type_id);
+CREATE UNIQUE INDEX cvtermpath_c1_cvtermpath on cvtermpath (subject_id, object_id, type_id, pathdistance);
+
+--
+-- Table: cvtermprop
+--
+CREATE TABLE cvtermprop (
+  cvtermprop_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x94a9a7c)',
+  cvterm_id integer NOT NULL,
+  type_id integer NOT NULL,
+  value text NOT NULL DEFAULT '',
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX cvtermprop_idx_cvterm_id_cvter on cvtermprop (cvterm_id);
+CREATE INDEX cvtermprop_idx_type_id_cvtermp on cvtermprop (type_id);
+CREATE UNIQUE INDEX cvtermprop_cvterm_id_key_cvter on cvtermprop (cvterm_id, type_id, value, rank);
+
+--
+-- Table: cvtermsynonym
+--
+CREATE TABLE cvtermsynonym (
+  cvtermsynonym_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x9512a4c)',
+  cvterm_id integer NOT NULL,
+  synonym character varying(1024) NOT NULL,
+  type_id integer
+);
+
+CREATE INDEX cvtermsynonym_idx_cvterm_id_cv on cvtermsynonym (cvterm_id);
+CREATE INDEX cvtermsynonym_idx_type_id_cvte on cvtermsynonym (type_id);
+CREATE UNIQUE INDEX cvtermsynonym_c1_cvtermsynonym on cvtermsynonym (cvterm_id, synonym);
+
+--
+-- Table: dbxrefprop
+--
+CREATE TABLE dbxrefprop (
+  dbxrefprop_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x94d6400)',
+  dbxref_id integer NOT NULL,
+  type_id integer NOT NULL,
+  value text NOT NULL DEFAULT '',
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX dbxrefprop_idx_dbxref_id_dbxre on dbxrefprop (dbxref_id);
+CREATE INDEX dbxrefprop_idx_type_id_dbxrefp on dbxrefprop (type_id);
+CREATE UNIQUE INDEX dbxrefprop_c1_dbxrefprop on dbxrefprop (dbxref_id, type_id, rank);
+
+--
+-- Table: featuremap
+--
+CREATE TABLE featuremap (
+  featuremap_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x9081934)',
+  name character varying(255),
+  description text,
+  unittype_id integer
+);
+
+CREATE INDEX featuremap_idx_unittype_id_fea on featuremap (unittype_id);
+CREATE UNIQUE INDEX featuremap_c1_featuremap on featuremap (name);
+
+--
+-- Table: phenotype
+--
+CREATE TABLE phenotype (
+  phenotype_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x9032d2c)',
+  uniquename text NOT NULL,
+  observable_id integer,
+  attr_id integer,
+  value text,
+  cvalue_id integer,
+  assay_id integer
+);
+
+CREATE INDEX phenotype_idx_assay_id_phenoty on phenotype (assay_id);
+CREATE INDEX phenotype_idx_attr_id_phenotyp on phenotype (attr_id);
+CREATE INDEX phenotype_idx_cvalue_id_phenot on phenotype (cvalue_id);
+CREATE INDEX phenotype_idx_observable_id_ph on phenotype (observable_id);
+CREATE UNIQUE INDEX phenotype_c1_phenotype on phenotype (uniquename);
+
+--
+-- Table: pub
+--
+CREATE TABLE pub (
+  pub_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8f6eae8)',
+  title text,
+  volumetitle text,
+  volume character varying(255),
+  series_name character varying(255),
+  issue character varying(255),
+  pyear character varying(255),
+  pages character varying(255),
+  miniref character varying(255),
+  uniquename text NOT NULL,
+  type_id integer NOT NULL,
+  is_obsolete boolean DEFAULT 'SCALAR(0x8f7e0b8)',
+  publisher character varying(255),
+  pubplace character varying(255)
+);
+
+CREATE INDEX pub_idx_type_id_pub on pub (type_id);
+CREATE UNIQUE INDEX pub_c1_pub on pub (uniquename);
+
+--
+-- Table: synonym
+--
+CREATE TABLE synonym (
+  synonym_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8edbf00)',
+  name character varying(255) NOT NULL,
+  type_id integer NOT NULL,
+  synonym_sgml character varying(255) NOT NULL
+);
+
+CREATE INDEX synonym_idx_type_id_synonym on synonym (type_id);
+CREATE UNIQUE INDEX synonym_c1_synonym on synonym (name, type_id);
+
+--
+-- Table: analysisprop
+--
+CREATE TABLE analysisprop (
+  analysisprop_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x96a6cd8)',
+  analysis_id integer NOT NULL,
+  type_id integer NOT NULL,
+  value text,
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX analysisprop_idx_analysis_id_a on analysisprop (analysis_id);
+CREATE INDEX analysisprop_idx_type_id_analy on analysisprop (type_id);
+CREATE UNIQUE INDEX analysisprop_c1_analysisprop on analysisprop (analysis_id, type_id, rank);
+
+--
+-- Table: contact_relationship
+--
+CREATE TABLE contact_relationship (
+  contact_relationship_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x953ea68)',
+  type_id integer NOT NULL,
+  subject_id integer NOT NULL,
+  object_id integer NOT NULL
+);
+
+CREATE INDEX contact_relationship_idx_object_id_contact_relatio on contact_relationship (object_id);
+CREATE INDEX contact_relationship_idx_subject_id_contact_relati on contact_relationship (subject_id);
+CREATE INDEX contact_relationship_idx_type_id_contact_relations on contact_relationship (type_id);
+CREATE UNIQUE INDEX contact_relationship_c1_contac on contact_relationship (subject_id, object_id, type_id);
+
+--
+-- Table: environment_cvterm
+--
+CREATE TABLE environment_cvterm (
+  environment_cvterm_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x9354448)',
+  environment_id integer NOT NULL,
+  cvterm_id integer NOT NULL
+);
+
+CREATE INDEX environment_cvterm_idx_cvterm_id_environment_cvt on environment_cvterm (cvterm_id);
+CREATE INDEX environment_cvterm_idx_environment_id_environmen on environment_cvterm (environment_id);
+CREATE UNIQUE INDEX environment_cvterm_c1_environm on environment_cvterm (environment_id, cvterm_id);
+
+--
+-- Table: expression_cvterm
+--
+CREATE TABLE expression_cvterm (
+  expression_cvterm_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x943e8c0)',
+  expression_id integer NOT NULL,
+  cvterm_id integer NOT NULL,
+  rank integer NOT NULL DEFAULT '0',
+  cvterm_type_id integer NOT NULL
+);
+
+CREATE INDEX expression_cvterm_idx_cvterm_id_expression_cvte on expression_cvterm (cvterm_id);
+CREATE INDEX expression_cvterm_idx_cvterm_type_id_expression on expression_cvterm (cvterm_type_id);
+CREATE INDEX expression_cvterm_idx_expression_id_expression_ on expression_cvterm (expression_id);
+CREATE UNIQUE INDEX expression_cvterm_c1_expressio on expression_cvterm (expression_id, cvterm_id, cvterm_type_id);
+
+--
+-- Table: expressionprop
+--
+CREATE TABLE expressionprop (
+  expressionprop_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x9393100)',
+  expression_id integer NOT NULL,
+  type_id integer NOT NULL,
+  value text,
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX expressionprop_idx_expression_id_expressionp on expressionprop (expression_id);
+CREATE INDEX expressionprop_idx_type_id_exp on expressionprop (type_id);
+CREATE UNIQUE INDEX expressionprop_c1_expressionpr on expressionprop (expression_id, type_id, rank);
+
+--
+-- Table: feature
+--
+CREATE TABLE feature (
+  feature_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8bb96e4)',
+  dbxref_id integer,
+  organism_id integer NOT NULL,
+  name character varying(255),
+  uniquename text NOT NULL,
+  residues text,
+  seqlen integer,
+  md5checksum character(32),
+  type_id integer NOT NULL,
+  is_analysis boolean NOT NULL DEFAULT 'SCALAR(0x8bb9594)',
+  is_obsolete boolean NOT NULL DEFAULT 'SCALAR(0x848a4e4)',
+  timeaccessioned timestamp without time zone NOT NULL DEFAULT 'SCALAR(0x8bb1234)',
+  timelastmodified timestamp without time zone NOT NULL DEFAULT 'SCALAR(0x8bb12a0)'
+);
+
+CREATE INDEX feature_idx_dbxref_id_feature on feature (dbxref_id);
+CREATE INDEX feature_idx_organism_id_featur on feature (organism_id);
+CREATE INDEX feature_idx_type_id_feature on feature (type_id);
+CREATE UNIQUE INDEX feature_c1_feature on feature (organism_id, uniquename, type_id);
+
+--
+-- Table: library
+--
+CREATE TABLE library (
+  library_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x92f2a98)',
+  organism_id integer NOT NULL,
+  name character varying(255),
+  uniquename text NOT NULL,
+  type_id integer NOT NULL,
+  is_obsolete integer NOT NULL DEFAULT '0',
+  timeaccessioned timestamp without time zone NOT NULL DEFAULT 'SCALAR(0x92f96e4)',
+  timelastmodified timestamp without time zone NOT NULL DEFAULT 'SCALAR(0x92f9864)'
+);
+
+CREATE INDEX library_idx_organism_id_librar on library (organism_id);
+CREATE INDEX library_idx_type_id_library on library (type_id);
+CREATE UNIQUE INDEX library_c1_library on library (organism_id, uniquename, type_id);
+
+--
+-- Table: organismprop
+--
+CREATE TABLE organismprop (
+  organismprop_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x90332cc)',
+  organism_id integer NOT NULL,
+  type_id integer NOT NULL,
+  value text,
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX organismprop_idx_organism_id_o on organismprop (organism_id);
+CREATE INDEX organismprop_idx_type_id_organ on organismprop (type_id);
+CREATE UNIQUE INDEX organismprop_c1_organismprop on organismprop (organism_id, type_id, rank);
+
+--
+-- Table: phenotype_cvterm
+--
+CREATE TABLE phenotype_cvterm (
+  phenotype_cvterm_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x9028d64)',
+  phenotype_id integer NOT NULL,
+  cvterm_id integer NOT NULL,
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX phenotype_cvterm_idx_cvterm_id_phenotype_cvter on phenotype_cvterm (cvterm_id);
+CREATE INDEX phenotype_cvterm_idx_phenotype_id_phenotype_cv on phenotype_cvterm (phenotype_id);
+CREATE UNIQUE INDEX phenotype_cvterm_c1_phenotype_ on phenotype_cvterm (phenotype_id, cvterm_id, rank);
+
+--
+-- Table: phylotree
+--
+CREATE TABLE phylotree (
+  phylotree_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8fe2ffc)',
+  dbxref_id integer NOT NULL,
+  name character varying(255),
+  type_id integer,
+  analysis_id integer,
+  comment text
+);
+
+CREATE INDEX phylotree_idx_analysis_id_phyl on phylotree (analysis_id);
+CREATE INDEX phylotree_idx_dbxref_id_phylot on phylotree (dbxref_id);
+CREATE INDEX phylotree_idx_type_id_phylotre on phylotree (type_id);
+
+--
+-- Table: protocol
+--
+CREATE TABLE protocol (
+  protocol_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x91e41a0)',
+  type_id integer NOT NULL,
+  pub_id integer,
+  dbxref_id integer,
+  name text NOT NULL,
+  uri text,
+  protocoldescription text,
+  hardwaredescription text,
+  softwaredescription text
+);
+
+CREATE INDEX protocol_idx_dbxref_id_protoco on protocol (dbxref_id);
+CREATE INDEX protocol_idx_pub_id_protocol on protocol (pub_id);
+CREATE INDEX protocol_idx_type_id_protocol on protocol (type_id);
+CREATE UNIQUE INDEX protocol_c1_protocol on protocol (name);
+
+--
+-- Table: pub_dbxref
+--
+CREATE TABLE pub_dbxref (
+  pub_dbxref_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8f2b8fc)',
+  pub_id integer NOT NULL,
+  dbxref_id integer NOT NULL,
+  is_current boolean NOT NULL DEFAULT 'SCALAR(0x8f31220)'
+);
+
+CREATE INDEX pub_dbxref_idx_dbxref_id_pub_d on pub_dbxref (dbxref_id);
+CREATE INDEX pub_dbxref_idx_pub_id_pub_dbxr on pub_dbxref (pub_id);
+CREATE UNIQUE INDEX pub_dbxref_c1_pub_dbxref on pub_dbxref (pub_id, dbxref_id);
+
+--
+-- Table: pub_relationship
+--
+CREATE TABLE pub_relationship (
+  pub_relationship_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8f64560)',
+  subject_id integer NOT NULL,
+  object_id integer NOT NULL,
+  type_id integer NOT NULL
+);
+
+CREATE INDEX pub_relationship_idx_object_id_pub_relationshi on pub_relationship (object_id);
+CREATE INDEX pub_relationship_idx_subject_id_pub_relationsh on pub_relationship (subject_id);
+CREATE INDEX pub_relationship_idx_type_id_p on pub_relationship (type_id);
+CREATE UNIQUE INDEX pub_relationship_c1_pub_relati on pub_relationship (subject_id, object_id, type_id);
+
+--
+-- Table: pubauthor
+--
+CREATE TABLE pubauthor (
+  pubauthor_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8f545d8)',
+  pub_id integer NOT NULL,
+  rank integer NOT NULL,
+  editor boolean DEFAULT 'SCALAR(0x8f3bc88)',
+  surname character varying(100) NOT NULL,
+  givennames character varying(100),
+  suffix character varying(100)
+);
+
+CREATE INDEX pubauthor_idx_pub_id_pubauthor on pubauthor (pub_id);
+CREATE UNIQUE INDEX pubauthor_c1_pubauthor on pubauthor (pub_id, rank);
+
+--
+-- Table: pubprop
+--
+CREATE TABLE pubprop (
+  pubprop_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8f4ce34)',
+  pub_id integer NOT NULL,
+  type_id integer NOT NULL,
+  value text NOT NULL,
+  rank integer
+);
+
+CREATE INDEX pubprop_idx_pub_id_pubprop on pubprop (pub_id);
+CREATE INDEX pubprop_idx_type_id_pubprop on pubprop (type_id);
+CREATE UNIQUE INDEX pubprop_c1_pubprop on pubprop (pub_id, type_id, rank);
+
+--
+-- Table: stock
+--
+CREATE TABLE stock (
+  stock_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8b039a8)',
+  dbxref_id integer,
+  organism_id integer NOT NULL,
+  name character varying(255),
+  uniquename text NOT NULL,
+  description text,
+  type_id integer NOT NULL,
+  is_obsolete boolean NOT NULL DEFAULT 'SCALAR(0x8b03d5c)'
+);
+
+CREATE INDEX stock_idx_dbxref_id_stock on stock (dbxref_id);
+CREATE INDEX stock_idx_organism_id_stock on stock (organism_id);
+CREATE INDEX stock_idx_type_id_stock on stock (type_id);
+CREATE UNIQUE INDEX stock_c1_stock on stock (organism_id, uniquename, type_id);
+
+--
+-- Table: stockcollection
+--
+CREATE TABLE stockcollection (
+  stockcollection_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8affb84)',
+  type_id integer NOT NULL,
+  contact_id integer,
+  name character varying(255),
+  uniquename text NOT NULL
+);
+
+CREATE INDEX stockcollection_idx_contact_id_stockcollectio on stockcollection (contact_id);
+CREATE INDEX stockcollection_idx_type_id_st on stockcollection (type_id);
+CREATE UNIQUE INDEX stockcollection_c1_stockcollec on stockcollection (uniquename, type_id);
+
+--
+-- Table: biomaterial
+--
+CREATE TABLE biomaterial (
+  biomaterial_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x910cadc)',
+  taxon_id integer,
+  biosourceprovider_id integer,
+  dbxref_id integer,
+  name text,
+  description text
+);
+
+CREATE INDEX biomaterial_idx_biosourceprovider_id_biom on biomaterial (biosourceprovider_id);
+CREATE INDEX biomaterial_idx_dbxref_id_biom on biomaterial (dbxref_id);
+CREATE INDEX biomaterial_idx_taxon_id_bioma on biomaterial (taxon_id);
+CREATE UNIQUE INDEX biomaterial_c1_biomaterial on biomaterial (name);
+
+--
+-- Table: cell_line_relationship
+--
+CREATE TABLE cell_line_relationship (
+  cell_line_relationship_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x96f7858)',
+  subject_id integer NOT NULL,
+  object_id integer NOT NULL,
+  type_id integer NOT NULL
+);
+
+CREATE INDEX cell_line_relationship_idx_object_id_cell_line_relat on cell_line_relationship (object_id);
+CREATE INDEX cell_line_relationship_idx_subject_id_cell_line_rela on cell_line_relationship (subject_id);
+CREATE INDEX cell_line_relationship_idx_type_id_cell_line_relatio on cell_line_relationship (type_id);
+CREATE UNIQUE INDEX cell_line_relationship_c1_cell on cell_line_relationship (subject_id, object_id, type_id);
+
+--
+-- Table: cell_lineprop
+--
+CREATE TABLE cell_lineprop (
+  cell_lineprop_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x96ad018)',
+  cell_line_id integer NOT NULL,
+  type_id integer NOT NULL,
+  value text,
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX cell_lineprop_idx_cell_line_id_cell_linepro on cell_lineprop (cell_line_id);
+CREATE INDEX cell_lineprop_idx_type_id_cell on cell_lineprop (type_id);
+CREATE UNIQUE INDEX cell_lineprop_c1_cell_lineprop on cell_lineprop (cell_line_id, type_id, rank);
+
+--
+-- Table: expression_cvtermprop
+--
+CREATE TABLE expression_cvtermprop (
+  expression_cvtermprop_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x9484ee8)',
+  expression_cvterm_id integer NOT NULL,
+  type_id integer NOT NULL,
+  value text,
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX expression_cvtermprop_idx_expression_cvterm_id_expr on expression_cvtermprop (expression_cvterm_id);
+CREATE INDEX expression_cvtermprop_idx_type_id_expression_cvterm on expression_cvtermprop (type_id);
+CREATE UNIQUE INDEX expression_cvtermprop_c1_expre on expression_cvtermprop (expression_cvterm_id, type_id, rank);
+
+--
+-- Table: expression_pub
+--
+CREATE TABLE expression_pub (
+  expression_pub_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x9477b04)',
+  expression_id integer NOT NULL,
+  pub_id integer NOT NULL
+);
+
+CREATE INDEX expression_pub_idx_expression_id_expression_ on expression_pub (expression_id);
+CREATE INDEX expression_pub_idx_pub_id_expr on expression_pub (pub_id);
+CREATE UNIQUE INDEX expression_pub_c1_expression_p on expression_pub (expression_id, pub_id);
+
+--
+-- Table: feature_dbxref
+--
+CREATE TABLE feature_dbxref (
+  feature_dbxref_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8edf908)',
+  feature_id integer NOT NULL,
+  dbxref_id integer NOT NULL,
+  is_current boolean NOT NULL DEFAULT 'SCALAR(0x8e9bc68)'
+);
+
+CREATE INDEX feature_dbxref_idx_dbxref_id_f on feature_dbxref (dbxref_id);
+CREATE INDEX feature_dbxref_idx_feature_id_ on feature_dbxref (feature_id);
+CREATE UNIQUE INDEX feature_dbxref_c1_feature_dbxr on feature_dbxref (feature_id, dbxref_id);
+
+--
+-- Table: feature_relationship
+--
+CREATE TABLE feature_relationship (
+  feature_relationship_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8efc514)',
+  subject_id integer NOT NULL,
+  object_id integer NOT NULL,
+  type_id integer NOT NULL,
+  value text,
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX feature_relationship_idx_object_id_feature_relatio on feature_relationship (object_id);
+CREATE INDEX feature_relationship_idx_subject_id_feature_relati on feature_relationship (subject_id);
+CREATE INDEX feature_relationship_idx_type_id_feature_relations on feature_relationship (type_id);
+CREATE UNIQUE INDEX feature_relationship_c1_featur on feature_relationship (subject_id, object_id, type_id, rank);
+
+--
+-- Table: featureloc
+--
+CREATE TABLE featureloc (
+  featureloc_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8baaa0c)',
+  feature_id integer NOT NULL,
+  srcfeature_id integer,
+  fmin integer,
+  is_fmin_partial boolean NOT NULL DEFAULT 'SCALAR(0x8bb07f0)',
+  fmax integer,
+  is_fmax_partial boolean NOT NULL DEFAULT 'SCALAR(0x8bb0e20)',
+  strand smallint,
+  phase integer,
+  residue_info text,
+  locgroup integer NOT NULL DEFAULT '0',
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX featureloc_idx_feature_id_feat on featureloc (feature_id);
+CREATE INDEX featureloc_idx_srcfeature_id_f on featureloc (srcfeature_id);
+CREATE UNIQUE INDEX featureloc_c1_featureloc on featureloc (feature_id, locgroup, rank);
+
+--
+-- Table: featuremap_pub
+--
+CREATE TABLE featuremap_pub (
+  featuremap_pub_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x908ebf0)',
+  featuremap_id integer NOT NULL,
+  pub_id integer NOT NULL
+);
+
+CREATE INDEX featuremap_pub_idx_featuremap_id_featuremap_ on featuremap_pub (featuremap_id);
+CREATE INDEX featuremap_pub_idx_pub_id_feat on featuremap_pub (pub_id);
+
+--
+-- Table: featureprop
+--
+CREATE TABLE featureprop (
+  featureprop_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8eed67c)',
+  feature_id integer NOT NULL,
+  type_id integer NOT NULL,
+  value text,
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX featureprop_idx_type_id_featur on featureprop (type_id);
+CREATE INDEX featureprop_idx_feature_id_fea on featureprop (feature_id);
+CREATE UNIQUE INDEX featureprop_c1_featureprop on featureprop (feature_id, type_id, rank);
+
+--
+-- Table: library_dbxref
+--
+CREATE TABLE library_dbxref (
+  library_dbxref_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x92d32f4)',
+  library_id integer NOT NULL,
+  dbxref_id integer NOT NULL,
+  is_current boolean NOT NULL DEFAULT 'SCALAR(0x92967ac)'
+);
+
+CREATE INDEX library_dbxref_idx_dbxref_id_l on library_dbxref (dbxref_id);
+CREATE INDEX library_dbxref_idx_library_id_ on library_dbxref (library_id);
+CREATE UNIQUE INDEX library_dbxref_c1_library_dbxr on library_dbxref (library_id, dbxref_id);
+
+--
+-- Table: libraryprop
+--
+CREATE TABLE libraryprop (
+  libraryprop_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x92dafd0)',
+  library_id integer NOT NULL,
+  type_id integer NOT NULL,
+  value text,
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX libraryprop_idx_library_id_lib on libraryprop (library_id);
+CREATE INDEX libraryprop_idx_type_id_librar on libraryprop (type_id);
+CREATE UNIQUE INDEX libraryprop_c1_libraryprop on libraryprop (library_id, type_id, rank);
+
+--
+-- Table: protocolparam
+--
+CREATE TABLE protocolparam (
+  protocolparam_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x92319b8)',
+  protocol_id integer NOT NULL,
+  name text NOT NULL,
+  datatype_id integer,
+  unittype_id integer,
+  value text,
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX protocolparam_idx_datatype_id_ on protocolparam (datatype_id);
+CREATE INDEX protocolparam_idx_protocol_id_ on protocolparam (protocol_id);
+CREATE INDEX protocolparam_idx_unittype_id_ on protocolparam (unittype_id);
+
+--
+-- Table: stock_dbxref
+--
+CREATE TABLE stock_dbxref (
+  stock_dbxref_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8ae4658)',
+  stock_id integer NOT NULL,
+  dbxref_id integer NOT NULL,
+  is_current boolean NOT NULL DEFAULT 'SCALAR(0x8aaee7c)'
+);
+
+CREATE INDEX stock_dbxref_idx_dbxref_id_sto on stock_dbxref (dbxref_id);
+CREATE INDEX stock_dbxref_idx_stock_id_stoc on stock_dbxref (stock_id);
+CREATE UNIQUE INDEX stock_dbxref_c1_stock_dbxref on stock_dbxref (stock_id, dbxref_id);
+
+--
+-- Table: stock_relationship
+--
+CREATE TABLE stock_relationship (
+  stock_relationship_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8aa629c)',
+  subject_id integer NOT NULL,
+  object_id integer NOT NULL,
+  type_id integer NOT NULL,
+  value text,
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX stock_relationship_idx_object_id_stock_relations on stock_relationship (object_id);
+CREATE INDEX stock_relationship_idx_subject_id_stock_relation on stock_relationship (subject_id);
+CREATE INDEX stock_relationship_idx_type_id_stock_relationshi on stock_relationship (type_id);
+CREATE UNIQUE INDEX stock_relationship_c1_stock_re on stock_relationship (subject_id, object_id, type_id, rank);
+
+--
+-- Table: stockcollectionprop
+--
+CREATE TABLE stockcollectionprop (
+  stockcollectionprop_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8aaed50)',
+  stockcollection_id integer NOT NULL,
+  type_id integer NOT NULL,
+  value text,
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX stockcollectionprop_idx_stockcollection_id_stockc on stockcollectionprop (stockcollection_id);
+CREATE INDEX stockcollectionprop_idx_type_id_stockcollectionpr on stockcollectionprop (type_id);
+CREATE UNIQUE INDEX stockcollectionprop_c1_stockco on stockcollectionprop (stockcollection_id, type_id, rank);
+
+--
+-- Table: stockprop
+--
+CREATE TABLE stockprop (
+  stockprop_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x889dd2c)',
+  stock_id integer NOT NULL,
+  type_id integer NOT NULL,
+  value text,
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX stockprop_idx_stock_id_stockpr on stockprop (stock_id);
+CREATE INDEX stockprop_idx_type_id_stockpro on stockprop (type_id);
+CREATE UNIQUE INDEX stockprop_c1_stockprop on stockprop (stock_id, type_id, rank);
+
+--
+-- Table: study
+--
+CREATE TABLE study (
+  study_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x9121de0)',
+  contact_id integer NOT NULL,
+  pub_id integer,
+  dbxref_id integer,
+  name text NOT NULL,
+  description text
+);
+
+CREATE INDEX study_idx_contact_id_study on study (contact_id);
+CREATE INDEX study_idx_dbxref_id_study on study (dbxref_id);
+CREATE INDEX study_idx_pub_id_study on study (pub_id);
+CREATE UNIQUE INDEX study_c1_study on study (name);
+
+--
+-- Table: analysisfeature
+--
+CREATE TABLE analysisfeature (
+  analysisfeature_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x9693dfc)',
+  feature_id integer NOT NULL,
+  analysis_id integer NOT NULL,
+  rawscore double precision,
+  normscore double precision,
+  significance double precision,
+  identity double precision
+);
+
+CREATE INDEX analysisfeature_idx_analysis_id_analysisfeatu on analysisfeature (analysis_id);
+CREATE INDEX analysisfeature_idx_feature_id_analysisfeatur on analysisfeature (feature_id);
+CREATE UNIQUE INDEX analysisfeature_c1_analysisfea on analysisfeature (feature_id, analysis_id);
+
+--
+-- Table: arraydesign
+--
+CREATE TABLE arraydesign (
+  arraydesign_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x9296bd8)',
+  manufacturer_id integer NOT NULL,
+  platformtype_id integer NOT NULL,
+  substratetype_id integer,
+  protocol_id integer,
+  dbxref_id integer,
+  name text NOT NULL,
+  version text,
+  description text,
+  array_dimensions text,
+  element_dimensions text,
+  num_of_elements integer,
+  num_array_columns integer,
+  num_array_rows integer,
+  num_grid_columns integer,
+  num_grid_rows integer,
+  num_sub_columns integer,
+  num_sub_rows integer
+);
+
+CREATE INDEX arraydesign_idx_dbxref_id_arra on arraydesign (dbxref_id);
+CREATE INDEX arraydesign_idx_manufacturer_id_arraydesi on arraydesign (manufacturer_id);
+CREATE INDEX arraydesign_idx_platformtype_id_arraydesi on arraydesign (platformtype_id);
+CREATE INDEX arraydesign_idx_protocol_id_ar on arraydesign (protocol_id);
+CREATE INDEX arraydesign_idx_substratetype_id_arraydes on arraydesign (substratetype_id);
+CREATE UNIQUE INDEX arraydesign_c1_arraydesign on arraydesign (name);
+
+--
+-- Table: biomaterial_dbxref
+--
+CREATE TABLE biomaterial_dbxref (
+  biomaterial_dbxref_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x90c4e38)',
+  biomaterial_id integer NOT NULL,
+  dbxref_id integer NOT NULL
+);
+
+CREATE INDEX biomaterial_dbxref_idx_biomaterial_id_biomateria on biomaterial_dbxref (biomaterial_id);
+CREATE INDEX biomaterial_dbxref_idx_dbxref_id_biomaterial_dbx on biomaterial_dbxref (dbxref_id);
+CREATE UNIQUE INDEX biomaterial_dbxref_c1_biomater on biomaterial_dbxref (biomaterial_id, dbxref_id);
+
+--
+-- Table: biomaterial_relationship
+--
+CREATE TABLE biomaterial_relationship (
+  biomaterial_relationship_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x9179ca4)',
+  subject_id integer NOT NULL,
+  type_id integer NOT NULL,
+  object_id integer NOT NULL
+);
+
+CREATE INDEX biomaterial_relationship_idx_object_id_biomaterial_rel on biomaterial_relationship (object_id);
+CREATE INDEX biomaterial_relationship_idx_subject_id_biomaterial_re on biomaterial_relationship (subject_id);
+CREATE INDEX biomaterial_relationship_idx_type_id_biomaterial_relat on biomaterial_relationship (type_id);
+CREATE UNIQUE INDEX biomaterial_relationship_c1_bi on biomaterial_relationship (subject_id, object_id, type_id);
+
+--
+-- Table: biomaterialprop
+--
+CREATE TABLE biomaterialprop (
+  biomaterialprop_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x91f585c)',
+  biomaterial_id integer NOT NULL,
+  type_id integer NOT NULL,
+  value text,
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX biomaterialprop_idx_biomaterial_id_biomateria on biomaterialprop (biomaterial_id);
+CREATE INDEX biomaterialprop_idx_type_id_bi on biomaterialprop (type_id);
+CREATE UNIQUE INDEX biomaterialprop_c1_biomaterial on biomaterialprop (biomaterial_id, type_id, rank);
+
+--
+-- Table: cell_line_cvterm
+--
+CREATE TABLE cell_line_cvterm (
+  cell_line_cvterm_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x96d2848)',
+  cell_line_id integer NOT NULL,
+  cvterm_id integer NOT NULL,
+  pub_id integer NOT NULL,
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX cell_line_cvterm_idx_cell_line_id_cell_line_cv on cell_line_cvterm (cell_line_id);
+CREATE INDEX cell_line_cvterm_idx_cvterm_id_cell_line_cvter on cell_line_cvterm (cvterm_id);
+CREATE INDEX cell_line_cvterm_idx_pub_id_ce on cell_line_cvterm (pub_id);
+CREATE UNIQUE INDEX cell_line_cvterm_c1_cell_line_ on cell_line_cvterm (cell_line_id, cvterm_id, pub_id, rank);
+
+--
+-- Table: cell_line_pub
+--
+CREATE TABLE cell_line_pub (
+  cell_line_pub_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x96ebe04)',
+  cell_line_id integer NOT NULL,
+  pub_id integer NOT NULL
+);
+
+CREATE INDEX cell_line_pub_idx_cell_line_id_cell_line_pu on cell_line_pub (cell_line_id);
+CREATE INDEX cell_line_pub_idx_pub_id_cell_ on cell_line_pub (pub_id);
+CREATE UNIQUE INDEX cell_line_pub_c1_cell_line_pub on cell_line_pub (cell_line_id, pub_id);
+
+--
+-- Table: feature_cvterm
+--
+CREATE TABLE feature_cvterm (
+  feature_cvterm_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8f2bc20)',
+  feature_id integer NOT NULL,
+  cvterm_id integer NOT NULL,
+  pub_id integer NOT NULL,
+  is_not boolean NOT NULL DEFAULT 'SCALAR(0x8f31418)',
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX feature_cvterm_idx_cvterm_id_f on feature_cvterm (cvterm_id);
+CREATE INDEX feature_cvterm_idx_feature_id_ on feature_cvterm (feature_id);
+CREATE INDEX feature_cvterm_idx_pub_id_feat on feature_cvterm (pub_id);
+CREATE UNIQUE INDEX feature_cvterm_c1_feature_cvte on feature_cvterm (feature_id, cvterm_id, pub_id, rank);
+
+--
+-- Table: feature_genotype
+--
+CREATE TABLE feature_genotype (
+  feature_genotype_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x933a9d0)',
+  feature_id integer NOT NULL,
+  genotype_id integer NOT NULL,
+  chromosome_id integer,
+  rank integer NOT NULL,
+  cgroup integer NOT NULL,
+  cvterm_id integer NOT NULL
+);
+
+CREATE INDEX feature_genotype_idx_chromosome_id_feature_gen on feature_genotype (chromosome_id);
+CREATE INDEX feature_genotype_idx_cvterm_id_feature_genotyp on feature_genotype (cvterm_id);
+CREATE INDEX feature_genotype_idx_feature_id_feature_genoty on feature_genotype (feature_id);
+CREATE INDEX feature_genotype_idx_genotype_id_feature_genot on feature_genotype (genotype_id);
+CREATE UNIQUE INDEX feature_genotype_c1_feature_ge on feature_genotype (feature_id, genotype_id, cvterm_id, chromosome_id, rank, cgroup);
+
+--
+-- Table: feature_phenotype
+--
+CREATE TABLE feature_phenotype (
+  feature_phenotype_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x9003a00)',
+  feature_id integer NOT NULL,
+  phenotype_id integer NOT NULL
+);
+
+CREATE INDEX feature_phenotype_idx_feature_id_feature_phenot on feature_phenotype (feature_id);
+CREATE INDEX feature_phenotype_idx_phenotype_id_feature_phen on feature_phenotype (phenotype_id);
+CREATE UNIQUE INDEX feature_phenotype_c1_feature_p on feature_phenotype (feature_id, phenotype_id);
+
+--
+-- Table: feature_pub
+--
+CREATE TABLE feature_pub (
+  feature_pub_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8b9eba0)',
+  feature_id integer NOT NULL,
+  pub_id integer NOT NULL
+);
+
+CREATE INDEX feature_pub_idx_feature_id_fea on feature_pub (feature_id);
+CREATE INDEX feature_pub_idx_pub_id_feature on feature_pub (pub_id);
+CREATE UNIQUE INDEX feature_pub_c1_feature_pub on feature_pub (feature_id, pub_id);
+
+--
+-- Table: feature_relationshipprop
+--
+CREATE TABLE feature_relationshipprop (
+  feature_relationshipprop_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8f211d4)',
+  feature_relationship_id integer NOT NULL,
+  type_id integer NOT NULL,
+  value text,
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX feature_relationshipprop_idx_feature_relationship_id_f on feature_relationshipprop (feature_relationship_id);
+CREATE INDEX feature_relationshipprop_idx_type_id_feature_relations on feature_relationshipprop (type_id);
+CREATE UNIQUE INDEX feature_relationshipprop_c1_fe on feature_relationshipprop (feature_relationship_id, type_id, rank);
+
+--
+-- Table: featurepos
+--
+CREATE TABLE featurepos (
+  featurepos_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x90741f4)',
+  featuremap_id integer NOT NULL DEFAULT 'SCALAR(0x9074080)',
+  feature_id integer NOT NULL,
+  map_feature_id integer NOT NULL,
+  mappos double precision NOT NULL
+);
+
+CREATE INDEX featurepos_idx_feature_id_feat on featurepos (feature_id);
+CREATE INDEX featurepos_idx_featuremap_id_f on featurepos (featuremap_id);
+CREATE INDEX featurepos_idx_map_feature_id_ on featurepos (map_feature_id);
+
+--
+-- Table: featurerange
+--
+CREATE TABLE featurerange (
+  featurerange_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x9096168)',
+  featuremap_id integer NOT NULL,
+  feature_id integer NOT NULL,
+  leftstartf_id integer NOT NULL,
+  leftendf_id integer,
+  rightstartf_id integer,
+  rightendf_id integer NOT NULL,
+  rangestr character varying(255)
+);
+
+CREATE INDEX featurerange_idx_feature_id_fe on featurerange (feature_id);
+CREATE INDEX featurerange_idx_featuremap_id_featurerang on featurerange (featuremap_id);
+CREATE INDEX featurerange_idx_leftendf_id_f on featurerange (leftendf_id);
+CREATE INDEX featurerange_idx_leftstartf_id_featurerang on featurerange (leftstartf_id);
+CREATE INDEX featurerange_idx_rightendf_id_ on featurerange (rightendf_id);
+CREATE INDEX featurerange_idx_rightstartf_id_featureran on featurerange (rightstartf_id);
+
+--
+-- Table: library_cvterm
+--
+CREATE TABLE library_cvterm (
+  library_cvterm_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x93130dc)',
+  library_id integer NOT NULL,
+  cvterm_id integer NOT NULL,
+  pub_id integer NOT NULL
+);
+
+CREATE INDEX library_cvterm_idx_cvterm_id_l on library_cvterm (cvterm_id);
+CREATE INDEX library_cvterm_idx_library_id_ on library_cvterm (library_id);
+CREATE INDEX library_cvterm_idx_pub_id_libr on library_cvterm (pub_id);
+CREATE UNIQUE INDEX library_cvterm_c1_library_cvte on library_cvterm (library_id, cvterm_id, pub_id);
+
+--
+-- Table: library_feature
+--
+CREATE TABLE library_feature (
+  library_feature_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x92a5060)',
+  library_id integer NOT NULL,
+  feature_id integer NOT NULL
+);
+
+CREATE INDEX library_feature_idx_feature_id_library_featur on library_feature (feature_id);
+CREATE INDEX library_feature_idx_library_id_library_featur on library_feature (library_id);
+CREATE UNIQUE INDEX library_feature_c1_library_fea on library_feature (library_id, feature_id);
+
+--
+-- Table: library_pub
+--
+CREATE TABLE library_pub (
+  library_pub_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x92e9218)',
+  library_id integer NOT NULL,
+  pub_id integer NOT NULL
+);
+
+CREATE INDEX library_pub_idx_library_id_lib on library_pub (library_id);
+CREATE INDEX library_pub_idx_pub_id_library on library_pub (pub_id);
+CREATE UNIQUE INDEX library_pub_c1_library_pub on library_pub (library_id, pub_id);
+
+--
+-- Table: phendesc
+--
+CREATE TABLE phendesc (
+  phendesc_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x9348730)',
+  genotype_id integer NOT NULL,
+  environment_id integer NOT NULL,
+  description text NOT NULL,
+  type_id integer NOT NULL,
+  pub_id integer NOT NULL
+);
+
+CREATE INDEX phendesc_idx_environment_id_ph on phendesc (environment_id);
+CREATE INDEX phendesc_idx_genotype_id_phend on phendesc (genotype_id);
+CREATE INDEX phendesc_idx_pub_id_phendesc on phendesc (pub_id);
+CREATE INDEX phendesc_idx_type_id_phendesc on phendesc (type_id);
+CREATE UNIQUE INDEX phendesc_c1_phendesc on phendesc (genotype_id, environment_id, type_id, pub_id);
+
+--
+-- Table: phylotree_pub
+--
+CREATE TABLE phylotree_pub (
+  phylotree_pub_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8f7df2c)',
+  phylotree_id integer NOT NULL,
+  pub_id integer NOT NULL
+);
+
+CREATE INDEX phylotree_pub_idx_phylotree_id_phylotree_pu on phylotree_pub (phylotree_id);
+CREATE INDEX phylotree_pub_idx_pub_id_phylo on phylotree_pub (pub_id);
+CREATE UNIQUE INDEX phylotree_pub_phylotree_id_key_phylotree_pu on phylotree_pub (phylotree_id, pub_id);
+
+--
+-- Table: stock_cvterm
+--
+CREATE TABLE stock_cvterm (
+  stock_cvterm_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8ac01c4)',
+  stock_id integer NOT NULL,
+  cvterm_id integer NOT NULL,
+  pub_id integer NOT NULL
+);
+
+CREATE INDEX stock_cvterm_idx_cvterm_id_sto on stock_cvterm (cvterm_id);
+CREATE INDEX stock_cvterm_idx_pub_id_stock_ on stock_cvterm (pub_id);
+CREATE INDEX stock_cvterm_idx_stock_id_stoc on stock_cvterm (stock_id);
+CREATE UNIQUE INDEX stock_cvterm_c1_stock_cvterm on stock_cvterm (stock_id, cvterm_id, pub_id);
+
+--
+-- Table: stock_genotype
+--
+CREATE TABLE stock_genotype (
+  stock_genotype_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8a8ca24)',
+  stock_id integer NOT NULL,
+  genotype_id integer NOT NULL
+);
+
+CREATE INDEX stock_genotype_idx_genotype_id_stock_genotyp on stock_genotype (genotype_id);
+CREATE INDEX stock_genotype_idx_stock_id_st on stock_genotype (stock_id);
+CREATE UNIQUE INDEX stock_genotype_c1_stock_genoty on stock_genotype (stock_id, genotype_id);
+
+--
+-- Table: stock_pub
+--
+CREATE TABLE stock_pub (
+  stock_pub_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8aecabc)',
+  stock_id integer NOT NULL,
+  pub_id integer NOT NULL
+);
+
+CREATE INDEX stock_pub_idx_pub_id_stock_pub on stock_pub (pub_id);
+CREATE INDEX stock_pub_idx_stock_id_stock_p on stock_pub (stock_id);
+CREATE UNIQUE INDEX stock_pub_c1_stock_pub on stock_pub (stock_id, pub_id);
+
+--
+-- Table: studydesign
+--
+CREATE TABLE studydesign (
+  studydesign_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x91fc204)',
+  study_id integer NOT NULL,
+  description text
+);
+
+CREATE INDEX studydesign_idx_study_id_study on studydesign (study_id);
+
+--
+-- Table: studyprop
+--
+CREATE TABLE studyprop (
+  studyprop_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x9255fd4)',
+  study_id integer NOT NULL,
+  type_id integer NOT NULL,
+  value text,
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX studyprop_idx_study_id_studypr on studyprop (study_id);
+CREATE INDEX studyprop_idx_type_id_studypro on studyprop (type_id);
+CREATE UNIQUE INDEX studyprop_study_id_key_studypr on studyprop (study_id, type_id, rank);
+
+--
+-- Table: analysisfeatureprop
+--
+CREATE TABLE analysisfeatureprop (
+  analysisfeatureprop_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x96b8f8c)',
+  analysisfeature_id integer NOT NULL,
+  type_id integer NOT NULL,
+  value text,
+  rank integer NOT NULL
+);
+
+CREATE INDEX analysisfeatureprop_idx_analysisfeature_id_analys on analysisfeatureprop (analysisfeature_id);
+CREATE INDEX analysisfeatureprop_idx_type_id_analysisfeaturepr on analysisfeatureprop (type_id);
+CREATE UNIQUE INDEX analysisfeature_id_type_id_rank_analysisfeaturepr on analysisfeatureprop (analysisfeature_id, type_id, rank);
+
+--
+-- Table: arraydesignprop
+--
+CREATE TABLE arraydesignprop (
+  arraydesignprop_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x91ab190)',
+  arraydesign_id integer NOT NULL,
+  type_id integer NOT NULL,
+  value text,
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX arraydesignprop_idx_arraydesign_id_arraydesig on arraydesignprop (arraydesign_id);
+CREATE INDEX arraydesignprop_idx_type_id_ar on arraydesignprop (type_id);
+CREATE UNIQUE INDEX arraydesignprop_c1_arraydesign on arraydesignprop (arraydesign_id, type_id, rank);
+
+--
+-- Table: assay
+--
+CREATE TABLE assay (
+  assay_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x90b5984)',
+  arraydesign_id integer NOT NULL,
+  protocol_id integer,
+  assaydate timestamp without time zone DEFAULT 'SCALAR(0x9081b20)',
+  arrayidentifier text,
+  arraybatchidentifier text,
+  operator_id integer NOT NULL,
+  dbxref_id integer,
+  name text,
+  description text
+);
+
+CREATE INDEX assay_idx_arraydesign_id_assay on assay (arraydesign_id);
+CREATE INDEX assay_idx_dbxref_id_assay on assay (dbxref_id);
+CREATE INDEX assay_idx_operator_id_assay on assay (operator_id);
+CREATE INDEX assay_idx_protocol_id_assay on assay (protocol_id);
+CREATE UNIQUE INDEX assay_c1_assay on assay (name);
+
+--
+-- Table: cell_line_cvtermprop
+--
+CREATE TABLE cell_line_cvtermprop (
+  cell_line_cvtermprop_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x9710014)',
+  cell_line_cvterm_id integer NOT NULL,
+  type_id integer NOT NULL,
+  value text,
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX cell_line_cvtermprop_idx_cell_line_cvterm_id_cell_ on cell_line_cvtermprop (cell_line_cvterm_id);
+CREATE INDEX cell_line_cvtermprop_idx_type_id_cell_line_cvtermp on cell_line_cvtermprop (type_id);
+CREATE UNIQUE INDEX cell_line_cvtermprop_c1_cell_l on cell_line_cvtermprop (cell_line_cvterm_id, type_id, rank);
+
+--
+-- Table: cell_line_feature
+--
+CREATE TABLE cell_line_feature (
+  cell_line_feature_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x9739328)',
+  cell_line_id integer NOT NULL,
+  feature_id integer NOT NULL,
+  pub_id integer NOT NULL
+);
+
+CREATE INDEX cell_line_feature_idx_cell_line_id_cell_line_fe on cell_line_feature (cell_line_id);
+CREATE INDEX cell_line_feature_idx_feature_id_cell_line_feat on cell_line_feature (feature_id);
+CREATE INDEX cell_line_feature_idx_pub_id_c on cell_line_feature (pub_id);
+CREATE UNIQUE INDEX cell_line_feature_c1_cell_line on cell_line_feature (cell_line_id, feature_id, pub_id);
+
+--
+-- Table: cell_line_library
+--
+CREATE TABLE cell_line_library (
+  cell_line_library_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x972c460)',
+  cell_line_id integer NOT NULL,
+  library_id integer NOT NULL,
+  pub_id integer NOT NULL
+);
+
+CREATE INDEX cell_line_library_idx_cell_line_id_cell_line_li on cell_line_library (cell_line_id);
+CREATE INDEX cell_line_library_idx_library_id_cell_line_libr on cell_line_library (library_id);
+CREATE INDEX cell_line_library_idx_pub_id_c on cell_line_library (pub_id);
+CREATE UNIQUE INDEX cell_line_library_c1_cell_line on cell_line_library (cell_line_id, library_id, pub_id);
+
+--
+-- Table: cell_line_synonym
+--
+CREATE TABLE cell_line_synonym (
+  cell_line_synonym_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x9743698)',
+  cell_line_id integer NOT NULL,
+  synonym_id integer NOT NULL,
+  pub_id integer NOT NULL,
+  is_current boolean NOT NULL DEFAULT 'SCALAR(0x9739de4)',
+  is_internal boolean NOT NULL DEFAULT 'SCALAR(0x9743500)'
+);
+
+CREATE INDEX cell_line_synonym_idx_cell_line_id_cell_line_sy on cell_line_synonym (cell_line_id);
+CREATE INDEX cell_line_synonym_idx_pub_id_c on cell_line_synonym (pub_id);
+CREATE INDEX cell_line_synonym_idx_synonym_id_cell_line_syno on cell_line_synonym (synonym_id);
+CREATE UNIQUE INDEX cell_line_synonym_c1_cell_line on cell_line_synonym (synonym_id, cell_line_id, pub_id);
+
+--
+-- Table: cell_lineprop_pub
+--
+CREATE TABLE cell_lineprop_pub (
+  cell_lineprop_pub_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x96e0db4)',
+  cell_lineprop_id integer NOT NULL,
+  pub_id integer NOT NULL
+);
+
+CREATE INDEX cell_lineprop_pub_idx_cell_lineprop_id_cell_lin on cell_lineprop_pub (cell_lineprop_id);
+CREATE INDEX cell_lineprop_pub_idx_pub_id_c on cell_lineprop_pub (pub_id);
+CREATE UNIQUE INDEX cell_lineprop_pub_c1_cell_line on cell_lineprop_pub (cell_lineprop_id, pub_id);
+
+--
+-- Table: feature_cvterm_dbxref
+--
+CREATE TABLE feature_cvterm_dbxref (
+  feature_cvterm_dbxref_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8b6dac4)',
+  feature_cvterm_id integer NOT NULL,
+  dbxref_id integer NOT NULL
+);
+
+CREATE INDEX feature_cvterm_dbxref_idx_dbxref_id_feature_cvterm_ on feature_cvterm_dbxref (dbxref_id);
+CREATE INDEX feature_cvterm_dbxref_idx_feature_cvterm_id_feature on feature_cvterm_dbxref (feature_cvterm_id);
+CREATE UNIQUE INDEX feature_cvterm_dbxref_c1_featu on feature_cvterm_dbxref (feature_cvterm_id, dbxref_id);
+
+--
+-- Table: feature_cvterm_pub
+--
+CREATE TABLE feature_cvterm_pub (
+  feature_cvterm_pub_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8b7c294)',
+  feature_cvterm_id integer NOT NULL,
+  pub_id integer NOT NULL
+);
+
+CREATE INDEX feature_cvterm_pub_idx_feature_cvterm_id_feature on feature_cvterm_pub (feature_cvterm_id);
+CREATE INDEX feature_cvterm_pub_idx_pub_id_ on feature_cvterm_pub (pub_id);
+CREATE UNIQUE INDEX feature_cvterm_pub_c1_feature_ on feature_cvterm_pub (feature_cvterm_id, pub_id);
+
+--
+-- Table: feature_cvtermprop
+--
+CREATE TABLE feature_cvtermprop (
+  feature_cvtermprop_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8b0b61c)',
+  feature_cvterm_id integer NOT NULL,
+  type_id integer NOT NULL,
+  value text,
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX feature_cvtermprop_idx_feature_cvterm_id_feature on feature_cvtermprop (feature_cvterm_id);
+CREATE INDEX feature_cvtermprop_idx_type_id_feature_cvtermpro on feature_cvtermprop (type_id);
+CREATE UNIQUE INDEX feature_cvtermprop_c1_feature_ on feature_cvtermprop (feature_cvterm_id, type_id, rank);
+
+--
+-- Table: feature_expression
+--
+CREATE TABLE feature_expression (
+  feature_expression_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x945e710)',
+  expression_id integer NOT NULL,
+  feature_id integer NOT NULL,
+  pub_id integer NOT NULL
+);
+
+CREATE INDEX feature_expression_idx_expression_id_feature_exp on feature_expression (expression_id);
+CREATE INDEX feature_expression_idx_feature_id_feature_expres on feature_expression (feature_id);
+CREATE INDEX feature_expression_idx_pub_id_ on feature_expression (pub_id);
+CREATE UNIQUE INDEX feature_expression_c1_feature_ on feature_expression (expression_id, feature_id, pub_id);
+
+--
+-- Table: feature_pubprop
+--
+CREATE TABLE feature_pubprop (
+  feature_pubprop_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8b173e8)',
+  feature_pub_id integer NOT NULL,
+  type_id integer NOT NULL,
+  value text,
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX feature_pubprop_idx_feature_pub_id_feature_pu on feature_pubprop (feature_pub_id);
+CREATE INDEX feature_pubprop_idx_type_id_fe on feature_pubprop (type_id);
+CREATE UNIQUE INDEX feature_pubprop_c1_feature_pub on feature_pubprop (feature_pub_id, type_id, rank);
+
+--
+-- Table: feature_relationship_pub
+--
+CREATE TABLE feature_relationship_pub (
+  feature_relationship_pub_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8b40ca8)',
+  feature_relationship_id integer NOT NULL,
+  pub_id integer NOT NULL
+);
+
+CREATE INDEX feature_relationship_pub_idx_feature_relationship_id_f on feature_relationship_pub (feature_relationship_id);
+CREATE INDEX feature_relationship_pub_idx_pub_id_feature_relationsh on feature_relationship_pub (pub_id);
+CREATE UNIQUE INDEX feature_relationship_pub_c1_fe on feature_relationship_pub (feature_relationship_id, pub_id);
+
+--
+-- Table: feature_synonym
+--
+CREATE TABLE feature_synonym (
+  feature_synonym_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8b4b164)',
+  synonym_id integer NOT NULL,
+  feature_id integer NOT NULL,
+  pub_id integer NOT NULL,
+  is_current boolean NOT NULL DEFAULT 'SCALAR(0x8b41734)',
+  is_internal boolean NOT NULL DEFAULT 'SCALAR(0x8b525f0)'
+);
+
+CREATE INDEX feature_synonym_idx_feature_id_feature_synony on feature_synonym (feature_id);
+CREATE INDEX feature_synonym_idx_pub_id_fea on feature_synonym (pub_id);
+CREATE INDEX feature_synonym_idx_synonym_id_feature_synony on feature_synonym (synonym_id);
+CREATE UNIQUE INDEX feature_synonym_c1_feature_syn on feature_synonym (synonym_id, feature_id, pub_id);
+
+--
+-- Table: featureloc_pub
+--
+CREATE TABLE featureloc_pub (
+  featureloc_pub_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8f206e8)',
+  featureloc_id integer NOT NULL,
+  pub_id integer NOT NULL
+);
+
+CREATE INDEX featureloc_pub_idx_featureloc_id_featureloc_ on featureloc_pub (featureloc_id);
+CREATE INDEX featureloc_pub_idx_pub_id_feat on featureloc_pub (pub_id);
+CREATE UNIQUE INDEX featureloc_pub_c1_featureloc_p on featureloc_pub (featureloc_id, pub_id);
+
+--
+-- Table: featureprop_pub
+--
+CREATE TABLE featureprop_pub (
+  featureprop_pub_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8b8ce0c)',
+  featureprop_id integer NOT NULL,
+  pub_id integer NOT NULL
+);
+
+CREATE INDEX featureprop_pub_idx_featureprop_id_featurepro on featureprop_pub (featureprop_id);
+CREATE INDEX featureprop_pub_idx_pub_id_fea on featureprop_pub (pub_id);
+CREATE UNIQUE INDEX featureprop_pub_c1_featureprop on featureprop_pub (featureprop_id, pub_id);
+
+--
+-- Table: library_synonym
+--
+CREATE TABLE library_synonym (
+  library_synonym_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x92fe4b8)',
+  synonym_id integer NOT NULL,
+  library_id integer NOT NULL,
+  pub_id integer NOT NULL,
+  is_current boolean NOT NULL DEFAULT 'SCALAR(0x92f96f0)',
+  is_internal boolean NOT NULL DEFAULT 'SCALAR(0x92fe5a8)'
+);
+
+CREATE INDEX library_synonym_idx_library_id_library_synony on library_synonym (library_id);
+CREATE INDEX library_synonym_idx_pub_id_lib on library_synonym (pub_id);
+CREATE INDEX library_synonym_idx_synonym_id_library_synony on library_synonym (synonym_id);
+CREATE UNIQUE INDEX library_synonym_c1_library_syn on library_synonym (synonym_id, library_id, pub_id);
+
+--
+-- Table: libraryprop_pub
+--
+CREATE TABLE libraryprop_pub (
+  libraryprop_pub_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x929c404)',
+  libraryprop_id integer NOT NULL,
+  pub_id integer NOT NULL
+);
+
+CREATE INDEX libraryprop_pub_idx_libraryprop_id_librarypro on libraryprop_pub (libraryprop_id);
+CREATE INDEX libraryprop_pub_idx_pub_id_lib on libraryprop_pub (pub_id);
+CREATE UNIQUE INDEX libraryprop_pub_c1_libraryprop on libraryprop_pub (libraryprop_id, pub_id);
+
+--
+-- Table: phenstatement
+--
+CREATE TABLE phenstatement (
+  phenstatement_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x9369ecc)',
+  genotype_id integer NOT NULL,
+  environment_id integer NOT NULL,
+  phenotype_id integer NOT NULL,
+  type_id integer NOT NULL,
+  pub_id integer NOT NULL
+);
+
+CREATE INDEX phenstatement_idx_environment_id_phenstatem on phenstatement (environment_id);
+CREATE INDEX phenstatement_idx_genotype_id_ on phenstatement (genotype_id);
+CREATE INDEX phenstatement_idx_phenotype_id_phenstatemen on phenstatement (phenotype_id);
+CREATE INDEX phenstatement_idx_pub_id_phens on phenstatement (pub_id);
+CREATE INDEX phenstatement_idx_type_id_phen on phenstatement (type_id);
+CREATE UNIQUE INDEX phenstatement_c1_phenstatement on phenstatement (genotype_id, phenotype_id, environment_id, type_id, pub_id);
+
+--
+-- Table: phylonode
+--
+CREATE TABLE phylonode (
+  phylonode_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8fd9f60)',
+  phylotree_id integer NOT NULL,
+  parent_phylonode_id integer,
+  left_idx integer NOT NULL,
+  right_idx integer NOT NULL,
+  type_id integer,
+  feature_id integer,
+  label character varying(255),
+  distance double precision
+);
+
+CREATE INDEX phylonode_idx_feature_id_phylo on phylonode (feature_id);
+CREATE INDEX phylonode_idx_parent_phylonode_id_phylo on phylonode (parent_phylonode_id);
+CREATE INDEX phylonode_idx_phylotree_id_phy on phylonode (phylotree_id);
+CREATE INDEX phylonode_idx_type_id_phylonod on phylonode (type_id);
+CREATE UNIQUE INDEX phylonode_phylotree_id_key_phy on phylonode (phylotree_id, left_idx);
+CREATE UNIQUE INDEX phylonode_phylotree_id_key1_ph on phylonode (phylotree_id, right_idx);
+
+--
+-- Table: stock_relationship_pub
+--
+CREATE TABLE stock_relationship_pub (
+  stock_relationship_pub_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8ad8b68)',
+  stock_relationship_id integer NOT NULL,
+  pub_id integer NOT NULL
+);
+
+CREATE INDEX stock_relationship_pub_idx_pub_id_stock_relationship on stock_relationship_pub (pub_id);
+CREATE INDEX stock_relationship_pub_idx_stock_relationship_id_sto on stock_relationship_pub (stock_relationship_id);
+CREATE UNIQUE INDEX stock_relationship_pub_c1_stoc on stock_relationship_pub (stock_relationship_id, pub_id);
+
+--
+-- Table: stockcollection_stock
+--
+CREATE TABLE stockcollection_stock (
+  stockcollection_stock_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8af6094)',
+  stockcollection_id integer NOT NULL,
+  stock_id integer NOT NULL
+);
+
+CREATE INDEX stockcollection_stock_idx_stock_id_stockcollection_ on stockcollection_stock (stock_id);
+CREATE INDEX stockcollection_stock_idx_stockcollection_id_stockc on stockcollection_stock (stockcollection_id);
+CREATE UNIQUE INDEX stockcollection_stock_c1_stock on stockcollection_stock (stockcollection_id, stock_id);
+
+--
+-- Table: stockprop_pub
+--
+CREATE TABLE stockprop_pub (
+  stockprop_pub_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8ace3f0)',
+  stockprop_id integer NOT NULL,
+  pub_id integer NOT NULL
+);
+
+CREATE INDEX stockprop_pub_idx_pub_id_stock on stockprop_pub (pub_id);
+CREATE INDEX stockprop_pub_idx_stockprop_id_stockprop_pu on stockprop_pub (stockprop_id);
+CREATE UNIQUE INDEX stockprop_pub_c1_stockprop_pub on stockprop_pub (stockprop_id, pub_id);
+
+--
+-- Table: studydesignprop
+--
+CREATE TABLE studydesignprop (
+  studydesignprop_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x9126a5c)',
+  studydesign_id integer NOT NULL,
+  type_id integer NOT NULL,
+  value text,
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX studydesignprop_idx_studydesign_id_studydesig on studydesignprop (studydesign_id);
+CREATE INDEX studydesignprop_idx_type_id_st on studydesignprop (type_id);
+CREATE UNIQUE INDEX studydesignprop_c1_studydesign on studydesignprop (studydesign_id, type_id, rank);
+
+--
+-- Table: studyfactor
+--
+CREATE TABLE studyfactor (
+  studyfactor_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x922a844)',
+  studydesign_id integer NOT NULL,
+  type_id integer,
+  name text NOT NULL,
+  description text
+);
+
+CREATE INDEX studyfactor_idx_studydesign_id_studyfacto on studyfactor (studydesign_id);
+CREATE INDEX studyfactor_idx_type_id_studyf on studyfactor (type_id);
+
+--
+-- Table: assayprop
+--
+CREATE TABLE assayprop (
+  assayprop_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x914182c)',
+  assay_id integer NOT NULL,
+  type_id integer NOT NULL,
+  value text,
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX assayprop_idx_assay_id_assaypr on assayprop (assay_id);
+CREATE INDEX assayprop_idx_type_id_assaypro on assayprop (type_id);
+CREATE UNIQUE INDEX assayprop_c1_assayprop on assayprop (assay_id, type_id, rank);
+
+--
+-- Table: feature_expressionprop
+--
+CREATE TABLE feature_expressionprop (
+  feature_expressionprop_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x9469960)',
+  feature_expression_id integer NOT NULL,
+  type_id integer NOT NULL,
+  value text,
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX feature_expressionprop_idx_feature_expression_id_fea on feature_expressionprop (feature_expression_id);
+CREATE INDEX feature_expressionprop_idx_type_id_feature_expressio on feature_expressionprop (type_id);
+CREATE UNIQUE INDEX feature_expressionprop_c1_feat on feature_expressionprop (feature_expression_id, type_id, rank);
+
+--
+-- Table: feature_relationshipprop_pub
+--
+CREATE TABLE feature_relationshipprop_pub (
+  feature_relationshipprop_pub_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8b52a04)',
+  feature_relationshipprop_id integer NOT NULL,
+  pub_id integer NOT NULL
+);
+
+CREATE INDEX feature_relationshipprop_pub_idx_feature_relationshipprop_id_ on feature_relationshipprop_pub (feature_relationshipprop_id);
+CREATE INDEX feature_relationshipprop_pub_idx_pub_id_feature_relationsh on feature_relationshipprop_pub (pub_id);
+CREATE UNIQUE INDEX feature_relationshipprop_pub_c1_feature_relationshipprop_p on feature_relationshipprop_pub (feature_relationshipprop_id, pub_id);
+
+--
+-- Table: phenotype_comparison
+--
+CREATE TABLE phenotype_comparison (
+  phenotype_comparison_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x9383bf8)',
+  genotype1_id integer NOT NULL,
+  environment1_id integer NOT NULL,
+  genotype2_id integer NOT NULL,
+  environment2_id integer NOT NULL,
+  phenotype1_id integer NOT NULL,
+  phenotype2_id integer,
+  pub_id integer NOT NULL,
+  organism_id integer NOT NULL
+);
+
+CREATE INDEX phenotype_comparison_idx_environment1_id_phenotype on phenotype_comparison (environment1_id);
+CREATE INDEX phenotype_comparison_idx_environment2_id_phenotype on phenotype_comparison (environment2_id);
+CREATE INDEX phenotype_comparison_idx_genotype1_id_phenotype_co on phenotype_comparison (genotype1_id);
+CREATE INDEX phenotype_comparison_idx_genotype2_id_phenotype_co on phenotype_comparison (genotype2_id);
+CREATE INDEX phenotype_comparison_idx_organism_id_phenotype_com on phenotype_comparison (organism_id);
+CREATE INDEX phenotype_comparison_idx_phenotype1_id_phenotype_c on phenotype_comparison (phenotype1_id);
+CREATE INDEX phenotype_comparison_idx_phenotype2_id_phenotype_c on phenotype_comparison (phenotype2_id);
+CREATE INDEX phenotype_comparison_idx_pub_id_phenotype_comparis on phenotype_comparison (pub_id);
+CREATE UNIQUE INDEX phenotype_comparison_c1_phenot on phenotype_comparison (genotype1_id, environment1_id, genotype2_id, environment2_id, phenotype1_id, pub_id);
+
+--
+-- Table: phylonode_dbxref
+--
+CREATE TABLE phylonode_dbxref (
+  phylonode_dbxref_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8f5a8c0)',
+  phylonode_id integer NOT NULL,
+  dbxref_id integer NOT NULL
+);
+
+CREATE INDEX phylonode_dbxref_idx_dbxref_id_phylonode_dbxre on phylonode_dbxref (dbxref_id);
+CREATE INDEX phylonode_dbxref_idx_phylonode_id_phylonode_db on phylonode_dbxref (phylonode_id);
+CREATE UNIQUE INDEX phylonode_dbxref_phylonode_id_key_phylonode_db on phylonode_dbxref (phylonode_id, dbxref_id);
+
+--
+-- Table: phylonode_organism
+--
+CREATE TABLE phylonode_organism (
+  phylonode_organism_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8f86098)',
+  phylonode_id integer NOT NULL,
+  organism_id integer NOT NULL
+);
+
+CREATE INDEX phylonode_organism_idx_organism_id_phylonode_org on phylonode_organism (organism_id);
+CREATE INDEX phylonode_organism_idx_phylonode_id_phylonode_or on phylonode_organism (phylonode_id);
+CREATE UNIQUE INDEX phylonode_organism_phylonode_id_key_phylonode_or on phylonode_organism (phylonode_id);
+
+--
+-- Table: phylonode_relationship
+--
+CREATE TABLE phylonode_relationship (
+  phylonode_relationship_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x90091a4)',
+  subject_id integer NOT NULL,
+  object_id integer NOT NULL,
+  type_id integer NOT NULL,
+  rank integer,
+  phylotree_id integer NOT NULL
+);
+
+CREATE INDEX phylonode_relationship_idx_object_id_phylonode_relat on phylonode_relationship (object_id);
+CREATE INDEX phylonode_relationship_idx_phylotree_id_phylonode_re on phylonode_relationship (phylotree_id);
+CREATE INDEX phylonode_relationship_idx_subject_id_phylonode_rela on phylonode_relationship (subject_id);
+CREATE INDEX phylonode_relationship_idx_type_id_phylonode_relatio on phylonode_relationship (type_id);
+CREATE UNIQUE INDEX phylonode_relationship_subject_id_key_phylonode_rela on phylonode_relationship (subject_id, object_id, type_id);
+
+--
+-- Table: phylonodeprop
+--
+CREATE TABLE phylonodeprop (
+  phylonodeprop_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8fe3c20)',
+  phylonode_id integer NOT NULL,
+  type_id integer NOT NULL,
+  value text NOT NULL DEFAULT '',
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX phylonodeprop_idx_phylonode_id_phylonodepro on phylonodeprop (phylonode_id);
+CREATE INDEX phylonodeprop_idx_type_id_phyl on phylonodeprop (type_id);
+CREATE UNIQUE INDEX phylonodeprop_phylonode_id_key_phylonodepro on phylonodeprop (phylonode_id, type_id, value, rank);
+
+--
+-- Table: treatment
+--
+CREATE TABLE treatment (
+  treatment_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x91945b8)',
+  rank integer NOT NULL DEFAULT '0',
+  biomaterial_id integer NOT NULL,
+  type_id integer NOT NULL,
+  protocol_id integer,
+  name text
+);
+
+CREATE INDEX treatment_idx_biomaterial_id_t on treatment (biomaterial_id);
+CREATE INDEX treatment_idx_protocol_id_trea on treatment (protocol_id);
+CREATE INDEX treatment_idx_type_id_treatmen on treatment (type_id);
+
+--
+-- Table: acquisition
+--
+CREATE TABLE acquisition (
+  acquisition_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x90f6180)',
+  assay_id integer NOT NULL,
+  protocol_id integer,
+  channel_id integer,
+  acquisitiondate timestamp without time zone DEFAULT 'SCALAR(0x910d0dc)',
+  name text,
+  uri text
+);
+
+CREATE INDEX acquisition_idx_assay_id_acqui on acquisition (assay_id);
+CREATE INDEX acquisition_idx_channel_id_acq on acquisition (channel_id);
+CREATE INDEX acquisition_idx_protocol_id_ac on acquisition (protocol_id);
+CREATE UNIQUE INDEX acquisition_c1_acquisition on acquisition (name);
+
+--
+-- Table: assay_project
+--
+CREATE TABLE assay_project (
+  assay_project_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x916a3ec)',
+  assay_id integer NOT NULL,
+  project_id integer NOT NULL
+);
+
+CREATE INDEX assay_project_idx_assay_id_ass on assay_project (assay_id);
+CREATE INDEX assay_project_idx_project_id_a on assay_project (project_id);
+CREATE UNIQUE INDEX assay_project_c1_assay_project on assay_project (assay_id, project_id);
+
+--
+-- Table: biomaterial_treatment
+--
+CREATE TABLE biomaterial_treatment (
+  biomaterial_treatment_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x909cb28)',
+  biomaterial_id integer NOT NULL,
+  treatment_id integer NOT NULL,
+  unittype_id integer,
+  value real,
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX biomaterial_treatment_idx_biomaterial_id_biomateria on biomaterial_treatment (biomaterial_id);
+CREATE INDEX biomaterial_treatment_idx_treatment_id_biomaterial_ on biomaterial_treatment (treatment_id);
+CREATE INDEX biomaterial_treatment_idx_unittype_id_biomaterial_t on biomaterial_treatment (unittype_id);
+CREATE UNIQUE INDEX biomaterial_treatment_c1_bioma on biomaterial_treatment (biomaterial_id, treatment_id);
+
+--
+-- Table: control
+--
+CREATE TABLE control (
+  control_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x9161b4c)',
+  type_id integer NOT NULL,
+  assay_id integer NOT NULL,
+  tableinfo_id integer NOT NULL,
+  row_id integer NOT NULL,
+  name text,
+  value text,
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX control_idx_assay_id_control on control (assay_id);
+CREATE INDEX control_idx_tableinfo_id_contr on control (tableinfo_id);
+CREATE INDEX control_idx_type_id_control on control (type_id);
+
+--
+-- Table: element
+--
+CREATE TABLE element (
+  element_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x90ec524)',
+  feature_id integer,
+  arraydesign_id integer NOT NULL,
+  type_id integer,
+  dbxref_id integer
+);
+
+CREATE INDEX element_idx_arraydesign_id_ele on element (arraydesign_id);
+CREATE INDEX element_idx_dbxref_id_element on element (dbxref_id);
+CREATE INDEX element_idx_feature_id_element on element (feature_id);
+CREATE INDEX element_idx_type_id_element on element (type_id);
+CREATE UNIQUE INDEX element_c1_element on element (feature_id, arraydesign_id);
+
+--
+-- Table: phenotype_comparison_cvterm
+--
+CREATE TABLE phenotype_comparison_cvterm (
+  phenotype_comparison_cvterm_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x92f9d5c)',
+  phenotype_comparison_id integer NOT NULL,
+  cvterm_id integer NOT NULL,
+  pub_id integer NOT NULL,
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX phenotype_comparison_cvterm_idx_cvterm_id_phenotype_compa on phenotype_comparison_cvterm (cvterm_id);
+CREATE INDEX phenotype_comparison_cvterm_idx_phenotype_comparison_id_p on phenotype_comparison_cvterm (phenotype_comparison_id);
+CREATE INDEX phenotype_comparison_cvterm_idx_pub_id_phenotype_comparis on phenotype_comparison_cvterm (pub_id);
+CREATE UNIQUE INDEX phenotype_comparison_cvterm_c1_phenotype_comparison_cvter on phenotype_comparison_cvterm (phenotype_comparison_id, cvterm_id);
+
+--
+-- Table: phylonode_pub
+--
+CREATE TABLE phylonode_pub (
+  phylonode_pub_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x8fd06d0)',
+  phylonode_id integer NOT NULL,
+  pub_id integer NOT NULL
+);
+
+CREATE INDEX phylonode_pub_idx_phylonode_id_phylonode_pu on phylonode_pub (phylonode_id);
+CREATE INDEX phylonode_pub_idx_pub_id_phylo on phylonode_pub (pub_id);
+CREATE UNIQUE INDEX phylonode_pub_phylonode_id_key_phylonode_pu on phylonode_pub (phylonode_id, pub_id);
+
+--
+-- Table: study_assay
+--
+CREATE TABLE study_assay (
+  study_assay_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x927e194)',
+  study_id integer NOT NULL,
+  assay_id integer NOT NULL
+);
+
+CREATE INDEX study_assay_idx_assay_id_study on study_assay (assay_id);
+CREATE INDEX study_assay_idx_study_id_study on study_assay (study_id);
+CREATE UNIQUE INDEX study_assay_c1_study_assay on study_assay (study_id, assay_id);
+
+--
+-- Table: studyprop_feature
+--
+CREATE TABLE studyprop_feature (
+  studyprop_feature_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x9154e0c)',
+  studyprop_id integer NOT NULL,
+  feature_id integer NOT NULL,
+  type_id integer
+);
+
+CREATE INDEX studyprop_feature_idx_feature_id_studyprop_feat on studyprop_feature (feature_id);
+CREATE INDEX studyprop_feature_idx_studyprop_id_studyprop_fe on studyprop_feature (studyprop_id);
+CREATE INDEX studyprop_feature_idx_type_id_ on studyprop_feature (type_id);
+CREATE UNIQUE INDEX studyprop_feature_studyprop_id_key_studyprop_fe on studyprop_feature (studyprop_id, feature_id);
+
+--
+-- Table: acquisition_relationship
+--
+CREATE TABLE acquisition_relationship (
+  acquisition_relationship_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x91e37b0)',
+  subject_id integer NOT NULL,
+  type_id integer NOT NULL,
+  object_id integer NOT NULL,
+  value text,
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX acquisition_relationship_idx_object_id_acquisition_rel on acquisition_relationship (object_id);
+CREATE INDEX acquisition_relationship_idx_subject_id_acquisition_re on acquisition_relationship (subject_id);
+CREATE INDEX acquisition_relationship_idx_type_id_acquisition_relat on acquisition_relationship (type_id);
+CREATE UNIQUE INDEX acquisition_relationship_c1_ac on acquisition_relationship (subject_id, object_id, type_id, rank);
+
+--
+-- Table: acquisitionprop
+--
+CREATE TABLE acquisitionprop (
+  acquisitionprop_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x91a2e6c)',
+  acquisition_id integer NOT NULL,
+  type_id integer NOT NULL,
+  value text,
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX acquisitionprop_idx_acquisition_id_acquisitio on acquisitionprop (acquisition_id);
+CREATE INDEX acquisitionprop_idx_type_id_ac on acquisitionprop (type_id);
+CREATE UNIQUE INDEX acquisitionprop_c1_acquisition on acquisitionprop (acquisition_id, type_id, rank);
+
+--
+-- Table: element_relationship
+--
+CREATE TABLE element_relationship (
+  element_relationship_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x9188e50)',
+  subject_id integer NOT NULL,
+  type_id integer NOT NULL,
+  object_id integer NOT NULL,
+  value text,
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX element_relationship_idx_object_id_element_relatio on element_relationship (object_id);
+CREATE INDEX element_relationship_idx_subject_id_element_relati on element_relationship (subject_id);
+CREATE INDEX element_relationship_idx_type_id_element_relations on element_relationship (type_id);
+CREATE UNIQUE INDEX element_relationship_c1_elemen on element_relationship (subject_id, object_id, type_id, rank);
+
+--
+-- Table: assay_biomaterial
+--
+CREATE TABLE assay_biomaterial (
+  assay_biomaterial_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x9269758)',
+  assay_id integer NOT NULL,
+  biomaterial_id integer NOT NULL,
+  channel_id integer,
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX assay_biomaterial_idx_assay_id_assay_biomateria on assay_biomaterial (assay_id);
+CREATE INDEX assay_biomaterial_idx_biomaterial_id_assay_biom on assay_biomaterial (biomaterial_id);
+CREATE INDEX assay_biomaterial_idx_channel_id_assay_biomater on assay_biomaterial (channel_id);
+CREATE UNIQUE INDEX assay_biomaterial_c1_assay_bio on assay_biomaterial (assay_id, biomaterial_id, channel_id, rank);
+
+--
+-- Table: quantification
+--
+CREATE TABLE quantification (
+  quantification_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x9247730)',
+  acquisition_id integer NOT NULL,
+  operator_id integer,
+  protocol_id integer,
+  analysis_id integer NOT NULL,
+  quantificationdate timestamp without time zone DEFAULT 'SCALAR(0x9241e04)',
+  name text,
+  uri text
+);
+
+CREATE INDEX quantification_idx_acquisition_id_quantifica on quantification (acquisition_id);
+CREATE INDEX quantification_idx_analysis_id_quantificatio on quantification (analysis_id);
+CREATE INDEX quantification_idx_operator_id_quantificatio on quantification (operator_id);
+CREATE INDEX quantification_idx_protocol_id_quantificatio on quantification (protocol_id);
+CREATE UNIQUE INDEX quantification_c1_quantificati on quantification (name, analysis_id);
+
+--
+-- Table: studyfactorvalue
+--
+CREATE TABLE studyfactorvalue (
+  studyfactorvalue_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x91ca0d0)',
+  studyfactor_id integer NOT NULL,
+  assay_id integer NOT NULL,
+  factorvalue text,
+  name text,
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX studyfactorvalue_idx_assay_id_ on studyfactorvalue (assay_id);
+CREATE INDEX studyfactorvalue_idx_studyfactor_id_studyfacto on studyfactorvalue (studyfactor_id);
+
+--
+-- Table: quantification_relationship
+--
+CREATE TABLE quantification_relationship (
+  quantification_relationship_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x9277478)',
+  subject_id integer NOT NULL,
+  type_id integer NOT NULL,
+  object_id integer NOT NULL
+);
+
+CREATE INDEX quantification_relationship_idx_object_id_quantification_ on quantification_relationship (object_id);
+CREATE INDEX quantification_relationship_idx_subject_id_quantification on quantification_relationship (subject_id);
+CREATE INDEX quantification_relationship_idx_type_id_quantification_re on quantification_relationship (type_id);
+CREATE UNIQUE INDEX quantification_relationship_c1_quantification_relationshi on quantification_relationship (subject_id, object_id, type_id);
+
+--
+-- Table: quantificationprop
+--
+CREATE TABLE quantificationprop (
+  quantificationprop_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x91bcaa8)',
+  quantification_id integer NOT NULL,
+  type_id integer NOT NULL,
+  value text,
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX quantificationprop_idx_quantification_id_quantif on quantificationprop (quantification_id);
+CREATE INDEX quantificationprop_idx_type_id_quantificationpro on quantificationprop (type_id);
+CREATE UNIQUE INDEX quantificationprop_c1_quantifi on quantificationprop (quantification_id, type_id, rank);
+
+--
+-- Table: elementresult
+--
+CREATE TABLE elementresult (
+  elementresult_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x928eca8)',
+  element_id integer NOT NULL,
+  quantification_id integer NOT NULL,
+  signal double precision NOT NULL
+);
+
+CREATE INDEX elementresult_idx_element_id_e on elementresult (element_id);
+CREATE INDEX elementresult_idx_quantification_id_element on elementresult (quantification_id);
+CREATE UNIQUE INDEX elementresult_c1_elementresult on elementresult (element_id, quantification_id);
+
+--
+-- Table: elementresult_relationship
+--
+CREATE TABLE elementresult_relationship (
+  elementresult_relationship_id INTEGER PRIMARY KEY NOT NULL DEFAULT 'SCALAR(0x92176ac)',
+  subject_id integer NOT NULL,
+  type_id integer NOT NULL,
+  object_id integer NOT NULL,
+  value text,
+  rank integer NOT NULL DEFAULT '0'
+);
+
+CREATE INDEX elementresult_relationship_idx_object_id_elementresult_r on elementresult_relationship (object_id);
+CREATE INDEX elementresult_relationship_idx_subject_id_elementresult_ on elementresult_relationship (subject_id);
+CREATE INDEX elementresult_relationship_idx_type_id_elementresult_rel on elementresult_relationship (type_id);
+CREATE UNIQUE INDEX elementresult_relationship_c1_ on elementresult_relationship (subject_id, object_id, type_id, rank);
+
+COMMIT;
+
