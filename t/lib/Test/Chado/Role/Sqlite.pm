@@ -55,6 +55,13 @@ has 'connection_info' => (
     }
 );
 
+before 'deploy_schema' => sub {
+    my ($self) = @_;
+    $self->dbh->do("PRAGMA foreign_keys = ON");
+};
+
+
+
 1;    # Magic true value required at end of module
 
 __END__
