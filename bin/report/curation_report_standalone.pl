@@ -62,15 +62,22 @@ $writer->print(
     "Gene_ID\tReprediction\tProtein_Sequence_Length(aa)\tEST_count\tDpur_hit\te-value\tpercent_identity\n\n"
 );
 
+
 my $gene_rs = $schema->resultset('Sequence::Feature')->search(
     {   'type.name'     => 'gene',
         'me.is_deleted' => 0,
-        'me.name'       => { -not_like => [ '%_TE', '%RTE', '%_ps' ] }
+        'me.name'       => [
+            -and => { -not_like => '%_TE' },
+            { -not_like => '%RTE' },
+            { -not_like => '%_ps' }
+        ]
     },
     {   join     => [qw/type dbxref/],
         prefetch => [qw/dbxref/],
     }
 );
+
+my $uncurated = 0;
 
 GENE:
 while ( my $gene = $gene_rs->next ) {
@@ -85,7 +92,7 @@ while ( my $gene = $gene_rs->next ) {
     my $gene_name = $gene->name;
 
     if ( $trans_rs->count == 0 ) {
-        $log->info("skipped curated $gene_id");
+        $log->warn("skipped curated $gene_id");
         next GENE;
     }
 
@@ -96,6 +103,7 @@ while ( my $gene = $gene_rs->next ) {
         if ( any { $_->accession eq 'dictyBase Curator' }
             $row->secondary_dbxrefs )
         {
+        	$log->warn("skipped curated $gene_id");	
             next GENE;
         }
         $transcript = $row;
@@ -163,6 +171,7 @@ while ( my $gene = $gene_rs->next ) {
     )->single;
 
     $log->info(" writing report for $gene_id $gene_name ");
+    $uncurated++;
 
     if ($repred_trans) {
         $repred = 'yes' if feature_matches( $transcript, $repred_trans );
@@ -202,6 +211,7 @@ while ( my $gene = $gene_rs->next ) {
 }
 
 $writer->close;
+$log->info("Total gene reported: $uncurated");
 
 sub seqlen {
     my ($trans) = @_;
