@@ -34,9 +34,6 @@ pod2usage(
     "!!!! blast index file not found: report to the author of this script")
     if !-e $idx->stringify;
 
-warn
-    "!!! The blast file is more than a month old: ask the author of this script to update them\n"
-    if -M $idx->stringify > 30;
 
 my $t = localtime;
 my $out
