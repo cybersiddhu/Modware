@@ -719,6 +719,7 @@ sub sub_SeqFeature {
     my $refclass_feature_id = $self->factory->refclass_feature_id() || undef;
     my ( $join_part, $where_part );
     if ( defined($refclass_feature_id) ) {
+    	$self->srcfeature_id($refclass_feature_id);
         $join_part
             = " inner join featureloc parentloc on (parent.feature_id = parentloc.feature_id) ";
         $where_part
@@ -747,6 +748,7 @@ sub sub_SeqFeature {
         #warn $typewhere;
 
         warn "type:@type, type_id:@id_list" if DEBUG;
+        #warn "type:@type, type_id:@id_list" ;
     }
 
     my $handle = $self->factory->dbh();
@@ -888,6 +890,7 @@ sub sub_SeqFeature {
 
     my @p_e_cache;
     if ($param) {
+    	#warn $self->srcfeature_id,  " srcfeature id";
         $sth->execute( $parent_id, $refclass_feature_id,
             $refclass_feature_id )
             or Bio::Root::Root->throw();

@@ -794,7 +794,7 @@ sub features {
         my $schema = $factory->schema;
         my $row
             = $schema->resultset('Sequence::Feature')
-            ->search( { 'name' => { -like => $seq_id } }, { rows => 1 } )
+            ->search( { 'UPPER(name)'  => uc $seq_id } , { rows => 1 } )
             ->single;
         $srcfeature_id = $row->feature_id;
 

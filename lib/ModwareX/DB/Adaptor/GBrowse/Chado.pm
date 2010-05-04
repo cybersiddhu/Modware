@@ -65,7 +65,7 @@ use Bio::DB::GFF::Typename;
 use Bio::Chado::Schema;
 
 #use DBI::Profile;
-use Carp qw(longmess);
+use Carp qw(croak confess longmess);
 use base qw(Bio::Root::Root Bio::DasI);
 use vars qw($VERSION @ISA);
 
@@ -92,10 +92,12 @@ sub new {
 
     #  $dbh->{Profile} = "DBI::Profile";
 
-    my $schema
-        = Bio::Chado::Schema->connect(
-        "dbi:Oracle:host=$ENV{WEB_HOST};sid=dictybase",
-        $ENV{CHADO_USER}, $ENV{CHADO_PW}, { LongReadLen => 2**25 } );
+    croak "database dsn parameter not given\n" if not defined $arg{'-dsn'};
+    croak "database user not given\n"          if not defined $arg{'-user'};
+    croak "database password not given\n" if not defined $arg{'-password'};
+
+    my $schema = Bio::Chado::Schema->connect( $arg{'-dsn'}, $arg{'-user'},
+        $arg{'-password'}, { LongReadLen => 2**25 } );
 
     $self->schema($schema);
     $self->dbh( $schema->storage->dbh );
@@ -397,8 +399,8 @@ sub dbh {
     my ( $self, $arg ) = @_;
 
     if ($arg) {
-    	$self->{dbh} = $arg;
-    	return;
+        $self->{dbh} = $arg;
+        return;
     }
 
     if ( !$arg && not defined $self->{dbh} ) {
@@ -1550,6 +1552,7 @@ sub refclass_feature_id {
 
 sub get_seq_stream {
     my $self = shift;
+
     #warn "get_seq_stream args:@_";
     my ($type,       $types,  $callback, $attributes, $iterator,
         $feature_id, $seq_id, $start,    $end
