@@ -61,7 +61,7 @@ use Bio::DasI;
 use Bio::PrimarySeq;
 use Bio::DB::GFF::Typename;
 
-#use Chado::AutoDBI;
+use DBIx::Connector;
 use Bio::Chado::Schema;
 
 #use DBI::Profile;
@@ -99,8 +99,13 @@ sub new {
     my $schema = Bio::Chado::Schema->connect( $arg{'-dsn'}, $arg{'-user'},
         $arg{'-password'}, { LongReadLen => 2**25 } );
 
+    my $conn = DBIx::Connector->new( $arg{'-dsn'}, $arg{'-user'},
+        $arg{'-password'}, { LongReadLen => 2**25 } );
+    $conn->mode('fixup');
+
     $self->schema($schema);
-    $self->dbh( $schema->storage->dbh );
+    $self->conn($conn);
+    $self->dbh( $conn->dbh );
 
     # determine which cv to use for SO terms
 
@@ -121,11 +126,16 @@ sub new {
 
     warn "cvterm query: $cvterm_query\n" if DEBUG;
 
-    my $sth = $self->dbh->prepare($cvterm_query)
-        or warn "unable to prepare select cvterms";
+    my $sth = $conn->run(
+        sub {
+            my $sth = $_->prepare($cvterm_query);
+            $sth->execute;
+            $sth;
+        }
+    );
 
-    $sth->execute or $self->throw("unable to select cvterms");
-
+    #or warn "unable to prepare select cvterms";
+    #$sth->execute or $self->throw("unable to select cvterms");
     #  my $cvterm_id  = {}; replaced with better-named variables
     #  my $cvname = {};
 
@@ -192,17 +202,21 @@ sub new {
     return $self;
 }
 
-=head2 use_all_feature_names
+= head2 use_all_feature_names
 
-  Title   : use_all_feature_names
-  Usage   : $obj->use_all_feature_names()
-  Function: set or return flag indicating that all_feature_names view is present
-  Returns : 1 if all_feature_names present, 0 if not
-  Args    : to return the flag, none; to set, 1
+      Title
+    : use_all_feature_names Usage
+    : $obj->use_all_feature_names() Function
+    : set
+    or return flag indicating that all_feature_names view is present Returns
+    : 1
+    if all_feature_names present, 0
+        if not Args : to return the flag, none;
+to set, 1
 
-=cut
+    = cut
 
-sub use_all_feature_names {
+    sub use_all_feature_names {
     my ( $self, $flag ) = @_;
 
     $self->{use_all_feature_names} = 0;
@@ -229,14 +243,15 @@ sub organism_id {
         return $self->{'organism_id'};
     }
 
-    my $dbh       = $self->dbh;
-    my $org_query = $dbh->prepare(
-        "SELECT organism_id FROM organism WHERE common_name = ?");
-
-    $org_query->execute($organism_name) or die "organism query failed:$!";
-
+    my $org_query = $self->conn->run(
+        sub {
+            my $sth = $_->prepare(
+                "SELECT organism_id FROM organism WHERE common_name = ?");
+            $sth->execute($organism_name);
+            $sth;
+        }
+    );
     my ($organism_id) = $org_query->fetchrow_array;
-
     if ($organism_id) {
         return $self->{'organism_id'} = $organism_id;
     }
@@ -309,8 +324,13 @@ sub sofa_id {
                      'Sequence Ontology Feature Annotation',
                      'sofa.ontology')";
 
-    my $sth = $self->dbh->prepare($query);
-    $sth->execute() or $self->throw("trying to find SOFA");
+    my $sth = $self->conn->run(
+        sub {
+            my $sth = $_->prepare($query);
+            $sth->execute() or $self->throw("trying to find SOFA");
+            $sth;
+        }
+    );
 
     my $data    = $sth->fetchrow_hashref("NAME_lc");
     my $sofa_id = $$data{'cv_id'};
@@ -321,8 +341,13 @@ sub sofa_id {
                     'Sequence Ontology',
                     'sequence')";
 
-    $sth = $self->dbh->prepare($query);
-    $sth->execute() or $self->throw("trying to find SO");
+    $sth = $self->conn->run(
+        sub {
+            my $sth = $_->dbh->prepare($query);
+            $sth->execute() or $self->throw("trying to find SO");
+            $sth;
+        }
+    );
 
     $data    = $sth->fetchrow_hashref("NAME_lc");
     $sofa_id = $$data{'cv_id'};
@@ -402,11 +427,17 @@ sub dbh {
         $self->{dbh} = $arg;
         return;
     }
-
-    if ( !$arg && not defined $self->{dbh} ) {
-        $self->{dbh} = $self->schema->storage->dbh;
-    }
     return $self->{dbh};
+}
+
+sub conn {
+    my ( $self, $conn ) = @_;
+
+    if ($conn) {
+        $self->{conn} = $conn;
+        return;
+    }
+    return $self->{conn};
 }
 
 =head2 term2name
@@ -807,18 +838,24 @@ sub _by_alias_by_name {
 
     warn "first get_feature_by_name query:$query" if DEBUG;
 
-    $sth = $self->dbh->prepare($query);
 
     if ($wildcard) {
         $name = $self->_search_name_prep($name);
-        warn "name after protecting _ and % in the string:$name\n" if DEBUG;
+        warn "name after protecting _ and % in the string:$name\n"
+            if DEBUG;
     }
 
     # what the hell happened to the lower casing!!!
     # left over bug from making the adaptor case insensitive?
     $name = lc($name);
 
-    $sth->execute($name) or $self->throw("getting the feature_ids failed");
+	$sth = $self->conn->run(
+		{
+			my $sth = $_->prepare($query);
+			$sth->execute($name) or $self->throw("getting the feature_ids failed");
+			$sth;
+		}
+	);
 
   # this makes performance awful!  It does a wildcard search on a view
   # that has several selects in it.  For any reasonably sized database,
@@ -1156,7 +1193,8 @@ sub srcfeature2name {
     my $self = shift;
     my $id   = shift;
 
-    return $self->{'srcfeature_id'}->{$id} if $self->{'srcfeature_id'}->{$id};
+    return $self->{'srcfeature_id'}->{$id}
+        if $self->{'srcfeature_id'}->{$id};
 
     my $sth = $self->dbh->prepare(
         "select name from V_NOTDELETED_FEATURE " . "where feature_id = ?" );
@@ -1176,7 +1214,8 @@ sub srcfeature2name {
 
 sub gff_source_db_id {
     my $self = shift;
-    return $self->{'gff_source_db_id'} if defined $self->{'gff_source_db_id'};
+    return $self->{'gff_source_db_id'}
+        if defined $self->{'gff_source_db_id'};
 
     my $row = $self->schema->resultset('General::Db')
         ->find( { name => 'GFF_source' } );
