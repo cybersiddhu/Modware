@@ -130,34 +130,28 @@ sub new {
     $where_part .= " and srcf.organism_id = " . $self->factory->organism_id
         if $self->factory->organism_id;
 
-    my $srcfeature_query = $factory->dbh->prepare( "
-        select srcfeature_id from featureloc fl
+    my $srcfeature_txt = "select srcfeature_id from featureloc fl
           join feature srcf on (fl.srcfeature_id = srcf.feature_id) 
-        where fl.feature_id = ? " . $where_part );
+        where fl.feature_id = ? " . $where_part;
 
     #my $srcfeature_query = $factory->dbh->prepare( "
     #   select srcfeature_id from featureloc
     #   where feature_id = ? and rank = $target
     #     " );
 
-    my $landmark_is_src_query = $factory->dbh->prepare( "
-       select f.name,f.feature_id,f.seqlen,f.type_id
+    my $landmark_is_txt = "select f.name,f.feature_id,f.seqlen,f.type_id
        from V_NOTDELETED_FEATURE f
        where f.feature_id = ?
-         " );
+         ";
 
-    my $feature_query = $factory->dbh->prepare( "
-       select f.name,f.feature_id,f.seqlen,f.type_id,fl.fmin,fl.fmax,fl.strand
+    my $feature_txt = "select f.name,f.feature_id,f.seqlen,f.type_id,fl.fmin,fl.fmax,fl.strand
        from V_NOTDELETED_FEATURE f, featureloc fl
        where fl.feature_id = ? and
-             ? = f.feature_id
-         " );
+             ? = f.feature_id";
 
-    my $fetch_uniquename_query = $factory->dbh->prepare( "
-       select f.name,fl.fmin,fl.fmax,f.uniquename from V_NOTDELETED_FEATURE f, featureloc fl
+    my $fetch_uniquename_txt = "select f.name,fl.fmin,fl.fmax,f.uniquename from V_NOTDELETED_FEATURE f, featureloc fl
        where f.feature_id = ? and
-             f.feature_id = fl.feature_id 
-         " );
+             f.feature_id = fl.feature_id";
 
     my $ref = $self->_search_by_name( $factory, $quoted_name, $db_id,
         $feature_id );
@@ -167,20 +161,21 @@ sub new {
     #or nothing if there is no result
 
     if ( ref $ref eq 'ARRAY' ) {    #more than one result returned
-
         my @segments;
-
         foreach my $feature_id (@$ref) {
-
-            $fetch_uniquename_query->execute($feature_id)
-                or Bio::Root::Root->throw(
-                "fetching uniquename from feature_id failed");
+            $fetch_uniquename_query = $factory->conn->run(
+                sub {
+                    my $sth = $_->prepare($fetch_uniquename_txt);
+                    $sth->execute($feature_id)
+                        or Bio::Root::Root->throw(
+                        "fetching uniquename from feature_id failed");
+                    $sth;
+                }
+            );
 
             my $hashref
                 = $fetch_uniquename_query->fetchrow_hashref("NAME_lc");
-
             warn "$base_start, $stop\n" if DEBUG;
-
             warn Dumper($hashref) if DEBUG;
 
             $base_start = $base_start ? $base_start : $$hashref{fmin} + 1;
@@ -228,8 +223,14 @@ sub new {
 
         warn "landmark feature_id:$landmark_feature_id\n" if DEBUG;
 
-        $srcfeature_query->execute($landmark_feature_id)
-            or Bio::Root::Root->throw("finding srcfeature_id failed");
+        $srcfeature_query = $factory->conn->run(
+            sub {
+                my $sth = $_->prepare($srcfeature_txt);
+                $sth->execute($landmark_feature_id)
+                    or Bio::Root::Root->throw("finding srcfeature_id failed");
+                $sth;
+            }
+        );
 
         my $hash_ref = $srcfeature_query->fetchrow_hashref("NAME_lc");
         my $srcfeature_id
@@ -244,8 +245,14 @@ sub new {
 
         if ( $landmark_feature_id == $srcfeature_id ) {
 
-            $landmark_is_src_query->execute($landmark_feature_id)
-                or Bio::Root::Root->throw("something else failed");
+            $landmark_is_src_query = $factory->conn->run(
+                sub {
+                    my $sth = $_->prepare($landmark_is_src_txt);
+                    $sth->execute($landmark_feature_id)
+                        or Bio::Root::Root->throw("something else failed");
+                    $sth;
+                }
+            );
             $hash_ref = $landmark_is_src_query->fetchrow_hashref("NAME_lc");
 
             $name = $$hash_ref{'name'};
@@ -794,7 +801,7 @@ sub features {
         my $schema = $factory->schema;
         my $row
             = $schema->resultset('Sequence::Feature')
-            ->search( { 'UPPER(name)'  => uc $seq_id } , { rows => 1 } )
+            ->search( { 'UPPER(name)' => uc $seq_id }, { rows => 1 } )
             ->single;
         $srcfeature_id = $row->feature_id;
 
@@ -862,6 +869,7 @@ sub features {
 
     }
     else {
+
         #warn "gff_source_id is ", $factory->gff_source_db_id;
         $from_part
             = "from V_NOTDELETED_FEATURE f "
