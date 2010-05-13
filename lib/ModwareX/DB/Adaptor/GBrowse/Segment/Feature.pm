@@ -75,9 +75,6 @@ sub new {
 
     my $self = bless {}, $package;
 
-    #check that this is what you want!
-    #($start,$end) = ($end,$start) if defined($strand) and $strand == -1;
-
     $self->factory($factory);
     $self->parent($parent) if $parent;
     $self->seq_id($srcseq);
@@ -100,8 +97,8 @@ sub new {
         );
     }
 
-    $self->srcfeature_id( $parent->srcfeature_id() )
-        if ( defined $parent && $parent->can('srcfeature_id') );
+    $self->srcfeature_id( $parent->srcfeature_id)
+        if defined $parent && $parent->can('srcfeature_id') ;
 
     return $self;
 }
