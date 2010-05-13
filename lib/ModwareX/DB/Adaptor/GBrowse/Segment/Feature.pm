@@ -153,16 +153,19 @@ sub organism {
     my $organism = shift if defined(@_);
     return $self->{'organism'} = $organism if defined($organism);
 
-    my $dbh = $self->factory->dbh;
-
-    my $organism_query = $dbh->prepare( "
-        SELECT genus, species FROM organism WHERE organism_id IN
-          (SELECT organism_id FROM feature WHERE feature_id = ?)
-    " );
-    $organism_query->execute( $self->feature_id );
+    my $factory        = $self->factory;
+    my $organism_query = $factory->conn->run(
+        sub {
+            my $sth = $_->prepare(
+                "SELECT genus, species FROM organism WHERE organism_id IN
+          (SELECT organism_id FROM feature WHERE feature_id = ?)"
+            );
+            $sth->execute( $self->feature_id );
+            $sth;
+        }
+    );
 
     my ( $genus, $species ) = $organism_query->fetchrow_array;
-
     $self->{'organism'} = "$genus $species";
     return $self->{'organism'};
 }
@@ -593,33 +596,6 @@ sub target {
         );
         return $segment;
     }
-
- #    my $query = "SELECT fl.srcfeature_id,fl.fmin,fl.fmax,f.name,f.uniquename
- #               FROM featureloc fl JOIN feature f
- #                    ON (fl.feature_id = ? AND fl.srcfeature_id=f.feature_id)
- #               WHERE fl.rank > 0";
- #
- #    my $sth = $self->factory->dbh->prepare($query);
- #    $sth->execute($self_id);
- #
- #    # While it is theoretically possible for there to be more than
- #    # on target per feature, Bio::Graphics::Browser doesn't support it
- #
- #    my $hashref = $sth->fetchrow_hashref("NAME_lc");
- #
- #    if ( $$hashref{'name'} ) {
- #        my $segment = ModwareX::DB::Adaptor::GBrowse::Segment->new(
- #            $$hashref{'name'},
- #            $self->factory,
- #            $$hashref{'fmin'} + 1,
- #            $$hashref{'fmax'},
- #            $$hashref{'uniquename'},
- #            1,    #new arg to tell Segment this is a Target
- #            $$hashref{'srcfeature_id'},
- #        );
- #        return $segment;
- #    }
-
 }
 
 #####################################################################
@@ -707,11 +683,6 @@ sub sub_SeqFeature {
 
     #warn "starting subfeatures";
 
-    #first call, cache subfeatures
-    #Bio::SeqFeature::CollectionI?
-    #like SeqFeature::Generic?
-
-    #  if(!$self->subfeatures ){
     my $parent_id = $self->feature_id();
     my $inferCDS  = $self->factory->inferCDS;
 
@@ -719,7 +690,7 @@ sub sub_SeqFeature {
     my $refclass_feature_id = $self->factory->refclass_feature_id() || undef;
     my ( $join_part, $where_part );
     if ( defined($refclass_feature_id) ) {
-    	$self->srcfeature_id($refclass_feature_id);
+        $self->srcfeature_id($refclass_feature_id);
         $join_part
             = " inner join featureloc parentloc on (parent.feature_id = parentloc.feature_id) ";
         $where_part
@@ -727,7 +698,6 @@ sub sub_SeqFeature {
     }
 
     my $typewhere = '';
-
     if ( @type > 0 ) {
         my @id_list = map { $self->factory->name2term($_) } @type;
 
@@ -748,6 +718,7 @@ sub sub_SeqFeature {
         #warn $typewhere;
 
         warn "type:@type, type_id:@id_list" if DEBUG;
+
         #warn "type:@type, type_id:@id_list" ;
     }
 
@@ -790,7 +761,7 @@ sub sub_SeqFeature {
 #Notes on the interbase computation :
 #$self->start is already converted to base coordinates, so  we need to substract the unit which has been added by this conversion
         $sql = "
-   select child.feature_id, child.name, child.type_id, child.uniquename, parent.name as pname,
+   		  select child.feature_id, child.name, child.type_id, child.uniquename, parent.name as pname,
          (childloc.fmin + " . $self->start . " - parentloc.fmin -1)  AS fmin,
         (childloc.fmax + " . $self->start . " - parentloc.fmin -1)  AS fmax,
           (childloc.strand * "
@@ -831,14 +802,12 @@ sub sub_SeqFeature {
     $sql =~ s/\s+/ /gs if DEBUG;
     warn $sql if DEBUG;
 
-#
 # dictybase added this.  These dynamic queries slow down the system because they
 # are not called with bind variables.  override the query written by original driver
 # with this one written with bind variables
-#
     my $sth;
     my $param = 0;
-    if (   defined($refclass_feature_id)
+    if (   defined $refclass_feature_id
         && @type == 0
         && !$self->factory->recursivMapping )
     {
@@ -869,28 +838,36 @@ sub sub_SeqFeature {
                  and rel_type.name in ('part_of', 'derives_from')
                  and childloc.srcfeature_id = ? and parentloc.srcfeature_id = ?};
 
-        $sth = $self->factory->dbh->prepare($sql);
-        $sth->execute( $parent_id, $refclass_feature_id,
-            $refclass_feature_id )
-            or $self->throw("subfeature query failed");
-        $param = 1;
+        $sth = $self->factory->conn->run(
+            sub {
+                my $sth = $_->prepare($sql);
+                $sth->execute( $parent_id, $refclass_feature_id,
+                    $refclass_feature_id )
+                    or $self->throw("subfeature query failed");
+                $param = 1;
+                $self;
+            }
+        );
 
     }
     else {
-        $sth = $self->factory->dbh->prepare($sql);
-        $sth->execute() or $self->throw("subfeature query failed");
+        $sth = $self->factory->conn->run(
+            sub {
+                my $sth = $_->prepare($sql);
+                $sth->execute() or $self->throw("subfeature query failed");
+                $sth;
+            }
+        );
     }
 
-    #$self->factory->dbh->trace(0) if DEBUG;
-
     my $rows = @{ $sth->fetchall_arrayref() };
-    return if ( $rows < 1 );    #nothing retrieve during query
-
+    return if $rows < 1;    #nothing retrieve during query
     $sth->finish;
 
     my @p_e_cache;
     if ($param) {
-    	#warn $self->srcfeature_id,  " srcfeature id";
+
+        #warn $self->srcfeature_id,  " srcfeature id";
         $sth->execute( $parent_id, $refclass_feature_id,
             $refclass_feature_id )
             or Bio::Root::Root->throw();
@@ -910,12 +887,18 @@ sub sub_SeqFeature {
         my $interbase_start = $$hashref{fmin};
         my $base_start      = $interbase_start + 1;
 
-        my $source_query = $self->factory->dbh->prepare( "
-            select d.accession from dbxref d,feature_dbxref fd
-            where fd.feature_id = $$hashref{feature_id} and
+        my $source_query = $self->factory->conn->run(
+            sub {
+                my $sth = $_->prepare(
+                    "select d.accession from dbxref d,feature_dbxref fd
+            	  where fd.feature_id = $$hashref{feature_id} and
                   fd.dbxref_id  = d.dbxref_id and
-                  d.db_id = " . $self->factory->gff_source_db_id );
-        $source_query->execute();
+                  d.db_id = " . $self->factory->gff_source_db_id
+                );
+                $sth->execute();
+                $sth;
+            }
+        );
 
         my ($source) = $source_query->fetchrow_array;
         my $type_obj = Bio::DB::GFF::Typename->new(
@@ -948,7 +931,7 @@ sub sub_SeqFeature {
     #now deal with converting polypeptide and exons to CDS
 
     my @cds_utr_features = $self->_do_the_inferring(@p_e_cache)
-        if ( @p_e_cache > 0 );
+        if @p_e_cache > 0;
     push @features, @cds_utr_features;
 
     #this shouldn't be necessary, as filtering took place via the query
@@ -1362,38 +1345,23 @@ sub adjust_bounds {
                 $self->{strand} = $strand unless defined $self->{strand};
                 if ( $start <= $stop ) {
                     $self->{start} = $start
-                        if !defined( $self->{start} )
+                        if !defined $self->{start}
                             || $start < $self->{start};
                     $self->{stop} = $stop
-                        if !defined( $self->{stop} )
+                        if !defined $self->{stop}
                             || $stop > $self->{stop};
                 }
                 else {
                     $self->{start} = $start
-                        if !defined( $self->{start} )
+                        if !defined $self->{start}
                             || $start > $self->{start};
                     $self->{stop} = $stop
-                        if !defined( $self->{stop} )
+                        if !defined $self->{stop}
                             || $stop < $self->{stop};
                 }
-
-  # fix up endpoints of targets too (for homologies only)
-  #	my $h = $feat->group;
-  #	next unless $h && $h->isa('Bio::DB::GFF::Homol'); # always false (for now)
-  #	next unless $g && $g->isa('Bio::DB::GFF::Homol');
-  #	($start,$stop) = ($h->{start},$h->{stop});
-  #	if ($h->strand >= 0) {
-  #	  $g->{start} = $start if !defined($g->{start}) || $start < $g->{start};
-  #	  $g->{stop}  = $stop  if !defined($g->{stop})  || $stop  > $g->{stop};
-  #	}
-  #   else {
-  #	  $g->{start} = $start if !defined($g->{start}) || $start > $g->{start};
-  #	  $g->{stop}  = $stop  if !defined($g->{stop})  || $stop  < $g->{stop};
-  #	}
             }
         }
     }
-
     ( $self->start(), $self->stop(), $self->strand() );
 }
 
@@ -1453,9 +1421,6 @@ sub asString {
     return "$type($name)" if $name;
     return $type;
 
-    #  my $type = $self->method;
-    #  my $id   = $self->group || 'unidentified';
-    #  return join '/',$id,$type,$self->SUPER::asString;
 }
 
 sub attributes {
@@ -1479,15 +1444,17 @@ sub synonyms {
 
     #returns an array with synonyms
     my $self = shift;
-    my $dbh  = $self->factory->dbh();
-
-    my $sth = $dbh->prepare( "
-    select s.name from synonym_ s, feature_synonym fs
-    where ? = fs.feature_id and
-          fs.synonym_id = s.synonym_id
-  " );
-    $sth->execute( $self->feature_id() )
-        or $self->throw("synonym query failed");
+    my $sth  = $self->factory->conn->run(
+        sub {
+            my $sth = $_->prepare(
+                "select s.name from synonym_ s, feature_synonym fs
+    				  where ? = fs.feature_id and fs.synonym_id = s.synonym_id"
+            );
+            $sth->execute( $self->feature_id() )
+                or $self->throw("synonym query failed");
+            $sth;
+        }
+    );
 
     my $name = $self->display_name;
     my @synonyms;
@@ -1524,25 +1491,23 @@ sub cmap_link {
     my $self        = shift;
     my $data_source = shift;
 
-    my $dbh = $self->factory->dbh();
-
-    my $sth = $dbh->prepare( "
-    select  cm_f.feature_name,
-            cm_m.accession_id as map_aid
-    from    cmap_feature cm_f,
-            cmap_map cm_m,
-            feature_to_cmap ftc
-    where   ? = ftc.feature_id
+    my $sth = $self->factory->conn->run(
+        sub {
+            my $sth = $_->prepare(
+                "select  cm_f.feature_name,
+            cm_m.accession_id as map_aid from    cmap_feature cm_f,
+            cmap_map cm_m, feature_to_cmap ftc
+    		where  ? = ftc.feature_id
             and cm_f.accession_id=ftc.cmap_feature_aid
-            and cm_f.map_id=cm_m.map_id
-  " );
-    $sth->execute( $self->feature_id() ) or $self->throw(
-        "cmap link query
-failed"
+            and cm_f.map_id=cm_m.map_id"
+            );
+            $sth->execute( $self->feature_id() )
+                or $self->throw( "cmap link query failed" );
+            $sth;
+        }
     );
     my $link_str = '';
     if ( my $hashref = $sth->fetchrow_hashref("NAME_lc") ) {
-
         $link_str
             = '/cgi-bin/cmap/viewer?ref_map_aids='
             . $$hashref{map_aid}
