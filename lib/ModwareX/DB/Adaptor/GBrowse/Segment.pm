@@ -78,8 +78,8 @@ sub new {
     bless $self, ref $class_type || $class_type;
     $self->{'factory'} = $factory;
     $self->{'name'}    = $name;
-
     $target ||= 0;
+
     my $strand;
 
     warn "na:$name, id:$db_id, $factory\n"          if DEBUG;
@@ -87,17 +87,12 @@ sub new {
 
     # clicking on the help in gbrowse calls this constructor without a
     # name. return to avoid performances issues
-    if ( !defined($name) ) {
-        return;
-    }
+    return if not defined $name;
 
-    # $self->Bio::Root::Root->throw("start value less than 1\n")
-    #   if ( defined $base_start && $base_start < 1 );
     $base_start = $base_start ? int($base_start) : 1;
     my $interbase_start = $base_start - 1;
 
     my $quoted_name = $factory->dbh->quote( lc $name );
-
     warn "quoted name:$quoted_name\n" if DEBUG;
 
     # need to change this query to allow for Target queries
@@ -111,20 +106,18 @@ sub new {
     ##so if $factory->default_class() is empty, you would get a hashref in $refclass
 
     my $refclass
-        = $factory->default_class()
-        ? $factory->name2term( $factory->default_class() )
+        = $factory->default_class
+        ? $factory->name2term( $factory->default_class )
         : undef;
 
     my $ref_feature_id = $factory->refclass_feature_id() || undef;
-
-    my $where_part = " and rank = $target " if ( defined($target) );
-
+    my $where_part = " and rank = $target " if defined $target;
     if ( defined($ref_feature_id) ) {
         $where_part .= " and fl.srcfeature_id = $ref_feature_id ";
     }
     else {
         $where_part .= " and srcf.type_id = $refclass "
-            if ( defined($refclass) );
+            if ( defined $refclass );
     }
 
     $where_part .= " and srcf.organism_id = " . $self->factory->organism_id
@@ -134,22 +127,19 @@ sub new {
           join feature srcf on (fl.srcfeature_id = srcf.feature_id) 
         where fl.feature_id = ? " . $where_part;
 
-    #my $srcfeature_query = $factory->dbh->prepare( "
-    #   select srcfeature_id from featureloc
-    #   where feature_id = ? and rank = $target
-    #     " );
-
     my $landmark_is_txt = "select f.name,f.feature_id,f.seqlen,f.type_id
        from V_NOTDELETED_FEATURE f
        where f.feature_id = ?
          ";
 
-    my $feature_txt = "select f.name,f.feature_id,f.seqlen,f.type_id,fl.fmin,fl.fmax,fl.strand
+    my $feature_txt
+        = "select f.name,f.feature_id,f.seqlen,f.type_id,fl.fmin,fl.fmax,fl.strand
        from V_NOTDELETED_FEATURE f, featureloc fl
        where fl.feature_id = ? and
              ? = f.feature_id";
 
-    my $fetch_uniquename_txt = "select f.name,fl.fmin,fl.fmax,f.uniquename from V_NOTDELETED_FEATURE f, featureloc fl
+    my $fetch_uniquename_txt
+        = "select f.name,fl.fmin,fl.fmax,f.uniquename from V_NOTDELETED_FEATURE f, featureloc fl
        where f.feature_id = ? and
              f.feature_id = fl.feature_id";
 
@@ -183,13 +173,14 @@ sub new {
             $db_id = $$hashref{uniquename};
 
             next
-                if ( !defined($base_start)
-                or !defined($stop)
-                or !defined($db_id) );
+                if not defined $base_start
+                    or not defined $stop
+                    or not defined $db_id;
 
             warn
                 "calling factory->segment with name:$name, start:$base_start, stop:$stop, db_id:$db_id\n"
                 if DEBUG;
+
             push @segments,
                 $factory->segment(
                 -name  => $name,
@@ -376,48 +367,59 @@ sub _search_by_name {
     warn "_search_by_name args:@_" if DEBUG;
 
     my $obsolete_part = "";
-
     $obsolete_part .= " and organism_id = " . $self->factory->organism_id
         if $self->factory->organism_id;
 
-    my $sth;
+    my $query;
     if ($feature_id) {
-        $sth = $factory->dbh->prepare( "
-             select name,feature_id,seqlen from V_NOTDELETED_FEATURE
-             where feature_id = $feature_id $obsolete_part" );
+        $query = "select name,feature_id,seqlen from V_NOTDELETED_FEATURE
+             where feature_id = $feature_id $obsolete_part";
     }
     elsif ($db_id) {
-        $sth = $factory->dbh->prepare( "
-             select name,feature_id,seqlen from V_NOTDELETED_FEATURE
-             where uniquename = \'$db_id\' $obsolete_part " );
+        $query = "select name,feature_id,seqlen from V_NOTDELETED_FEATURE
+             where uniquename = \'$db_id\' $obsolete_part";
 
     }
     else {
-        $sth = $factory->dbh->prepare( "
-             select name,feature_id,seqlen from V_NOTDELETED_FEATURE
+        $query = "select name,feature_id,seqlen from V_NOTDELETED_FEATURE
              where lower(name) = $quoted_name $obsolete_part
              union
              select name,feature_id,seqlen from V_NOTDELETED_FEATURE
-             where lower(uniquename) = $quoted_name $obsolete_part " );
+             where lower(uniquename) = $quoted_name $obsolete_part";
     }
 
     my $where_part = '';
     $where_part = " and f.organism_id = " . $self->factory->organism_id
         if $self->factory->organism_id;
 
-    $sth->execute or Bio::Root::Root->throw("unable to validate name/length");
+    my $sth = $factory->conn->run(
+        sub {
+            my $sth = $_->prepare($query);
+            $sth->execute
+                or Bio::Root::Root->throw("unable to validate name/length");
+            $sth;
+        }
+    );
+
     my $rows_returned = @{ $sth->fetchall_arrayref() };
-    $sth->execute or Bio::Root::Root->throw("unable to validate name/length");
 
     if ( $rows_returned == 0 ) {    #look in synonym for an exact match
         warn "looking for a synonym to $quoted_name" if DEBUG;
-        my $isth = $factory->dbh->prepare( "
-       select fs.feature_id from feature_synonym fs, synonym_ s
-       where fs.synonym_id = s.synonym_id and
-       lower(s.synonym_sgml) = $quoted_name $where_part " );
+        my $isth = $factory->conn->run(
+            sub {
+                my $sth = $_->prepare(
+                    "select fs.feature_id from feature_synonym fs, synonym_ s
+       						where fs.synonym_id = s.synonym_id and
+       						lower(s.synonym_sgml) = $quoted_name $where_part"
+                );
 
-        $isth->execute
-            or Bio::Root::Root->throw("query for name in synonym failed");
+                $sth->execute
+                    or Bio::Root::Root->throw(
+                    "query for name in synonym failed");
+                $sth;
+            }
+        );
+
         $rows_returned = @{ $isth->fetchall_arrayref() };
         $isth->execute or Bio::Root::Root->throw();
 
@@ -425,16 +427,20 @@ sub _search_by_name {
         {    #look in dbxref for accession number match
             warn "looking in dbxref for $quoted_name" if DEBUG;
 
-            $isth = $factory->dbh->prepare( "
-         select feature_id from feature_dbxref fd, dbxref d
-         where fd.dbxref_id = d.dbxref_id and
-               lower(d.accession) = $quoted_name $where_part" );
-            $isth->execute
-                or Bio::Root::Root->throw("query for accession failed");
+            $isth = $factory->conn->run(
+                sub {
+                    my $sth = $_->prepare(
+                        "select feature_id from feature_dbxref fd, dbxref d
+         						   where fd.dbxref_id = d.dbxref_id and
+               					   lower(d.accession) = $quoted_name $where_part"
+                    );
+                    $sth->execute
+                        or
+                        Bio::Root::Root->throw("query for accession failed");
+                    $sth;
+                }
+            );
             $rows_returned = @{ $isth->fetchall_arrayref() };
-            $isth->execute
-                or Bio::Root::Root->throw("unable to validate name/length");
-
             return if $rows_returned == 0;
 
             if ( $rows_returned == 1 ) {
@@ -709,23 +715,6 @@ sub features {
         $interbase_start = $base_start - 1;
         $rend            = defined $end ? $end : $self->end;
 
-     #    my $sql_range;
-     #    if ($rangetype eq 'contains') {
-     #
-     #      $sql_range = " fl.fmin >= $interbase_start and fl.fmax <= $rend ";
-     #
-     #    } elsif ($rangetype eq 'contained_in') {
-     #
-     #      $sql_range = " fl.fmin <= $interbase_start and fl.fmax >= $rend ";
-     #
-     #    } else { #overlaps is the default
-     #
-     #      $sql_range = " fl.fmin <= $rend and fl.fmax >= $interbase_start ";
-     #
-     #    }
-
-        # set type variable
-
         $sql_types = '';
 
         my $valid_type = undef;
@@ -804,15 +793,6 @@ sub features {
             ->search( { 'UPPER(name)' => uc $seq_id }, { rows => 1 } )
             ->single;
         $srcfeature_id = $row->feature_id;
-
-        #if the seq_id arg was passed in, we should only look on that feature
-        #my $srcfeature_query
-        #    = "SELECT feature_id FROM feature where lower(name) = ? ";
-        #$srcfeature_query .= "and organism_id = " . $factory->organism_id
-        #    if $factory->organism_id;
-        #my $srcf_query_handle = $factory->dbh->prepare($srcfeature_query);
-        #$srcf_query_handle->execute( lc($seq_id) );
-        #($srcfeature_id) = $srcf_query_handle->fetchrow_array;
     }
 
     my $select_part
@@ -833,8 +813,6 @@ sub features {
             . "left outer join dbxref dbx         on dbx.dbxref_id = fd.dbxref_id "
             . "                                   and dbx.db_id     = "
             . $factory->gff_source_db_id
-
-     #. " left outer join analysisfeature af on af.feature_id = f.feature_id";
             . " left outer join analysisfeature af on af.feature_id = f.feature_id";
 
         $where_part = "where f.feature_id = $feature_id and fl.rank=0 ";
@@ -857,14 +835,18 @@ sub features {
             $srcquery
                 .= "from featureloc fl join feature f on (fl.srcfeature_id = f.feature_id) ";
             $srcquery .= "where fl.feature_id = ? and f.type_id = $refclass";
-
-            my $sth = $factory->dbh->prepare($srcquery);
-            $sth->execute($feature_id)
-                or $self->throw("refclass_srcfeature query failed");
+            my $sth = $factory->conn->run(
+                sub {
+                    my $sth = $_->prepare($srcquery);
+                    $sth->execute($feature_id)
+                        or $self->throw("refclass_srcfeature query failed");
+                    $sth;
+                }
+            );
             my $hashref = $sth->fetchrow_hashref("NAME_lc");
             my $srcfeature_id = $hashref->{srcfeature_id} || undef;
             $where_part .= " and fl.srcfeature_id = $srcfeature_id "
-                if ( defined($srcfeature_id) );
+                if defined $srcfeature_id;
         }
 
     }
@@ -907,12 +889,15 @@ sub features {
 
     warn "Segement->features query:$query" if DEBUG;
 
-    #my $sth = $factory->dbh->prepare($query);
-    my $sth = $factory->schema->storage->dbh->prepare($query);
-    $sth->execute or $self->throw("feature query failed");
+    my $sth = $factory->conn->run(
+        sub {
+            my $sth = $_->prepare($query);
+            $sth->execute or $self->throw("feature query failed");
+            $sth;
+        }
+    );
 
     while ( my $hashref = $sth->fetchrow_hashref("NAME_lc") ) {
-
         warn "dbstart:$$hashref{fmim}, dbstop:$$hashref{fmax}" if DEBUG;
         warn "start:$base_start, stop:$stop\n"                 if DEBUG;
 
@@ -1107,12 +1092,9 @@ sub _features2level() {
             }
             $sql_types .= ") and ";
         }
-
-        #  $factory->dbh->trace(1) if DEBUG;
-
         $srcfeature_id = $self->{srcfeature_id};
-
     }
+
     my $select_part
         = "select distinct f.name,fl.fmin,fl.fmax,fl.strand,fl.phase,"
         . "fl.locgroup,fl.srcfeature_id,f.type_id,f.uniquename,"
@@ -1120,7 +1102,6 @@ sub _features2level() {
         . "fd.dbxref_id";
 
     my $order_by = "order by f.type_id,fl.fmin ";
-
     my $where_part;
     my $from_part;
     if ($feature_id) {
@@ -1155,9 +1136,14 @@ sub _features2level() {
                 .= "from featureloc fl join feature f on (fl.srcfeature_id = f.feature_id) ";
             $srcquery .= "where fl.feature_id = ? and f.type_id = $refclass";
 
-            my $sth = $factory->dbh->prepare($srcquery);
-            $sth->execute($feature_id)
-                or $self->throw("refclass_srcfeature query failed");
+            my $sth = $factory->conn->run(
+                sub {
+                    my $sth = $_->prepare($srcquery);
+                    $sth->execute($feature_id)
+                        or $self->throw("refclass_srcfeature query failed");
+                    $sth;
+                }
+            );
             my $hashref = $sth->fetchrow_hashref("NAME_lc");
             my $srcfeature_id = $hashref->{srcfeature_id} || undef;
             $where_part .= " and fl.srcfeature_id = $srcfeature_id "
@@ -1198,11 +1184,13 @@ sub _features2level() {
 
     warn "Segement->features query:$query" if DEBUG;
 
-    my $sth = $factory->dbh->prepare($query);
-
-    $sth->execute or $self->throw("feature query failed");
-
-    #   $factory->dbh->do("set enable_hashjoin=1");
+    my $sth = $factory->conn->run(
+        sub {
+            my $sth = $_->prepare($query);
+            $sth->execute or $self->throw("feature query failed");
+            $sth;
+        }
+    );
 
 #2Level Optimisation
 #each feature is spaned over several tuples, each of which store a different SUBfeature (only one tuple if no subfeat of course)
@@ -1541,11 +1529,16 @@ sub desc {
     my $self = shift;
     return $self->{'desc'} if defined $self->{'desc'};
 
-    my $sth = $self->factory->dbh->prepare(
-        "select value from featureprop 
-    where feature_id =  ? and type_id in (select cvterm_id from cvterm where name = 'description') "
+    my $sth = $self->factory->conn->run(
+        sub {
+            my $sth = $_->prepare(
+                "select value from featureprop 
+    			where feature_id =  ? and type_id in (select cvterm_id from cvterm where name = 'description') "
+            );
+            $sth->execute( $self->feature_id );
+            $sth;
+        }
     );
-    $sth->execute( $self->feature_id );
     my $hashref = $sth->fetchrow_hashref("NAME_lc");
     return $self->{'desc'} = $hashref->{value};
 }
@@ -1555,16 +1548,18 @@ sub species {
     my $self = shift;
     return $self->{'species'} if defined $self->{'species'};
 
-    my $sth = $self->factory->dbh->prepare(
-        "select genus,species from organism 
+    my $sth = $self->factory->conn->run(
+        sub {
+            my $sth = $_->prepare(
+                "select genus,species from organism 
     where organism_id = (select organism_id from V_NOTDELETED_FEATURE where feature_id = ?) "
+            );
+            $sth->execute( $self->srcfeature_id );
+            $sth;
+        }
     );
-    $sth->execute( $self->srcfeature_id );
     my $hashref = $sth->fetchrow_hashref("NAME_lc");
-## this is dying; why? dgg
-#  my $spp= Bio::Species->new( -classification => [ $hashref->{species}, $hashref->{genus} ]  );
-
-    my $spp = $hashref->{genus} . ' '
+    my $spp     = $hashref->{genus} . ' '
         . $hashref->{species};    # works for display uses
     return $self->{'species'} = $spp;
 }
@@ -1624,11 +1619,14 @@ sub sourceseq {
 
     return $self->{'sourceseq'} if $self->{'sourceseq'};
 
-    my $dbh = $self->factory->dbh;
-    my $sth = $dbh->prepare( "
-      select name from V_NOTDELETED_FEATURE where feature_id = ?" );
-    $sth->execute( $self->srcfeature_id )
-        or $self->throw("getting sourceseq name query failed");
+    my $sth = $self->factory->conn->run(
+        sub {
+            my $sth = $dbh->prepare( "select name from V_NOTDELETED_FEATURE where feature_id = ?" );
+            $sth->execute( $self->srcfeature_id )
+                or $self->throw("getting sourceseq name query failed");
+            $sth;
+        }
+    );
 
     my $rows_returned = @{ $sth->fetchall_arrayref() };
     $sth->execute or Bio::Root::Root->throw("unable to validate name/length");
