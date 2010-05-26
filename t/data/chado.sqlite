@@ -1,6 +1,6 @@
 -- 
--- Created by SQL::Translator::Producer::SQLite
--- Created on Fri Apr 23 15:45:06 2010
+-- Created by main
+-- Created on Tue May 25 03:56:42 2010
 -- 
 
 
@@ -28,7 +28,7 @@ CREATE TABLE analysis (
   sourcename character varying(255),
   sourceversion character varying(255),
   sourceuri text,
-  timeexecuted timestamp without time zone now()
+  timeexecuted timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE UNIQUE INDEX analysis_c1 ON analysis (program, programversion, sourcename);
@@ -45,6 +45,30 @@ CREATE TABLE channel (
 CREATE UNIQUE INDEX channel_c1 ON channel (name);
 
 --
+-- Table: common_ancestor_cvterm
+--
+CREATE TABLE common_ancestor_cvterm (
+  cvterm1_id integer,
+  cvterm2_id integer,
+  ancestor_cvterm_id integer,
+  pathdistance1 integer,
+  pathdistance2 integer,
+  total_pathdistance integer
+);
+
+--
+-- Table: common_descendant_cvterm
+--
+CREATE TABLE common_descendant_cvterm (
+  cvterm1_id integer,
+  cvterm2_id integer,
+  ancestor_cvterm_id integer,
+  pathdistance1 integer,
+  pathdistance2 integer,
+  total_pathdistance integer
+);
+
+--
 -- Table: cv
 --
 CREATE TABLE cv (
@@ -54,6 +78,58 @@ CREATE TABLE cv (
 );
 
 CREATE UNIQUE INDEX cv_c1 ON cv (name);
+
+--
+-- Table: cv_cvterm_count
+--
+CREATE TABLE cv_cvterm_count (
+  name character varying(255),
+  num_terms_excl_obs bigint
+);
+
+--
+-- Table: cv_cvterm_count_with_obs
+--
+CREATE TABLE cv_cvterm_count_with_obs (
+  name character varying(255),
+  num_terms_incl_obs bigint
+);
+
+--
+-- Table: cv_leaf
+--
+CREATE TABLE cv_leaf (
+  cv_id integer,
+  cvterm_id integer
+);
+
+--
+-- Table: cv_link_count
+--
+CREATE TABLE cv_link_count (
+  cv_name character varying(255),
+  relation_name character varying(1024),
+  relation_cv_name character varying(255),
+  num_links bigint
+);
+
+--
+-- Table: cv_path_count
+--
+CREATE TABLE cv_path_count (
+  cv_name character varying(255),
+  relation_name character varying(1024),
+  relation_cv_name character varying(255),
+  num_paths bigint
+);
+
+--
+-- Table: cv_root
+--
+CREATE TABLE cv_root (
+  cv_id integer,
+  root_cvterm_id integer
+);
 
 --
 -- Table: db
@@ -67,6 +143,32 @@ CREATE TABLE db (
 );
 
 CREATE UNIQUE INDEX db_c1 ON db (name);
+
+--
+-- Table: db_dbxref_count
+--
+CREATE TABLE db_dbxref_count (
+  name character varying(255),
+  num_dbxrefs bigint
+);
+
+--
+-- Table: dfeatureloc
+--
+CREATE TABLE dfeatureloc (
+  featureloc_id integer,
+  feature_id integer,
+  srcfeature_id integer,
+  nbeg integer,
+  is_nbeg_partial boolean,
+  nend integer,
+  is_nend_partial boolean,
+  strand smallint,
+  phase integer,
+  residue_info text,
+  locgroup integer,
+  rank integer
+);
 
 --
 -- Table: eimage
@@ -102,10 +204,153 @@ CREATE TABLE expression (
 CREATE UNIQUE INDEX expression_c1 ON expression (uniquename);
 
 --
+-- Table: f_loc
+--
+CREATE TABLE f_loc (
+  feature_id integer,
+  name character varying(255),
+  dbxref_id integer,
+  nbeg integer,
+  nend integer,
+  strand smallint
+);
+
+--
+-- Table: f_type
+--
+CREATE TABLE f_type (
+  feature_id integer,
+  name character varying(255),
+  dbxref_id integer,
+  type character varying(1024),
+  residues text,
+  seqlen integer,
+  md5checksum character(32),
+  type_id integer,
+  timeaccessioned timestamp without time zone,
+  timelastmodified timestamp without time zone
+);
+
+--
+-- Table: feature_contains
+--
+CREATE TABLE feature_contains (
+  subject_id integer,
+  object_id integer
+);
+
+--
+-- Table: feature_difference
+--
+CREATE TABLE feature_difference (
+  subject_id integer,
+  object_id integer,
+  srcfeature_id smallint,
+  fmin integer,
+  fmax integer,
+  strand integer
+);
+
+--
+-- Table: feature_disjoint
+--
+CREATE TABLE feature_disjoint (
+  subject_id integer,
+  object_id integer
+);
+
+--
+-- Table: feature_distance
+--
+CREATE TABLE feature_distance (
+  subject_id integer,
+  object_id integer,
+  srcfeature_id integer,
+  subject_strand smallint,
+  object_strand smallint,
+  distance integer
+);
+
+--
+-- Table: feature_intersection
+--
+CREATE TABLE feature_intersection (
+  subject_id integer,
+  object_id integer,
+  srcfeature_id integer,
+  subject_strand smallint,
+  object_strand smallint,
+  fmin integer,
+  fmax integer
+);
+
+--
+-- Table: feature_meets
+--
+CREATE TABLE feature_meets (
+  subject_id integer,
+  object_id integer
+);
+
+--
+-- Table: feature_meets_on_same_strand
+--
+CREATE TABLE feature_meets_on_same_strand (
+  subject_id integer,
+  object_id integer
+);
+
+--
+-- Table: feature_union
+--
+CREATE TABLE feature_union (
+  subject_id integer,
+  object_id integer,
+  srcfeature_id integer,
+  subject_strand smallint,
+  object_strand smallint,
+  fmin integer,
+  fmax integer
+);
+
+--
+-- Table: featureset_meets
+--
+CREATE TABLE featureset_meets (
+  subject_id integer,
+  object_id integer
+);
+
+--
+-- Table: fnr_type
+--
+CREATE TABLE fnr_type (
+  feature_id integer,
+  name character varying(255),
+  dbxref_id integer,
+  type character varying(1024),
+  residues text,
+  seqlen integer,
+  md5checksum character(32),
+  type_id integer,
+  timeaccessioned timestamp without time zone,
+  timelastmodified timestamp without time zone
+);
+
+--
+-- Table: fp_key
+--
+CREATE TABLE fp_key (
+  feature_id integer,
+  pkey character varying(1024),
+  value text
+);
+
+--
 -- Table: genotype
 --
 CREATE TABLE genotype (
-  genotype_id INTEGER PRIMARY KEY ,
+  genotype_id INTEGER PRIMARY KEY,
   name text,
   uniquename text NOT NULL,
   description character varying(255)
@@ -114,10 +359,72 @@ CREATE TABLE genotype (
 CREATE UNIQUE INDEX genotype_c1 ON genotype (uniquename);
 
 --
+-- Table: gff3atts
+--
+CREATE TABLE gff3atts (
+  feature_id integer,
+  type text,
+  attribute character varying
+);
+
+--
+-- Table: gff3view
+--
+CREATE TABLE gff3view (
+  feature_id integer,
+  ref character varying(255),
+  source character varying(255),
+  type character varying(1024),
+  fstart integer,
+  fend integer,
+  score double precision,
+  strand smallint,
+  phase integer,
+  seqlen integer,
+  name character varying(255),
+  organism_id integer
+);
+
+--
+-- Table: gffatts
+--
+CREATE TABLE gffatts (
+  feature_id integer,
+  type text,
+  attribute character varying
+);
+
+--
+-- Table: intron_combined_view
+--
+CREATE TABLE intron_combined_view (
+  exon1_id integer,
+  exon2_id integer,
+  fmin integer,
+  fmax integer,
+  strand smallint,
+  srcfeature_id integer,
+  intron_rank integer,
+  transcript_id integer
+);
+
+--
+-- Table: intronloc_view
+--
+CREATE TABLE intronloc_view (
+  exon1_id integer,
+  exon2_id integer,
+  fmin integer,
+  fmax integer,
+  strand smallint,
+  srcfeature_id integer
+);
+
+--
 -- Table: mageml
 --
 CREATE TABLE mageml (
-  mageml_id INTEGER PRIMARY KEY ,
+  mageml_id INTEGER PRIMARY KEY,
   mage_package text NOT NULL,
   mage_ml text NOT NULL
 );
@@ -126,7 +433,7 @@ CREATE TABLE mageml (
 -- Table: organism
 --
 CREATE TABLE organism (
-  organism_id INTEGER PRIMARY KEY ,
+  organism_id INTEGER PRIMARY KEY,
   abbreviation character varying(255),
   genus character varying(255) NOT NULL,
   species character varying(255) NOT NULL,
@@ -140,7 +447,7 @@ CREATE UNIQUE INDEX organism_c1 ON organism (genus, species);
 -- Table: project
 --
 CREATE TABLE project (
-  project_id INTEGER PRIMARY KEY ,
+  project_id INTEGER PRIMARY KEY,
   name character varying(255) NOT NULL,
   description character varying(255) NOT NULL
 );
@@ -148,31 +455,70 @@ CREATE TABLE project (
 CREATE UNIQUE INDEX project_c1 ON project (name);
 
 --
+-- Table: protein_coding_gene
+--
+CREATE TABLE protein_coding_gene (
+  feature_id integer,
+  dbxref_id integer,
+  organism_id integer,
+  name character varying(255),
+  uniquename text,
+  residues text,
+  seqlen integer,
+  md5checksum character(32),
+  type_id integer,
+  is_analysis boolean,
+  is_obsolete boolean,
+  timeaccessioned timestamp without time zone,
+  timelastmodified timestamp without time zone
+);
+
+--
+-- Table: stats_paths_to_root
+--
+CREATE TABLE stats_paths_to_root (
+  cvterm_id integer,
+  total_paths bigint,
+  avg_distance numeric,
+  min_distance integer,
+  max_distance integer
+);
+
+--
 -- Table: tableinfo
 --
 CREATE TABLE tableinfo (
-  tableinfo_id INTEGER PRIMARY KEY ,
+  tableinfo_id INTEGER PRIMARY KEY,
   name character varying(30) NOT NULL,
   primary_key_column character varying(30),
-  is_view integer '0',
+  is_view integer NOT NULL DEFAULT '0',
   view_on_table_id integer,
   superclass_table_id integer,
-  is_updateable integer '1',
-  modification_date date now()
+  is_updateable integer NOT NULL DEFAULT '1',
+  modification_date date NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE UNIQUE INDEX tableinfo_c1 ON tableinfo (name);
 
 --
+-- Table: type_feature_count
+--
+CREATE TABLE type_feature_count (
+  type character varying(1024),
+  num_features bigint
+);
+
+--
 -- Table: cell_line
 --
 CREATE TABLE cell_line (
-  cell_line_id INTEGER PRIMARY KEY ,
+  cell_line_id INTEGER PRIMARY KEY,
   name character varying(255),
   uniquename character varying(255) NOT NULL,
   organism_id integer NOT NULL,
-  timeaccessioned timestamp without time zone now(),
-  timelastmodified timestamp without time zone now()
+  timeaccessioned timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  timelastmodified timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(organism_id) REFERENCES organism(organism_id)
 );
 
 CREATE INDEX cell_line_idx_organism_id ON cell_line (organism_id);
@@ -183,11 +529,12 @@ CREATE UNIQUE INDEX cell_line_c1 ON cell_line (uniquename, organism_id);
 -- Table: dbxref
 --
 CREATE TABLE dbxref (
-  dbxref_id INTEGER PRIMARY KEY ,
+  dbxref_id INTEGER PRIMARY KEY,
   db_id integer NOT NULL,
   accession character varying(255) NOT NULL,
-  version character varying(255) '',
-  description text
+  version character varying(255) NOT NULL DEFAULT '',
+  description text,
+  FOREIGN KEY(db_id) REFERENCES db(db_id)
 );
 
 CREATE INDEX dbxref_idx_db_id ON dbxref (db_id);
@@ -198,9 +545,11 @@ CREATE UNIQUE INDEX dbxref_c1 ON dbxref (db_id, accession, version);
 -- Table: expression_image
 --
 CREATE TABLE expression_image (
-  expression_image_id INTEGER PRIMARY KEY ,
+  expression_image_id INTEGER PRIMARY KEY,
   expression_id integer NOT NULL,
-  eimage_id integer NOT NULL
+  eimage_id integer NOT NULL,
+  FOREIGN KEY(eimage_id) REFERENCES eimage(eimage_id),
+  FOREIGN KEY(expression_id) REFERENCES expression(expression_id)
 );
 
 CREATE INDEX expression_image_idx_eimage_id ON expression_image (eimage_id);
@@ -213,11 +562,13 @@ CREATE UNIQUE INDEX expression_image_c1 ON expression_image (expression_id, eima
 -- Table: magedocumentation
 --
 CREATE TABLE magedocumentation (
-  magedocumentation_id INTEGER PRIMARY KEY ,
+  magedocumentation_id INTEGER PRIMARY KEY,
   mageml_id integer NOT NULL,
   tableinfo_id integer NOT NULL,
   row_id integer NOT NULL,
-  mageidentifier text NOT NULL
+  mageidentifier text NOT NULL,
+  FOREIGN KEY(mageml_id) REFERENCES mageml(mageml_id),
+  FOREIGN KEY(tableinfo_id) REFERENCES tableinfo(tableinfo_id)
 );
 
 CREATE INDEX magedocumentation_idx_mageml_id ON magedocumentation (mageml_id);
@@ -228,13 +579,15 @@ CREATE INDEX magedocumentation_idx_tableinfo_id ON magedocumentation (tableinfo_
 -- Table: cvterm
 --
 CREATE TABLE cvterm (
-  cvterm_id INTEGER PRIMARY KEY ,
+  cvterm_id INTEGER PRIMARY KEY,
   cv_id integer NOT NULL,
   name character varying(1024) NOT NULL,
   definition text,
   dbxref_id integer NOT NULL,
-  is_obsolete integer '0',
-  is_relationshiptype integer '0'
+  is_obsolete integer NOT NULL DEFAULT '0',
+  is_relationshiptype integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(cv_id) REFERENCES cv(cv_id),
+  FOREIGN KEY(dbxref_id) REFERENCES dbxref(dbxref_id)
 );
 
 CREATE INDEX cvterm_idx_cv_id ON cvterm (cv_id);
@@ -249,9 +602,11 @@ CREATE UNIQUE INDEX cvterm_c2 ON cvterm (dbxref_id);
 -- Table: organism_dbxref
 --
 CREATE TABLE organism_dbxref (
-  organism_dbxref_id INTEGER PRIMARY KEY ,
+  organism_dbxref_id INTEGER PRIMARY KEY,
   organism_id integer NOT NULL,
-  dbxref_id integer NOT NULL
+  dbxref_id integer NOT NULL,
+  FOREIGN KEY(dbxref_id) REFERENCES dbxref(dbxref_id),
+  FOREIGN KEY(organism_id) REFERENCES organism(organism_id)
 );
 
 CREATE INDEX organism_dbxref_idx_dbxref_id ON organism_dbxref (dbxref_id);
@@ -264,10 +619,12 @@ CREATE UNIQUE INDEX organism_dbxref_c1 ON organism_dbxref (organism_id, dbxref_i
 -- Table: cell_line_dbxref
 --
 CREATE TABLE cell_line_dbxref (
-  cell_line_dbxref_id INTEGER PRIMARY KEY ,
+  cell_line_dbxref_id INTEGER PRIMARY KEY,
   cell_line_id integer NOT NULL,
   dbxref_id integer NOT NULL,
-  is_current boolean true
+  is_current boolean NOT NULL DEFAULT true,
+  FOREIGN KEY(cell_line_id) REFERENCES cell_line(cell_line_id),
+  FOREIGN KEY(dbxref_id) REFERENCES dbxref(dbxref_id)
 );
 
 CREATE INDEX cell_line_dbxref_idx_cell_line_id ON cell_line_dbxref (cell_line_id);
@@ -280,10 +637,11 @@ CREATE UNIQUE INDEX cell_line_dbxref_c1 ON cell_line_dbxref (cell_line_id, dbxre
 -- Table: contact
 --
 CREATE TABLE contact (
-  contact_id INTEGER PRIMARY KEY ,
+  contact_id INTEGER PRIMARY KEY,
   type_id integer,
   name character varying(255) NOT NULL,
-  description character varying(255)
+  description character varying(255),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX contact_idx_type_id ON contact (type_id);
@@ -294,10 +652,12 @@ CREATE UNIQUE INDEX contact_c1 ON contact (name);
 -- Table: cvterm_dbxref
 --
 CREATE TABLE cvterm_dbxref (
-  cvterm_dbxref_id INTEGER PRIMARY KEY ,
+  cvterm_dbxref_id INTEGER PRIMARY KEY,
   cvterm_id integer NOT NULL,
   dbxref_id integer NOT NULL,
-  is_for_definition integer '0'
+  is_for_definition integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(cvterm_id) REFERENCES cvterm(cvterm_id),
+  FOREIGN KEY(dbxref_id) REFERENCES dbxref(dbxref_id)
 );
 
 CREATE INDEX cvterm_dbxref_idx_cvterm_id ON cvterm_dbxref (cvterm_id);
@@ -310,10 +670,13 @@ CREATE UNIQUE INDEX cvterm_dbxref_c1 ON cvterm_dbxref (cvterm_id, dbxref_id);
 -- Table: cvterm_relationship
 --
 CREATE TABLE cvterm_relationship (
-  cvterm_relationship_id INTEGER PRIMARY KEY ,
+  cvterm_relationship_id INTEGER PRIMARY KEY,
   type_id integer NOT NULL,
   subject_id integer NOT NULL,
-  object_id integer NOT NULL
+  object_id integer NOT NULL,
+  FOREIGN KEY(object_id) REFERENCES cvterm(cvterm_id),
+  FOREIGN KEY(subject_id) REFERENCES cvterm(cvterm_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX cvterm_relationship_idx_object_id ON cvterm_relationship (object_id);
@@ -328,12 +691,16 @@ CREATE UNIQUE INDEX cvterm_relationship_c1 ON cvterm_relationship (subject_id, o
 -- Table: cvtermpath
 --
 CREATE TABLE cvtermpath (
-  cvtermpath_id INTEGER PRIMARY KEY ,
+  cvtermpath_id INTEGER PRIMARY KEY,
   type_id integer,
   subject_id integer NOT NULL,
   object_id integer NOT NULL,
   cv_id integer NOT NULL,
-  pathdistance integer
+  pathdistance integer,
+  FOREIGN KEY(cv_id) REFERENCES cv(cv_id),
+  FOREIGN KEY(object_id) REFERENCES cvterm(cvterm_id),
+  FOREIGN KEY(subject_id) REFERENCES cvterm(cvterm_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX cvtermpath_idx_cv_id ON cvtermpath (cv_id);
@@ -350,11 +717,13 @@ CREATE UNIQUE INDEX cvtermpath_c1 ON cvtermpath (subject_id, object_id, type_id,
 -- Table: cvtermprop
 --
 CREATE TABLE cvtermprop (
-  cvtermprop_id INTEGER PRIMARY KEY ,
+  cvtermprop_id INTEGER PRIMARY KEY,
   cvterm_id integer NOT NULL,
   type_id integer NOT NULL,
-  value text '',
-  rank integer '0'
+  value text NOT NULL DEFAULT '',
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(cvterm_id) REFERENCES cvterm(cvterm_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX cvtermprop_idx_cvterm_id ON cvtermprop (cvterm_id);
@@ -367,10 +736,12 @@ CREATE UNIQUE INDEX cvtermprop_cvterm_id_key ON cvtermprop (cvterm_id, type_id, 
 -- Table: cvtermsynonym
 --
 CREATE TABLE cvtermsynonym (
-  cvtermsynonym_id INTEGER PRIMARY KEY ,
+  cvtermsynonym_id INTEGER PRIMARY KEY,
   cvterm_id integer NOT NULL,
   synonym character varying(1024) NOT NULL,
-  type_id integer
+  type_id integer,
+  FOREIGN KEY(cvterm_id) REFERENCES cvterm(cvterm_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX cvtermsynonym_idx_cvterm_id ON cvtermsynonym (cvterm_id);
@@ -383,11 +754,13 @@ CREATE UNIQUE INDEX cvtermsynonym_c1 ON cvtermsynonym (cvterm_id, synonym);
 -- Table: dbxrefprop
 --
 CREATE TABLE dbxrefprop (
-  dbxrefprop_id INTEGER PRIMARY KEY ,
+  dbxrefprop_id INTEGER PRIMARY KEY,
   dbxref_id integer NOT NULL,
   type_id integer NOT NULL,
-  value text '',
-  rank integer '0'
+  value text NOT NULL DEFAULT '',
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(dbxref_id) REFERENCES dbxref(dbxref_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX dbxrefprop_idx_dbxref_id ON dbxrefprop (dbxref_id);
@@ -400,10 +773,11 @@ CREATE UNIQUE INDEX dbxrefprop_c1 ON dbxrefprop (dbxref_id, type_id, rank);
 -- Table: featuremap
 --
 CREATE TABLE featuremap (
-  featuremap_id INTEGER PRIMARY KEY ,
+  featuremap_id INTEGER PRIMARY KEY,
   name character varying(255),
   description text,
-  unittype_id integer
+  unittype_id integer,
+  FOREIGN KEY(unittype_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX featuremap_idx_unittype_id ON featuremap (unittype_id);
@@ -414,13 +788,17 @@ CREATE UNIQUE INDEX featuremap_c1 ON featuremap (name);
 -- Table: phenotype
 --
 CREATE TABLE phenotype (
-  phenotype_id INTEGER PRIMARY KEY ,
+  phenotype_id INTEGER PRIMARY KEY,
   uniquename text NOT NULL,
   observable_id integer,
   attr_id integer,
   value text,
   cvalue_id integer,
-  assay_id integer
+  assay_id integer,
+  FOREIGN KEY(assay_id) REFERENCES cvterm(cvterm_id),
+  FOREIGN KEY(attr_id) REFERENCES cvterm(cvterm_id),
+  FOREIGN KEY(cvalue_id) REFERENCES cvterm(cvterm_id),
+  FOREIGN KEY(observable_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX phenotype_idx_assay_id ON phenotype (assay_id);
@@ -437,7 +815,7 @@ CREATE UNIQUE INDEX phenotype_c1 ON phenotype (uniquename);
 -- Table: pub
 --
 CREATE TABLE pub (
-  pub_id INTEGER PRIMARY KEY ,
+  pub_id INTEGER PRIMARY KEY,
   title text,
   volumetitle text,
   volume character varying(255),
@@ -450,7 +828,8 @@ CREATE TABLE pub (
   type_id integer NOT NULL,
   is_obsolete boolean DEFAULT false,
   publisher character varying(255),
-  pubplace character varying(255)
+  pubplace character varying(255),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX pub_idx_type_id ON pub (type_id);
@@ -461,10 +840,11 @@ CREATE UNIQUE INDEX pub_c1 ON pub (uniquename);
 -- Table: synonym
 --
 CREATE TABLE synonym (
-  synonym_id INTEGER PRIMARY KEY ,
+  synonym_id INTEGER PRIMARY KEY,
   name character varying(255) NOT NULL,
   type_id integer NOT NULL,
-  synonym_sgml character varying(255) NOT NULL
+  synonym_sgml character varying(255) NOT NULL,
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX synonym_idx_type_id ON synonym (type_id);
@@ -475,11 +855,13 @@ CREATE UNIQUE INDEX synonym_c1 ON synonym (name, type_id);
 -- Table: analysisprop
 --
 CREATE TABLE analysisprop (
-  analysisprop_id INTEGER PRIMARY KEY ,
+  analysisprop_id INTEGER PRIMARY KEY,
   analysis_id integer NOT NULL,
   type_id integer NOT NULL,
   value text,
-  rank integer '0'
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(analysis_id) REFERENCES analysis(analysis_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX analysisprop_idx_analysis_id ON analysisprop (analysis_id);
@@ -492,10 +874,13 @@ CREATE UNIQUE INDEX analysisprop_c1 ON analysisprop (analysis_id, type_id, rank)
 -- Table: contact_relationship
 --
 CREATE TABLE contact_relationship (
-  contact_relationship_id INTEGER PRIMARY KEY ,
+  contact_relationship_id INTEGER PRIMARY KEY,
   type_id integer NOT NULL,
   subject_id integer NOT NULL,
-  object_id integer NOT NULL
+  object_id integer NOT NULL,
+  FOREIGN KEY(object_id) REFERENCES contact(contact_id),
+  FOREIGN KEY(subject_id) REFERENCES contact(contact_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX contact_relationship_idx_object_id ON contact_relationship (object_id);
@@ -510,9 +895,11 @@ CREATE UNIQUE INDEX contact_relationship_c1 ON contact_relationship (subject_id,
 -- Table: environment_cvterm
 --
 CREATE TABLE environment_cvterm (
-  environment_cvterm_id INTEGER PRIMARY KEY ,
+  environment_cvterm_id INTEGER PRIMARY KEY,
   environment_id integer NOT NULL,
-  cvterm_id integer NOT NULL
+  cvterm_id integer NOT NULL,
+  FOREIGN KEY(cvterm_id) REFERENCES cvterm(cvterm_id),
+  FOREIGN KEY(environment_id) REFERENCES environment(environment_id)
 );
 
 CREATE INDEX environment_cvterm_idx_cvterm_id ON environment_cvterm (cvterm_id);
@@ -525,11 +912,14 @@ CREATE UNIQUE INDEX environment_cvterm_c1 ON environment_cvterm (environment_id,
 -- Table: expression_cvterm
 --
 CREATE TABLE expression_cvterm (
-  expression_cvterm_id INTEGER PRIMARY KEY ,
+  expression_cvterm_id INTEGER PRIMARY KEY,
   expression_id integer NOT NULL,
   cvterm_id integer NOT NULL,
-  rank integer '0',
-  cvterm_type_id integer NOT NULL
+  rank integer NOT NULL DEFAULT '0',
+  cvterm_type_id integer NOT NULL,
+  FOREIGN KEY(cvterm_id) REFERENCES cvterm(cvterm_id),
+  FOREIGN KEY(cvterm_type_id) REFERENCES cvterm(cvterm_id),
+  FOREIGN KEY(expression_id) REFERENCES expression(expression_id)
 );
 
 CREATE INDEX expression_cvterm_idx_cvterm_id ON expression_cvterm (cvterm_id);
@@ -544,11 +934,13 @@ CREATE UNIQUE INDEX expression_cvterm_c1 ON expression_cvterm (expression_id, cv
 -- Table: expressionprop
 --
 CREATE TABLE expressionprop (
-  expressionprop_id INTEGER PRIMARY KEY ,
+  expressionprop_id INTEGER PRIMARY KEY,
   expression_id integer NOT NULL,
   type_id integer NOT NULL,
   value text,
-  rank integer '0'
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(expression_id) REFERENCES expression(expression_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX expressionprop_idx_expression_id ON expressionprop (expression_id);
@@ -561,7 +953,7 @@ CREATE UNIQUE INDEX expressionprop_c1 ON expressionprop (expression_id, type_id,
 -- Table: feature
 --
 CREATE TABLE feature (
-  feature_id INTEGER PRIMARY KEY ,
+  feature_id INTEGER PRIMARY KEY,
   dbxref_id integer,
   organism_id integer NOT NULL,
   name character varying(255),
@@ -570,10 +962,13 @@ CREATE TABLE feature (
   seqlen integer,
   md5checksum character(32),
   type_id integer NOT NULL,
-  is_analysis boolean false,
-  is_obsolete boolean false,
-  timeaccessioned timestamp without time zone now(),
-  timelastmodified timestamp without time zone now()
+  is_analysis boolean NOT NULL DEFAULT false,
+  is_obsolete boolean NOT NULL DEFAULT false,
+  timeaccessioned timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  timelastmodified timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(dbxref_id) REFERENCES dbxref(dbxref_id),
+  FOREIGN KEY(organism_id) REFERENCES organism(organism_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX feature_idx_dbxref_id ON feature (dbxref_id);
@@ -588,14 +983,16 @@ CREATE UNIQUE INDEX feature_c1 ON feature (organism_id, uniquename, type_id);
 -- Table: library
 --
 CREATE TABLE library (
-  library_id INTEGER PRIMARY KEY ,
+  library_id INTEGER PRIMARY KEY,
   organism_id integer NOT NULL,
   name character varying(255),
   uniquename text NOT NULL,
   type_id integer NOT NULL,
-  is_obsolete integer '0',
-  timeaccessioned timestamp without time zone now(),
-  timelastmodified timestamp without time zone now()
+  is_obsolete integer NOT NULL DEFAULT '0',
+  timeaccessioned timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  timelastmodified timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(organism_id) REFERENCES organism(organism_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX library_idx_organism_id ON library (organism_id);
@@ -608,11 +1005,13 @@ CREATE UNIQUE INDEX library_c1 ON library (organism_id, uniquename, type_id);
 -- Table: organismprop
 --
 CREATE TABLE organismprop (
-  organismprop_id INTEGER PRIMARY KEY ,
+  organismprop_id INTEGER PRIMARY KEY,
   organism_id integer NOT NULL,
   type_id integer NOT NULL,
   value text,
-  rank integer '0'
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(organism_id) REFERENCES organism(organism_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX organismprop_idx_organism_id ON organismprop (organism_id);
@@ -625,10 +1024,12 @@ CREATE UNIQUE INDEX organismprop_c1 ON organismprop (organism_id, type_id, rank)
 -- Table: phenotype_cvterm
 --
 CREATE TABLE phenotype_cvterm (
-  phenotype_cvterm_id INTEGER PRIMARY KEY ,
+  phenotype_cvterm_id INTEGER PRIMARY KEY,
   phenotype_id integer NOT NULL,
   cvterm_id integer NOT NULL,
-  rank integer '0'
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(cvterm_id) REFERENCES cvterm(cvterm_id),
+  FOREIGN KEY(phenotype_id) REFERENCES phenotype(phenotype_id)
 );
 
 CREATE INDEX phenotype_cvterm_idx_cvterm_id ON phenotype_cvterm (cvterm_id);
@@ -641,12 +1042,15 @@ CREATE UNIQUE INDEX phenotype_cvterm_c1 ON phenotype_cvterm (phenotype_id, cvter
 -- Table: phylotree
 --
 CREATE TABLE phylotree (
-  phylotree_id INTEGER PRIMARY KEY ,
+  phylotree_id INTEGER PRIMARY KEY,
   dbxref_id integer NOT NULL,
   name character varying(255),
   type_id integer,
   analysis_id integer,
-  comment text
+  comment text,
+  FOREIGN KEY(analysis_id) REFERENCES analysis(analysis_id),
+  FOREIGN KEY(dbxref_id) REFERENCES dbxref(dbxref_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX phylotree_idx_analysis_id ON phylotree (analysis_id);
@@ -659,7 +1063,7 @@ CREATE INDEX phylotree_idx_type_id ON phylotree (type_id);
 -- Table: protocol
 --
 CREATE TABLE protocol (
-  protocol_id INTEGER PRIMARY KEY ,
+  protocol_id INTEGER PRIMARY KEY,
   type_id integer NOT NULL,
   pub_id integer,
   dbxref_id integer,
@@ -667,7 +1071,10 @@ CREATE TABLE protocol (
   uri text,
   protocoldescription text,
   hardwaredescription text,
-  softwaredescription text
+  softwaredescription text,
+  FOREIGN KEY(dbxref_id) REFERENCES dbxref(dbxref_id),
+  FOREIGN KEY(pub_id) REFERENCES pub(pub_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX protocol_idx_dbxref_id ON protocol (dbxref_id);
@@ -682,10 +1089,12 @@ CREATE UNIQUE INDEX protocol_c1 ON protocol (name);
 -- Table: pub_dbxref
 --
 CREATE TABLE pub_dbxref (
-  pub_dbxref_id INTEGER PRIMARY KEY ,
+  pub_dbxref_id INTEGER PRIMARY KEY,
   pub_id integer NOT NULL,
   dbxref_id integer NOT NULL,
-  is_current boolean true
+  is_current boolean NOT NULL DEFAULT true,
+  FOREIGN KEY(dbxref_id) REFERENCES dbxref(dbxref_id),
+  FOREIGN KEY(pub_id) REFERENCES pub(pub_id)
 );
 
 CREATE INDEX pub_dbxref_idx_dbxref_id ON pub_dbxref (dbxref_id);
@@ -698,10 +1107,13 @@ CREATE UNIQUE INDEX pub_dbxref_c1 ON pub_dbxref (pub_id, dbxref_id);
 -- Table: pub_relationship
 --
 CREATE TABLE pub_relationship (
-  pub_relationship_id INTEGER PRIMARY KEY ,
+  pub_relationship_id INTEGER PRIMARY KEY,
   subject_id integer NOT NULL,
   object_id integer NOT NULL,
-  type_id integer NOT NULL
+  type_id integer NOT NULL,
+  FOREIGN KEY(object_id) REFERENCES pub(pub_id),
+  FOREIGN KEY(subject_id) REFERENCES pub(pub_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX pub_relationship_idx_object_id ON pub_relationship (object_id);
@@ -716,13 +1128,14 @@ CREATE UNIQUE INDEX pub_relationship_c1 ON pub_relationship (subject_id, object_
 -- Table: pubauthor
 --
 CREATE TABLE pubauthor (
-  pubauthor_id INTEGER PRIMARY KEY ,
+  pubauthor_id INTEGER PRIMARY KEY,
   pub_id integer NOT NULL,
   rank integer NOT NULL,
   editor boolean DEFAULT false,
   surname character varying(100) NOT NULL,
   givennames character varying(100),
-  suffix character varying(100)
+  suffix character varying(100),
+  FOREIGN KEY(pub_id) REFERENCES pub(pub_id)
 );
 
 CREATE INDEX pubauthor_idx_pub_id ON pubauthor (pub_id);
@@ -733,11 +1146,13 @@ CREATE UNIQUE INDEX pubauthor_c1 ON pubauthor (pub_id, rank);
 -- Table: pubprop
 --
 CREATE TABLE pubprop (
-  pubprop_id INTEGER PRIMARY KEY ,
+  pubprop_id INTEGER PRIMARY KEY,
   pub_id integer NOT NULL,
   type_id integer NOT NULL,
   value text NOT NULL,
-  rank integer
+  rank integer,
+  FOREIGN KEY(pub_id) REFERENCES pub(pub_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX pubprop_idx_pub_id ON pubprop (pub_id);
@@ -750,14 +1165,17 @@ CREATE UNIQUE INDEX pubprop_c1 ON pubprop (pub_id, type_id, rank);
 -- Table: stock
 --
 CREATE TABLE stock (
-  stock_id INTEGER PRIMARY KEY ,
+  stock_id INTEGER PRIMARY KEY,
   dbxref_id integer,
   organism_id integer NOT NULL,
   name character varying(255),
   uniquename text NOT NULL,
   description text,
   type_id integer NOT NULL,
-  is_obsolete boolean false
+  is_obsolete boolean NOT NULL DEFAULT false,
+  FOREIGN KEY(dbxref_id) REFERENCES dbxref(dbxref_id),
+  FOREIGN KEY(organism_id) REFERENCES organism(organism_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX stock_idx_dbxref_id ON stock (dbxref_id);
@@ -772,11 +1190,13 @@ CREATE UNIQUE INDEX stock_c1 ON stock (organism_id, uniquename, type_id);
 -- Table: stockcollection
 --
 CREATE TABLE stockcollection (
-  stockcollection_id INTEGER PRIMARY KEY ,
+  stockcollection_id INTEGER PRIMARY KEY,
   type_id integer NOT NULL,
   contact_id integer,
   name character varying(255),
-  uniquename text NOT NULL
+  uniquename text NOT NULL,
+  FOREIGN KEY(contact_id) REFERENCES contact(contact_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX stockcollection_idx_contact_id ON stockcollection (contact_id);
@@ -789,12 +1209,15 @@ CREATE UNIQUE INDEX stockcollection_c1 ON stockcollection (uniquename, type_id);
 -- Table: biomaterial
 --
 CREATE TABLE biomaterial (
-  biomaterial_id INTEGER PRIMARY KEY ,
+  biomaterial_id INTEGER PRIMARY KEY,
   taxon_id integer,
   biosourceprovider_id integer,
   dbxref_id integer,
   name text,
-  description text
+  description text,
+  FOREIGN KEY(biosourceprovider_id) REFERENCES contact(contact_id),
+  FOREIGN KEY(dbxref_id) REFERENCES dbxref(dbxref_id),
+  FOREIGN KEY(taxon_id) REFERENCES organism(organism_id)
 );
 
 CREATE INDEX biomaterial_idx_biosourceprovider_id ON biomaterial (biosourceprovider_id);
@@ -809,10 +1232,13 @@ CREATE UNIQUE INDEX biomaterial_c1 ON biomaterial (name);
 -- Table: cell_line_relationship
 --
 CREATE TABLE cell_line_relationship (
-  cell_line_relationship_id INTEGER PRIMARY KEY ,
+  cell_line_relationship_id INTEGER PRIMARY KEY,
   subject_id integer NOT NULL,
   object_id integer NOT NULL,
-  type_id integer NOT NULL
+  type_id integer NOT NULL,
+  FOREIGN KEY(object_id) REFERENCES cell_line(cell_line_id),
+  FOREIGN KEY(subject_id) REFERENCES cell_line(cell_line_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX cell_line_relationship_idx_object_id ON cell_line_relationship (object_id);
@@ -827,11 +1253,13 @@ CREATE UNIQUE INDEX cell_line_relationship_c1 ON cell_line_relationship (subject
 -- Table: cell_lineprop
 --
 CREATE TABLE cell_lineprop (
-  cell_lineprop_id INTEGER PRIMARY KEY ,
+  cell_lineprop_id INTEGER PRIMARY KEY,
   cell_line_id integer NOT NULL,
   type_id integer NOT NULL,
   value text,
-  rank integer '0'
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(cell_line_id) REFERENCES cell_line(cell_line_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX cell_lineprop_idx_cell_line_id ON cell_lineprop (cell_line_id);
@@ -844,11 +1272,13 @@ CREATE UNIQUE INDEX cell_lineprop_c1 ON cell_lineprop (cell_line_id, type_id, ra
 -- Table: expression_cvtermprop
 --
 CREATE TABLE expression_cvtermprop (
-  expression_cvtermprop_id INTEGER PRIMARY KEY ,
+  expression_cvtermprop_id INTEGER PRIMARY KEY,
   expression_cvterm_id integer NOT NULL,
   type_id integer NOT NULL,
   value text,
-  rank integer '0'
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(expression_cvterm_id) REFERENCES expression_cvterm(expression_cvterm_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX expression_cvtermprop_idx_expression_cvterm_id ON expression_cvtermprop (expression_cvterm_id);
@@ -861,9 +1291,11 @@ CREATE UNIQUE INDEX expression_cvtermprop_c1 ON expression_cvtermprop (expressio
 -- Table: expression_pub
 --
 CREATE TABLE expression_pub (
-  expression_pub_id INTEGER PRIMARY KEY ,
+  expression_pub_id INTEGER PRIMARY KEY,
   expression_id integer NOT NULL,
-  pub_id integer NOT NULL
+  pub_id integer NOT NULL,
+  FOREIGN KEY(expression_id) REFERENCES expression(expression_id),
+  FOREIGN KEY(pub_id) REFERENCES pub(pub_id)
 );
 
 CREATE INDEX expression_pub_idx_expression_id ON expression_pub (expression_id);
@@ -876,10 +1308,12 @@ CREATE UNIQUE INDEX expression_pub_c1 ON expression_pub (expression_id, pub_id);
 -- Table: feature_dbxref
 --
 CREATE TABLE feature_dbxref (
-  feature_dbxref_id INTEGER PRIMARY KEY ,
+  feature_dbxref_id INTEGER PRIMARY KEY,
   feature_id integer NOT NULL,
   dbxref_id integer NOT NULL,
-  is_current boolean true
+  is_current boolean NOT NULL DEFAULT true,
+  FOREIGN KEY(dbxref_id) REFERENCES dbxref(dbxref_id),
+  FOREIGN KEY(feature_id) REFERENCES feature(feature_id)
 );
 
 CREATE INDEX feature_dbxref_idx_dbxref_id ON feature_dbxref (dbxref_id);
@@ -892,12 +1326,15 @@ CREATE UNIQUE INDEX feature_dbxref_c1 ON feature_dbxref (feature_id, dbxref_id);
 -- Table: feature_relationship
 --
 CREATE TABLE feature_relationship (
-  feature_relationship_id INTEGER PRIMARY KEY ,
+  feature_relationship_id INTEGER PRIMARY KEY,
   subject_id integer NOT NULL,
   object_id integer NOT NULL,
   type_id integer NOT NULL,
   value text,
-  rank integer '0'
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(object_id) REFERENCES feature(feature_id),
+  FOREIGN KEY(subject_id) REFERENCES feature(feature_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX feature_relationship_idx_object_id ON feature_relationship (object_id);
@@ -912,18 +1349,20 @@ CREATE UNIQUE INDEX feature_relationship_c1 ON feature_relationship (subject_id,
 -- Table: featureloc
 --
 CREATE TABLE featureloc (
-  featureloc_id INTEGER PRIMARY KEY ,
+  featureloc_id INTEGER PRIMARY KEY,
   feature_id integer NOT NULL,
   srcfeature_id integer,
   fmin integer,
-  is_fmin_partial boolean false,
+  is_fmin_partial boolean NOT NULL DEFAULT false,
   fmax integer,
-  is_fmax_partial boolean false,
+  is_fmax_partial boolean NOT NULL DEFAULT false,
   strand smallint,
   phase integer,
   residue_info text,
-  locgroup integer '0',
-  rank integer '0'
+  locgroup integer NOT NULL DEFAULT '0',
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(feature_id) REFERENCES feature(feature_id),
+  FOREIGN KEY(srcfeature_id) REFERENCES feature(feature_id)
 );
 
 CREATE INDEX featureloc_idx_feature_id ON featureloc (feature_id);
@@ -936,9 +1375,11 @@ CREATE UNIQUE INDEX featureloc_c1 ON featureloc (feature_id, locgroup, rank);
 -- Table: featuremap_pub
 --
 CREATE TABLE featuremap_pub (
-  featuremap_pub_id INTEGER PRIMARY KEY ,
+  featuremap_pub_id INTEGER PRIMARY KEY,
   featuremap_id integer NOT NULL,
-  pub_id integer NOT NULL
+  pub_id integer NOT NULL,
+  FOREIGN KEY(featuremap_id) REFERENCES featuremap(featuremap_id),
+  FOREIGN KEY(pub_id) REFERENCES pub(pub_id)
 );
 
 CREATE INDEX featuremap_pub_idx_featuremap_id ON featuremap_pub (featuremap_id);
@@ -949,11 +1390,13 @@ CREATE INDEX featuremap_pub_idx_pub_id ON featuremap_pub (pub_id);
 -- Table: featureprop
 --
 CREATE TABLE featureprop (
-  featureprop_id INTEGER PRIMARY KEY ,
+  featureprop_id INTEGER PRIMARY KEY,
   feature_id integer NOT NULL,
   type_id integer NOT NULL,
   value text,
-  rank integer '0'
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id),
+  FOREIGN KEY(feature_id) REFERENCES feature(feature_id)
 );
 
 CREATE INDEX featureprop_idx_type_id ON featureprop (type_id);
@@ -966,10 +1409,12 @@ CREATE UNIQUE INDEX featureprop_c1 ON featureprop (feature_id, type_id, rank);
 -- Table: library_dbxref
 --
 CREATE TABLE library_dbxref (
-  library_dbxref_id INTEGER PRIMARY KEY ,
+  library_dbxref_id INTEGER PRIMARY KEY,
   library_id integer NOT NULL,
   dbxref_id integer NOT NULL,
-  is_current boolean true
+  is_current boolean NOT NULL DEFAULT true,
+  FOREIGN KEY(dbxref_id) REFERENCES dbxref(dbxref_id),
+  FOREIGN KEY(library_id) REFERENCES library(library_id)
 );
 
 CREATE INDEX library_dbxref_idx_dbxref_id ON library_dbxref (dbxref_id);
@@ -982,11 +1427,13 @@ CREATE UNIQUE INDEX library_dbxref_c1 ON library_dbxref (library_id, dbxref_id);
 -- Table: libraryprop
 --
 CREATE TABLE libraryprop (
-  libraryprop_id INTEGER PRIMARY KEY ,
+  libraryprop_id INTEGER PRIMARY KEY,
   library_id integer NOT NULL,
   type_id integer NOT NULL,
   value text,
-  rank integer '0'
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(library_id) REFERENCES library(library_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX libraryprop_idx_library_id ON libraryprop (library_id);
@@ -999,13 +1446,16 @@ CREATE UNIQUE INDEX libraryprop_c1 ON libraryprop (library_id, type_id, rank);
 -- Table: protocolparam
 --
 CREATE TABLE protocolparam (
-  protocolparam_id INTEGER PRIMARY KEY ,
+  protocolparam_id INTEGER PRIMARY KEY,
   protocol_id integer NOT NULL,
   name text NOT NULL,
   datatype_id integer,
   unittype_id integer,
   value text,
-  rank integer '0'
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(datatype_id) REFERENCES cvterm(cvterm_id),
+  FOREIGN KEY(protocol_id) REFERENCES protocol(protocol_id),
+  FOREIGN KEY(unittype_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX protocolparam_idx_datatype_id ON protocolparam (datatype_id);
@@ -1018,10 +1468,12 @@ CREATE INDEX protocolparam_idx_unittype_id ON protocolparam (unittype_id);
 -- Table: stock_dbxref
 --
 CREATE TABLE stock_dbxref (
-  stock_dbxref_id INTEGER PRIMARY KEY ,
+  stock_dbxref_id INTEGER PRIMARY KEY,
   stock_id integer NOT NULL,
   dbxref_id integer NOT NULL,
-  is_current boolean true
+  is_current boolean NOT NULL DEFAULT true,
+  FOREIGN KEY(dbxref_id) REFERENCES dbxref(dbxref_id),
+  FOREIGN KEY(stock_id) REFERENCES stock(stock_id)
 );
 
 CREATE INDEX stock_dbxref_idx_dbxref_id ON stock_dbxref (dbxref_id);
@@ -1034,12 +1486,15 @@ CREATE UNIQUE INDEX stock_dbxref_c1 ON stock_dbxref (stock_id, dbxref_id);
 -- Table: stock_relationship
 --
 CREATE TABLE stock_relationship (
-  stock_relationship_id INTEGER PRIMARY KEY ,
+  stock_relationship_id INTEGER PRIMARY KEY,
   subject_id integer NOT NULL,
   object_id integer NOT NULL,
   type_id integer NOT NULL,
   value text,
-  rank integer '0'
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(object_id) REFERENCES stock(stock_id),
+  FOREIGN KEY(subject_id) REFERENCES stock(stock_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX stock_relationship_idx_object_id ON stock_relationship (object_id);
@@ -1054,11 +1509,13 @@ CREATE UNIQUE INDEX stock_relationship_c1 ON stock_relationship (subject_id, obj
 -- Table: stockcollectionprop
 --
 CREATE TABLE stockcollectionprop (
-  stockcollectionprop_id INTEGER PRIMARY KEY ,
+  stockcollectionprop_id INTEGER PRIMARY KEY,
   stockcollection_id integer NOT NULL,
   type_id integer NOT NULL,
   value text,
-  rank integer '0'
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(stockcollection_id) REFERENCES stockcollection(stockcollection_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX stockcollectionprop_idx_stockcollection_id ON stockcollectionprop (stockcollection_id);
@@ -1071,11 +1528,13 @@ CREATE UNIQUE INDEX stockcollectionprop_c1 ON stockcollectionprop (stockcollecti
 -- Table: stockprop
 --
 CREATE TABLE stockprop (
-  stockprop_id INTEGER PRIMARY KEY ,
+  stockprop_id INTEGER PRIMARY KEY,
   stock_id integer NOT NULL,
   type_id integer NOT NULL,
   value text,
-  rank integer '0'
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(stock_id) REFERENCES stock(stock_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX stockprop_idx_stock_id ON stockprop (stock_id);
@@ -1088,12 +1547,15 @@ CREATE UNIQUE INDEX stockprop_c1 ON stockprop (stock_id, type_id, rank);
 -- Table: study
 --
 CREATE TABLE study (
-  study_id INTEGER PRIMARY KEY ,
+  study_id INTEGER PRIMARY KEY,
   contact_id integer NOT NULL,
   pub_id integer,
   dbxref_id integer,
   name text NOT NULL,
-  description text
+  description text,
+  FOREIGN KEY(contact_id) REFERENCES contact(contact_id),
+  FOREIGN KEY(dbxref_id) REFERENCES dbxref(dbxref_id),
+  FOREIGN KEY(pub_id) REFERENCES pub(pub_id)
 );
 
 CREATE INDEX study_idx_contact_id ON study (contact_id);
@@ -1108,13 +1570,15 @@ CREATE UNIQUE INDEX study_c1 ON study (name);
 -- Table: analysisfeature
 --
 CREATE TABLE analysisfeature (
-  analysisfeature_id INTEGER PRIMARY KEY ,
+  analysisfeature_id INTEGER PRIMARY KEY,
   feature_id integer NOT NULL,
   analysis_id integer NOT NULL,
   rawscore double precision,
   normscore double precision,
   significance double precision,
-  identity double precision
+  identity double precision,
+  FOREIGN KEY(analysis_id) REFERENCES analysis(analysis_id),
+  FOREIGN KEY(feature_id) REFERENCES feature(feature_id)
 );
 
 CREATE INDEX analysisfeature_idx_analysis_id ON analysisfeature (analysis_id);
@@ -1127,7 +1591,7 @@ CREATE UNIQUE INDEX analysisfeature_c1 ON analysisfeature (feature_id, analysis_
 -- Table: arraydesign
 --
 CREATE TABLE arraydesign (
-  arraydesign_id INTEGER PRIMARY KEY ,
+  arraydesign_id INTEGER PRIMARY KEY,
   manufacturer_id integer NOT NULL,
   platformtype_id integer NOT NULL,
   substratetype_id integer,
@@ -1144,7 +1608,12 @@ CREATE TABLE arraydesign (
   num_grid_columns integer,
   num_grid_rows integer,
   num_sub_columns integer,
-  num_sub_rows integer
+  num_sub_rows integer,
+  FOREIGN KEY(dbxref_id) REFERENCES dbxref(dbxref_id),
+  FOREIGN KEY(manufacturer_id) REFERENCES contact(contact_id),
+  FOREIGN KEY(platformtype_id) REFERENCES cvterm(cvterm_id),
+  FOREIGN KEY(protocol_id) REFERENCES protocol(protocol_id),
+  FOREIGN KEY(substratetype_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX arraydesign_idx_dbxref_id ON arraydesign (dbxref_id);
@@ -1163,9 +1632,11 @@ CREATE UNIQUE INDEX arraydesign_c1 ON arraydesign (name);
 -- Table: biomaterial_dbxref
 --
 CREATE TABLE biomaterial_dbxref (
-  biomaterial_dbxref_id INTEGER PRIMARY KEY ,
+  biomaterial_dbxref_id INTEGER PRIMARY KEY,
   biomaterial_id integer NOT NULL,
-  dbxref_id integer NOT NULL
+  dbxref_id integer NOT NULL,
+  FOREIGN KEY(biomaterial_id) REFERENCES biomaterial(biomaterial_id),
+  FOREIGN KEY(dbxref_id) REFERENCES dbxref(dbxref_id)
 );
 
 CREATE INDEX biomaterial_dbxref_idx_biomaterial_id ON biomaterial_dbxref (biomaterial_id);
@@ -1178,10 +1649,13 @@ CREATE UNIQUE INDEX biomaterial_dbxref_c1 ON biomaterial_dbxref (biomaterial_id,
 -- Table: biomaterial_relationship
 --
 CREATE TABLE biomaterial_relationship (
-  biomaterial_relationship_id INTEGER PRIMARY KEY ,
+  biomaterial_relationship_id INTEGER PRIMARY KEY,
   subject_id integer NOT NULL,
   type_id integer NOT NULL,
-  object_id integer NOT NULL
+  object_id integer NOT NULL,
+  FOREIGN KEY(object_id) REFERENCES biomaterial(biomaterial_id),
+  FOREIGN KEY(subject_id) REFERENCES biomaterial(biomaterial_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX biomaterial_relationship_idx_object_id ON biomaterial_relationship (object_id);
@@ -1196,11 +1670,13 @@ CREATE UNIQUE INDEX biomaterial_relationship_c1 ON biomaterial_relationship (sub
 -- Table: biomaterialprop
 --
 CREATE TABLE biomaterialprop (
-  biomaterialprop_id INTEGER PRIMARY KEY ,
+  biomaterialprop_id INTEGER PRIMARY KEY,
   biomaterial_id integer NOT NULL,
   type_id integer NOT NULL,
   value text,
-  rank integer '0'
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(biomaterial_id) REFERENCES biomaterial(biomaterial_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX biomaterialprop_idx_biomaterial_id ON biomaterialprop (biomaterial_id);
@@ -1213,11 +1689,14 @@ CREATE UNIQUE INDEX biomaterialprop_c1 ON biomaterialprop (biomaterial_id, type_
 -- Table: cell_line_cvterm
 --
 CREATE TABLE cell_line_cvterm (
-  cell_line_cvterm_id INTEGER PRIMARY KEY ,
+  cell_line_cvterm_id INTEGER PRIMARY KEY,
   cell_line_id integer NOT NULL,
   cvterm_id integer NOT NULL,
   pub_id integer NOT NULL,
-  rank integer '0'
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(cell_line_id) REFERENCES cell_line(cell_line_id),
+  FOREIGN KEY(cvterm_id) REFERENCES cvterm(cvterm_id),
+  FOREIGN KEY(pub_id) REFERENCES pub(pub_id)
 );
 
 CREATE INDEX cell_line_cvterm_idx_cell_line_id ON cell_line_cvterm (cell_line_id);
@@ -1232,9 +1711,11 @@ CREATE UNIQUE INDEX cell_line_cvterm_c1 ON cell_line_cvterm (cell_line_id, cvter
 -- Table: cell_line_pub
 --
 CREATE TABLE cell_line_pub (
-  cell_line_pub_id INTEGER PRIMARY KEY ,
+  cell_line_pub_id INTEGER PRIMARY KEY,
   cell_line_id integer NOT NULL,
-  pub_id integer NOT NULL
+  pub_id integer NOT NULL,
+  FOREIGN KEY(cell_line_id) REFERENCES cell_line(cell_line_id),
+  FOREIGN KEY(pub_id) REFERENCES pub(pub_id)
 );
 
 CREATE INDEX cell_line_pub_idx_cell_line_id ON cell_line_pub (cell_line_id);
@@ -1247,12 +1728,15 @@ CREATE UNIQUE INDEX cell_line_pub_c1 ON cell_line_pub (cell_line_id, pub_id);
 -- Table: feature_cvterm
 --
 CREATE TABLE feature_cvterm (
-  feature_cvterm_id INTEGER PRIMARY KEY ,
+  feature_cvterm_id INTEGER PRIMARY KEY,
   feature_id integer NOT NULL,
   cvterm_id integer NOT NULL,
   pub_id integer NOT NULL,
-  is_not boolean false,
-  rank integer '0'
+  is_not boolean NOT NULL DEFAULT false,
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(cvterm_id) REFERENCES cvterm(cvterm_id),
+  FOREIGN KEY(feature_id) REFERENCES feature(feature_id),
+  FOREIGN KEY(pub_id) REFERENCES pub(pub_id)
 );
 
 CREATE INDEX feature_cvterm_idx_cvterm_id ON feature_cvterm (cvterm_id);
@@ -1267,13 +1751,17 @@ CREATE UNIQUE INDEX feature_cvterm_c1 ON feature_cvterm (feature_id, cvterm_id, 
 -- Table: feature_genotype
 --
 CREATE TABLE feature_genotype (
-  feature_genotype_id INTEGER PRIMARY KEY ,
+  feature_genotype_id INTEGER PRIMARY KEY,
   feature_id integer NOT NULL,
   genotype_id integer NOT NULL,
   chromosome_id integer,
   rank integer NOT NULL,
   cgroup integer NOT NULL,
-  cvterm_id integer NOT NULL
+  cvterm_id integer NOT NULL,
+  FOREIGN KEY(chromosome_id) REFERENCES feature(feature_id),
+  FOREIGN KEY(cvterm_id) REFERENCES cvterm(cvterm_id),
+  FOREIGN KEY(feature_id) REFERENCES feature(feature_id),
+  FOREIGN KEY(genotype_id) REFERENCES genotype(genotype_id)
 );
 
 CREATE INDEX feature_genotype_idx_chromosome_id ON feature_genotype (chromosome_id);
@@ -1290,9 +1778,11 @@ CREATE UNIQUE INDEX feature_genotype_c1 ON feature_genotype (feature_id, genotyp
 -- Table: feature_phenotype
 --
 CREATE TABLE feature_phenotype (
-  feature_phenotype_id INTEGER PRIMARY KEY ,
+  feature_phenotype_id INTEGER PRIMARY KEY,
   feature_id integer NOT NULL,
-  phenotype_id integer NOT NULL
+  phenotype_id integer NOT NULL,
+  FOREIGN KEY(feature_id) REFERENCES feature(feature_id),
+  FOREIGN KEY(phenotype_id) REFERENCES phenotype(phenotype_id)
 );
 
 CREATE INDEX feature_phenotype_idx_feature_id ON feature_phenotype (feature_id);
@@ -1305,9 +1795,11 @@ CREATE UNIQUE INDEX feature_phenotype_c1 ON feature_phenotype (feature_id, pheno
 -- Table: feature_pub
 --
 CREATE TABLE feature_pub (
-  feature_pub_id INTEGER PRIMARY KEY ,
+  feature_pub_id INTEGER PRIMARY KEY,
   feature_id integer NOT NULL,
-  pub_id integer NOT NULL
+  pub_id integer NOT NULL,
+  FOREIGN KEY(feature_id) REFERENCES feature(feature_id),
+  FOREIGN KEY(pub_id) REFERENCES pub(pub_id)
 );
 
 CREATE INDEX feature_pub_idx_feature_id ON feature_pub (feature_id);
@@ -1320,11 +1812,13 @@ CREATE UNIQUE INDEX feature_pub_c1 ON feature_pub (feature_id, pub_id);
 -- Table: feature_relationshipprop
 --
 CREATE TABLE feature_relationshipprop (
-  feature_relationshipprop_id INTEGER PRIMARY KEY ,
+  feature_relationshipprop_id INTEGER PRIMARY KEY,
   feature_relationship_id integer NOT NULL,
   type_id integer NOT NULL,
   value text,
-  rank integer '0'
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(feature_relationship_id) REFERENCES feature_relationship(feature_relationship_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX feature_relationshipprop_idx_feature_relationship_id ON feature_relationshipprop (feature_relationship_id);
@@ -1337,11 +1831,14 @@ CREATE UNIQUE INDEX feature_relationshipprop_c1 ON feature_relationshipprop (fea
 -- Table: featurepos
 --
 CREATE TABLE featurepos (
-  featurepos_id INTEGER PRIMARY KEY ,
-  featuremap_id integer ,
+  featurepos_id INTEGER PRIMARY KEY,
+  featuremap_id integer NOT NULL DEFAULT nextval('featurepos_featuremap_id_seq'::regclass),
   feature_id integer NOT NULL,
   map_feature_id integer NOT NULL,
-  mappos double precision NOT NULL
+  mappos double precision NOT NULL,
+  FOREIGN KEY(feature_id) REFERENCES feature(feature_id),
+  FOREIGN KEY(featuremap_id) REFERENCES featuremap(featuremap_id),
+  FOREIGN KEY(map_feature_id) REFERENCES feature(feature_id)
 );
 
 CREATE INDEX featurepos_idx_feature_id ON featurepos (feature_id);
@@ -1354,14 +1851,20 @@ CREATE INDEX featurepos_idx_map_feature_id ON featurepos (map_feature_id);
 -- Table: featurerange
 --
 CREATE TABLE featurerange (
-  featurerange_id INTEGER PRIMARY KEY ,
+  featurerange_id INTEGER PRIMARY KEY,
   featuremap_id integer NOT NULL,
   feature_id integer NOT NULL,
   leftstartf_id integer NOT NULL,
   leftendf_id integer,
   rightstartf_id integer,
   rightendf_id integer NOT NULL,
-  rangestr character varying(255)
+  rangestr character varying(255),
+  FOREIGN KEY(feature_id) REFERENCES feature(feature_id),
+  FOREIGN KEY(featuremap_id) REFERENCES featuremap(featuremap_id),
+  FOREIGN KEY(leftendf_id) REFERENCES feature(feature_id),
+  FOREIGN KEY(leftstartf_id) REFERENCES feature(feature_id),
+  FOREIGN KEY(rightendf_id) REFERENCES feature(feature_id),
+  FOREIGN KEY(rightstartf_id) REFERENCES feature(feature_id)
 );
 
 CREATE INDEX featurerange_idx_feature_id ON featurerange (feature_id);
@@ -1380,10 +1883,13 @@ CREATE INDEX featurerange_idx_rightstartf_id ON featurerange (rightstartf_id);
 -- Table: library_cvterm
 --
 CREATE TABLE library_cvterm (
-  library_cvterm_id INTEGER PRIMARY KEY ,
+  library_cvterm_id INTEGER PRIMARY KEY,
   library_id integer NOT NULL,
   cvterm_id integer NOT NULL,
-  pub_id integer NOT NULL
+  pub_id integer NOT NULL,
+  FOREIGN KEY(cvterm_id) REFERENCES cvterm(cvterm_id),
+  FOREIGN KEY(library_id) REFERENCES library(library_id),
+  FOREIGN KEY(pub_id) REFERENCES pub(pub_id)
 );
 
 CREATE INDEX library_cvterm_idx_cvterm_id ON library_cvterm (cvterm_id);
@@ -1398,9 +1904,11 @@ CREATE UNIQUE INDEX library_cvterm_c1 ON library_cvterm (library_id, cvterm_id, 
 -- Table: library_feature
 --
 CREATE TABLE library_feature (
-  library_feature_id INTEGER PRIMARY KEY ,
+  library_feature_id INTEGER PRIMARY KEY,
   library_id integer NOT NULL,
-  feature_id integer NOT NULL
+  feature_id integer NOT NULL,
+  FOREIGN KEY(feature_id) REFERENCES feature(feature_id),
+  FOREIGN KEY(library_id) REFERENCES library(library_id)
 );
 
 CREATE INDEX library_feature_idx_feature_id ON library_feature (feature_id);
@@ -1413,9 +1921,11 @@ CREATE UNIQUE INDEX library_feature_c1 ON library_feature (library_id, feature_i
 -- Table: library_pub
 --
 CREATE TABLE library_pub (
-  library_pub_id INTEGER PRIMARY KEY ,
+  library_pub_id INTEGER PRIMARY KEY,
   library_id integer NOT NULL,
-  pub_id integer NOT NULL
+  pub_id integer NOT NULL,
+  FOREIGN KEY(library_id) REFERENCES library(library_id),
+  FOREIGN KEY(pub_id) REFERENCES pub(pub_id)
 );
 
 CREATE INDEX library_pub_idx_library_id ON library_pub (library_id);
@@ -1428,12 +1938,16 @@ CREATE UNIQUE INDEX library_pub_c1 ON library_pub (library_id, pub_id);
 -- Table: phendesc
 --
 CREATE TABLE phendesc (
-  phendesc_id INTEGER PRIMARY KEY ,
+  phendesc_id INTEGER PRIMARY KEY,
   genotype_id integer NOT NULL,
   environment_id integer NOT NULL,
   description text NOT NULL,
   type_id integer NOT NULL,
-  pub_id integer NOT NULL
+  pub_id integer NOT NULL,
+  FOREIGN KEY(environment_id) REFERENCES environment(environment_id),
+  FOREIGN KEY(genotype_id) REFERENCES genotype(genotype_id),
+  FOREIGN KEY(pub_id) REFERENCES pub(pub_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX phendesc_idx_environment_id ON phendesc (environment_id);
@@ -1450,9 +1964,11 @@ CREATE UNIQUE INDEX phendesc_c1 ON phendesc (genotype_id, environment_id, type_i
 -- Table: phylotree_pub
 --
 CREATE TABLE phylotree_pub (
-  phylotree_pub_id INTEGER PRIMARY KEY ,
+  phylotree_pub_id INTEGER PRIMARY KEY,
   phylotree_id integer NOT NULL,
-  pub_id integer NOT NULL
+  pub_id integer NOT NULL,
+  FOREIGN KEY(phylotree_id) REFERENCES phylotree(phylotree_id),
+  FOREIGN KEY(pub_id) REFERENCES pub(pub_id)
 );
 
 CREATE INDEX phylotree_pub_idx_phylotree_id ON phylotree_pub (phylotree_id);
@@ -1465,10 +1981,13 @@ CREATE UNIQUE INDEX phylotree_pub_phylotree_id_key ON phylotree_pub (phylotree_i
 -- Table: stock_cvterm
 --
 CREATE TABLE stock_cvterm (
-  stock_cvterm_id INTEGER PRIMARY KEY ,
+  stock_cvterm_id INTEGER PRIMARY KEY,
   stock_id integer NOT NULL,
   cvterm_id integer NOT NULL,
-  pub_id integer NOT NULL
+  pub_id integer NOT NULL,
+  FOREIGN KEY(cvterm_id) REFERENCES cvterm(cvterm_id),
+  FOREIGN KEY(pub_id) REFERENCES pub(pub_id),
+  FOREIGN KEY(stock_id) REFERENCES stock(stock_id)
 );
 
 CREATE INDEX stock_cvterm_idx_cvterm_id ON stock_cvterm (cvterm_id);
@@ -1483,9 +2002,11 @@ CREATE UNIQUE INDEX stock_cvterm_c1 ON stock_cvterm (stock_id, cvterm_id, pub_id
 -- Table: stock_genotype
 --
 CREATE TABLE stock_genotype (
-  stock_genotype_id INTEGER PRIMARY KEY ,
+  stock_genotype_id INTEGER PRIMARY KEY,
   stock_id integer NOT NULL,
-  genotype_id integer NOT NULL
+  genotype_id integer NOT NULL,
+  FOREIGN KEY(genotype_id) REFERENCES genotype(genotype_id),
+  FOREIGN KEY(stock_id) REFERENCES stock(stock_id)
 );
 
 CREATE INDEX stock_genotype_idx_genotype_id ON stock_genotype (genotype_id);
@@ -1498,9 +2019,11 @@ CREATE UNIQUE INDEX stock_genotype_c1 ON stock_genotype (stock_id, genotype_id);
 -- Table: stock_pub
 --
 CREATE TABLE stock_pub (
-  stock_pub_id INTEGER PRIMARY KEY ,
+  stock_pub_id INTEGER PRIMARY KEY,
   stock_id integer NOT NULL,
-  pub_id integer NOT NULL
+  pub_id integer NOT NULL,
+  FOREIGN KEY(pub_id) REFERENCES pub(pub_id),
+  FOREIGN KEY(stock_id) REFERENCES stock(stock_id)
 );
 
 CREATE INDEX stock_pub_idx_pub_id ON stock_pub (pub_id);
@@ -1513,9 +2036,10 @@ CREATE UNIQUE INDEX stock_pub_c1 ON stock_pub (stock_id, pub_id);
 -- Table: studydesign
 --
 CREATE TABLE studydesign (
-  studydesign_id INTEGER PRIMARY KEY ,
+  studydesign_id INTEGER PRIMARY KEY,
   study_id integer NOT NULL,
-  description text
+  description text,
+  FOREIGN KEY(study_id) REFERENCES study(study_id)
 );
 
 CREATE INDEX studydesign_idx_study_id ON studydesign (study_id);
@@ -1524,11 +2048,13 @@ CREATE INDEX studydesign_idx_study_id ON studydesign (study_id);
 -- Table: studyprop
 --
 CREATE TABLE studyprop (
-  studyprop_id INTEGER PRIMARY KEY ,
+  studyprop_id INTEGER PRIMARY KEY,
   study_id integer NOT NULL,
   type_id integer NOT NULL,
   value text,
-  rank integer '0'
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(study_id) REFERENCES study(study_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX studyprop_idx_study_id ON studyprop (study_id);
@@ -1541,11 +2067,13 @@ CREATE UNIQUE INDEX studyprop_study_id_key ON studyprop (study_id, type_id, rank
 -- Table: analysisfeatureprop
 --
 CREATE TABLE analysisfeatureprop (
-  analysisfeatureprop_id INTEGER PRIMARY KEY ,
+  analysisfeatureprop_id INTEGER PRIMARY KEY,
   analysisfeature_id integer NOT NULL,
   type_id integer NOT NULL,
   value text,
-  rank integer NOT NULL
+  rank integer NOT NULL,
+  FOREIGN KEY(analysisfeature_id) REFERENCES analysisfeature(analysisfeature_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX analysisfeatureprop_idx_analysisfeature_id ON analysisfeatureprop (analysisfeature_id);
@@ -1558,11 +2086,13 @@ CREATE UNIQUE INDEX analysisfeature_id_type_id_rank ON analysisfeatureprop (anal
 -- Table: arraydesignprop
 --
 CREATE TABLE arraydesignprop (
-  arraydesignprop_id INTEGER PRIMARY KEY ,
+  arraydesignprop_id INTEGER PRIMARY KEY,
   arraydesign_id integer NOT NULL,
   type_id integer NOT NULL,
   value text,
-  rank integer '0'
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(arraydesign_id) REFERENCES arraydesign(arraydesign_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX arraydesignprop_idx_arraydesign_id ON arraydesignprop (arraydesign_id);
@@ -1575,16 +2105,20 @@ CREATE UNIQUE INDEX arraydesignprop_c1 ON arraydesignprop (arraydesign_id, type_
 -- Table: assay
 --
 CREATE TABLE assay (
-  assay_id INTEGER PRIMARY KEY ,
+  assay_id INTEGER PRIMARY KEY,
   arraydesign_id integer NOT NULL,
   protocol_id integer,
-  assaydate timestamp without time zone DEFAULT now(),
+  assaydate timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
   arrayidentifier text,
   arraybatchidentifier text,
   operator_id integer NOT NULL,
   dbxref_id integer,
   name text,
-  description text
+  description text,
+  FOREIGN KEY(arraydesign_id) REFERENCES arraydesign(arraydesign_id),
+  FOREIGN KEY(dbxref_id) REFERENCES dbxref(dbxref_id),
+  FOREIGN KEY(operator_id) REFERENCES contact(contact_id),
+  FOREIGN KEY(protocol_id) REFERENCES protocol(protocol_id)
 );
 
 CREATE INDEX assay_idx_arraydesign_id ON assay (arraydesign_id);
@@ -1601,11 +2135,13 @@ CREATE UNIQUE INDEX assay_c1 ON assay (name);
 -- Table: cell_line_cvtermprop
 --
 CREATE TABLE cell_line_cvtermprop (
-  cell_line_cvtermprop_id INTEGER PRIMARY KEY ,
+  cell_line_cvtermprop_id INTEGER PRIMARY KEY,
   cell_line_cvterm_id integer NOT NULL,
   type_id integer NOT NULL,
   value text,
-  rank integer '0'
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(cell_line_cvterm_id) REFERENCES cell_line_cvterm(cell_line_cvterm_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX cell_line_cvtermprop_idx_cell_line_cvterm_id ON cell_line_cvtermprop (cell_line_cvterm_id);
@@ -1618,10 +2154,13 @@ CREATE UNIQUE INDEX cell_line_cvtermprop_c1 ON cell_line_cvtermprop (cell_line_c
 -- Table: cell_line_feature
 --
 CREATE TABLE cell_line_feature (
-  cell_line_feature_id INTEGER PRIMARY KEY ,
+  cell_line_feature_id INTEGER PRIMARY KEY,
   cell_line_id integer NOT NULL,
   feature_id integer NOT NULL,
-  pub_id integer NOT NULL
+  pub_id integer NOT NULL,
+  FOREIGN KEY(cell_line_id) REFERENCES cell_line(cell_line_id),
+  FOREIGN KEY(feature_id) REFERENCES feature(feature_id),
+  FOREIGN KEY(pub_id) REFERENCES pub(pub_id)
 );
 
 CREATE INDEX cell_line_feature_idx_cell_line_id ON cell_line_feature (cell_line_id);
@@ -1636,10 +2175,13 @@ CREATE UNIQUE INDEX cell_line_feature_c1 ON cell_line_feature (cell_line_id, fea
 -- Table: cell_line_library
 --
 CREATE TABLE cell_line_library (
-  cell_line_library_id INTEGER PRIMARY KEY ,
+  cell_line_library_id INTEGER PRIMARY KEY,
   cell_line_id integer NOT NULL,
   library_id integer NOT NULL,
-  pub_id integer NOT NULL
+  pub_id integer NOT NULL,
+  FOREIGN KEY(cell_line_id) REFERENCES cell_line(cell_line_id),
+  FOREIGN KEY(library_id) REFERENCES library(library_id),
+  FOREIGN KEY(pub_id) REFERENCES pub(pub_id)
 );
 
 CREATE INDEX cell_line_library_idx_cell_line_id ON cell_line_library (cell_line_id);
@@ -1654,12 +2196,15 @@ CREATE UNIQUE INDEX cell_line_library_c1 ON cell_line_library (cell_line_id, lib
 -- Table: cell_line_synonym
 --
 CREATE TABLE cell_line_synonym (
-  cell_line_synonym_id INTEGER PRIMARY KEY ,
+  cell_line_synonym_id INTEGER PRIMARY KEY,
   cell_line_id integer NOT NULL,
   synonym_id integer NOT NULL,
   pub_id integer NOT NULL,
-  is_current boolean false,
-  is_internal boolean false
+  is_current boolean NOT NULL DEFAULT false,
+  is_internal boolean NOT NULL DEFAULT false,
+  FOREIGN KEY(cell_line_id) REFERENCES cell_line(cell_line_id),
+  FOREIGN KEY(pub_id) REFERENCES pub(pub_id),
+  FOREIGN KEY(synonym_id) REFERENCES synonym(synonym_id)
 );
 
 CREATE INDEX cell_line_synonym_idx_cell_line_id ON cell_line_synonym (cell_line_id);
@@ -1674,9 +2219,11 @@ CREATE UNIQUE INDEX cell_line_synonym_c1 ON cell_line_synonym (synonym_id, cell_
 -- Table: cell_lineprop_pub
 --
 CREATE TABLE cell_lineprop_pub (
-  cell_lineprop_pub_id INTEGER PRIMARY KEY ,
+  cell_lineprop_pub_id INTEGER PRIMARY KEY,
   cell_lineprop_id integer NOT NULL,
-  pub_id integer NOT NULL
+  pub_id integer NOT NULL,
+  FOREIGN KEY(cell_lineprop_id) REFERENCES cell_lineprop(cell_lineprop_id),
+  FOREIGN KEY(pub_id) REFERENCES pub(pub_id)
 );
 
 CREATE INDEX cell_lineprop_pub_idx_cell_lineprop_id ON cell_lineprop_pub (cell_lineprop_id);
@@ -1689,9 +2236,11 @@ CREATE UNIQUE INDEX cell_lineprop_pub_c1 ON cell_lineprop_pub (cell_lineprop_id,
 -- Table: feature_cvterm_dbxref
 --
 CREATE TABLE feature_cvterm_dbxref (
-  feature_cvterm_dbxref_id INTEGER PRIMARY KEY ,
+  feature_cvterm_dbxref_id INTEGER PRIMARY KEY,
   feature_cvterm_id integer NOT NULL,
-  dbxref_id integer NOT NULL
+  dbxref_id integer NOT NULL,
+  FOREIGN KEY(dbxref_id) REFERENCES dbxref(dbxref_id),
+  FOREIGN KEY(feature_cvterm_id) REFERENCES feature_cvterm(feature_cvterm_id)
 );
 
 CREATE INDEX feature_cvterm_dbxref_idx_dbxref_id ON feature_cvterm_dbxref (dbxref_id);
@@ -1704,9 +2253,11 @@ CREATE UNIQUE INDEX feature_cvterm_dbxref_c1 ON feature_cvterm_dbxref (feature_c
 -- Table: feature_cvterm_pub
 --
 CREATE TABLE feature_cvterm_pub (
-  feature_cvterm_pub_id INTEGER PRIMARY KEY ,
+  feature_cvterm_pub_id INTEGER PRIMARY KEY,
   feature_cvterm_id integer NOT NULL,
-  pub_id integer NOT NULL
+  pub_id integer NOT NULL,
+  FOREIGN KEY(feature_cvterm_id) REFERENCES feature_cvterm(feature_cvterm_id),
+  FOREIGN KEY(pub_id) REFERENCES pub(pub_id)
 );
 
 CREATE INDEX feature_cvterm_pub_idx_feature_cvterm_id ON feature_cvterm_pub (feature_cvterm_id);
@@ -1719,11 +2270,13 @@ CREATE UNIQUE INDEX feature_cvterm_pub_c1 ON feature_cvterm_pub (feature_cvterm_
 -- Table: feature_cvtermprop
 --
 CREATE TABLE feature_cvtermprop (
-  feature_cvtermprop_id INTEGER PRIMARY KEY ,
+  feature_cvtermprop_id INTEGER PRIMARY KEY,
   feature_cvterm_id integer NOT NULL,
   type_id integer NOT NULL,
   value text,
-  rank integer '0'
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(feature_cvterm_id) REFERENCES feature_cvterm(feature_cvterm_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX feature_cvtermprop_idx_feature_cvterm_id ON feature_cvtermprop (feature_cvterm_id);
@@ -1736,10 +2289,13 @@ CREATE UNIQUE INDEX feature_cvtermprop_c1 ON feature_cvtermprop (feature_cvterm_
 -- Table: feature_expression
 --
 CREATE TABLE feature_expression (
-  feature_expression_id INTEGER PRIMARY KEY ,
+  feature_expression_id INTEGER PRIMARY KEY,
   expression_id integer NOT NULL,
   feature_id integer NOT NULL,
-  pub_id integer NOT NULL
+  pub_id integer NOT NULL,
+  FOREIGN KEY(expression_id) REFERENCES expression(expression_id),
+  FOREIGN KEY(feature_id) REFERENCES feature(feature_id),
+  FOREIGN KEY(pub_id) REFERENCES pub(pub_id)
 );
 
 CREATE INDEX feature_expression_idx_expression_id ON feature_expression (expression_id);
@@ -1754,11 +2310,13 @@ CREATE UNIQUE INDEX feature_expression_c1 ON feature_expression (expression_id, 
 -- Table: feature_pubprop
 --
 CREATE TABLE feature_pubprop (
-  feature_pubprop_id INTEGER PRIMARY KEY ,
+  feature_pubprop_id INTEGER PRIMARY KEY,
   feature_pub_id integer NOT NULL,
   type_id integer NOT NULL,
   value text,
-  rank integer '0'
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(feature_pub_id) REFERENCES feature_pub(feature_pub_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX feature_pubprop_idx_feature_pub_id ON feature_pubprop (feature_pub_id);
@@ -1771,9 +2329,11 @@ CREATE UNIQUE INDEX feature_pubprop_c1 ON feature_pubprop (feature_pub_id, type_
 -- Table: feature_relationship_pub
 --
 CREATE TABLE feature_relationship_pub (
-  feature_relationship_pub_id INTEGER PRIMARY KEY ,
+  feature_relationship_pub_id INTEGER PRIMARY KEY,
   feature_relationship_id integer NOT NULL,
-  pub_id integer NOT NULL
+  pub_id integer NOT NULL,
+  FOREIGN KEY(feature_relationship_id) REFERENCES feature_relationship(feature_relationship_id),
+  FOREIGN KEY(pub_id) REFERENCES pub(pub_id)
 );
 
 CREATE INDEX feature_relationship_pub_idx_feature_relationship_id ON feature_relationship_pub (feature_relationship_id);
@@ -1786,12 +2346,15 @@ CREATE UNIQUE INDEX feature_relationship_pub_c1 ON feature_relationship_pub (fea
 -- Table: feature_synonym
 --
 CREATE TABLE feature_synonym (
-  feature_synonym_id INTEGER PRIMARY KEY ,
+  feature_synonym_id INTEGER PRIMARY KEY,
   synonym_id integer NOT NULL,
   feature_id integer NOT NULL,
   pub_id integer NOT NULL,
-  is_current boolean false,
-  is_internal boolean false
+  is_current boolean NOT NULL DEFAULT false,
+  is_internal boolean NOT NULL DEFAULT false,
+  FOREIGN KEY(feature_id) REFERENCES feature(feature_id),
+  FOREIGN KEY(pub_id) REFERENCES pub(pub_id),
+  FOREIGN KEY(synonym_id) REFERENCES synonym(synonym_id)
 );
 
 CREATE INDEX feature_synonym_idx_feature_id ON feature_synonym (feature_id);
@@ -1806,9 +2369,11 @@ CREATE UNIQUE INDEX feature_synonym_c1 ON feature_synonym (synonym_id, feature_i
 -- Table: featureloc_pub
 --
 CREATE TABLE featureloc_pub (
-  featureloc_pub_id INTEGER PRIMARY KEY ,
+  featureloc_pub_id INTEGER PRIMARY KEY,
   featureloc_id integer NOT NULL,
-  pub_id integer NOT NULL
+  pub_id integer NOT NULL,
+  FOREIGN KEY(featureloc_id) REFERENCES featureloc(featureloc_id),
+  FOREIGN KEY(pub_id) REFERENCES pub(pub_id)
 );
 
 CREATE INDEX featureloc_pub_idx_featureloc_id ON featureloc_pub (featureloc_id);
@@ -1821,9 +2386,11 @@ CREATE UNIQUE INDEX featureloc_pub_c1 ON featureloc_pub (featureloc_id, pub_id);
 -- Table: featureprop_pub
 --
 CREATE TABLE featureprop_pub (
-  featureprop_pub_id INTEGER PRIMARY KEY ,
+  featureprop_pub_id INTEGER PRIMARY KEY,
   featureprop_id integer NOT NULL,
-  pub_id integer NOT NULL
+  pub_id integer NOT NULL,
+  FOREIGN KEY(featureprop_id) REFERENCES featureprop(featureprop_id),
+  FOREIGN KEY(pub_id) REFERENCES pub(pub_id)
 );
 
 CREATE INDEX featureprop_pub_idx_featureprop_id ON featureprop_pub (featureprop_id);
@@ -1836,12 +2403,15 @@ CREATE UNIQUE INDEX featureprop_pub_c1 ON featureprop_pub (featureprop_id, pub_i
 -- Table: library_synonym
 --
 CREATE TABLE library_synonym (
-  library_synonym_id INTEGER PRIMARY KEY ,
+  library_synonym_id INTEGER PRIMARY KEY,
   synonym_id integer NOT NULL,
   library_id integer NOT NULL,
   pub_id integer NOT NULL,
-  is_current boolean true,
-  is_internal boolean false
+  is_current boolean NOT NULL DEFAULT true,
+  is_internal boolean NOT NULL DEFAULT false,
+  FOREIGN KEY(library_id) REFERENCES library(library_id),
+  FOREIGN KEY(pub_id) REFERENCES pub(pub_id),
+  FOREIGN KEY(synonym_id) REFERENCES synonym(synonym_id)
 );
 
 CREATE INDEX library_synonym_idx_library_id ON library_synonym (library_id);
@@ -1856,9 +2426,11 @@ CREATE UNIQUE INDEX library_synonym_c1 ON library_synonym (synonym_id, library_i
 -- Table: libraryprop_pub
 --
 CREATE TABLE libraryprop_pub (
-  libraryprop_pub_id INTEGER PRIMARY KEY ,
+  libraryprop_pub_id INTEGER PRIMARY KEY,
   libraryprop_id integer NOT NULL,
-  pub_id integer NOT NULL
+  pub_id integer NOT NULL,
+  FOREIGN KEY(libraryprop_id) REFERENCES libraryprop(libraryprop_id),
+  FOREIGN KEY(pub_id) REFERENCES pub(pub_id)
 );
 
 CREATE INDEX libraryprop_pub_idx_libraryprop_id ON libraryprop_pub (libraryprop_id);
@@ -1871,12 +2443,17 @@ CREATE UNIQUE INDEX libraryprop_pub_c1 ON libraryprop_pub (libraryprop_id, pub_i
 -- Table: phenstatement
 --
 CREATE TABLE phenstatement (
-  phenstatement_id INTEGER PRIMARY KEY ,
+  phenstatement_id INTEGER PRIMARY KEY,
   genotype_id integer NOT NULL,
   environment_id integer NOT NULL,
   phenotype_id integer NOT NULL,
   type_id integer NOT NULL,
-  pub_id integer NOT NULL
+  pub_id integer NOT NULL,
+  FOREIGN KEY(environment_id) REFERENCES environment(environment_id),
+  FOREIGN KEY(genotype_id) REFERENCES genotype(genotype_id),
+  FOREIGN KEY(phenotype_id) REFERENCES phenotype(phenotype_id),
+  FOREIGN KEY(pub_id) REFERENCES pub(pub_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX phenstatement_idx_environment_id ON phenstatement (environment_id);
@@ -1895,7 +2472,7 @@ CREATE UNIQUE INDEX phenstatement_c1 ON phenstatement (genotype_id, phenotype_id
 -- Table: phylonode
 --
 CREATE TABLE phylonode (
-  phylonode_id INTEGER PRIMARY KEY ,
+  phylonode_id INTEGER PRIMARY KEY,
   phylotree_id integer NOT NULL,
   parent_phylonode_id integer,
   left_idx integer NOT NULL,
@@ -1903,7 +2480,11 @@ CREATE TABLE phylonode (
   type_id integer,
   feature_id integer,
   label character varying(255),
-  distance double precision
+  distance double precision,
+  FOREIGN KEY(feature_id) REFERENCES feature(feature_id),
+  FOREIGN KEY(parent_phylonode_id) REFERENCES phylonode(phylonode_id),
+  FOREIGN KEY(phylotree_id) REFERENCES phylotree(phylotree_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX phylonode_idx_feature_id ON phylonode (feature_id);
@@ -1922,9 +2503,11 @@ CREATE UNIQUE INDEX phylonode_phylotree_id_key1 ON phylonode (phylotree_id, righ
 -- Table: stock_relationship_pub
 --
 CREATE TABLE stock_relationship_pub (
-  stock_relationship_pub_id INTEGER PRIMARY KEY ,
+  stock_relationship_pub_id INTEGER PRIMARY KEY,
   stock_relationship_id integer NOT NULL,
-  pub_id integer NOT NULL
+  pub_id integer NOT NULL,
+  FOREIGN KEY(pub_id) REFERENCES pub(pub_id),
+  FOREIGN KEY(stock_relationship_id) REFERENCES stock_relationship(stock_relationship_id)
 );
 
 CREATE INDEX stock_relationship_pub_idx_pub_id ON stock_relationship_pub (pub_id);
@@ -1937,9 +2520,11 @@ CREATE UNIQUE INDEX stock_relationship_pub_c1 ON stock_relationship_pub (stock_r
 -- Table: stockcollection_stock
 --
 CREATE TABLE stockcollection_stock (
-  stockcollection_stock_id INTEGER PRIMARY KEY ,
+  stockcollection_stock_id INTEGER PRIMARY KEY,
   stockcollection_id integer NOT NULL,
-  stock_id integer NOT NULL
+  stock_id integer NOT NULL,
+  FOREIGN KEY(stock_id) REFERENCES stock(stock_id),
+  FOREIGN KEY(stockcollection_id) REFERENCES stockcollection(stockcollection_id)
 );
 
 CREATE INDEX stockcollection_stock_idx_stock_id ON stockcollection_stock (stock_id);
@@ -1952,9 +2537,11 @@ CREATE UNIQUE INDEX stockcollection_stock_c1 ON stockcollection_stock (stockcoll
 -- Table: stockprop_pub
 --
 CREATE TABLE stockprop_pub (
-  stockprop_pub_id INTEGER PRIMARY KEY ,
+  stockprop_pub_id INTEGER PRIMARY KEY,
   stockprop_id integer NOT NULL,
-  pub_id integer NOT NULL
+  pub_id integer NOT NULL,
+  FOREIGN KEY(pub_id) REFERENCES pub(pub_id),
+  FOREIGN KEY(stockprop_id) REFERENCES stockprop(stockprop_id)
 );
 
 CREATE INDEX stockprop_pub_idx_pub_id ON stockprop_pub (pub_id);
@@ -1967,11 +2554,13 @@ CREATE UNIQUE INDEX stockprop_pub_c1 ON stockprop_pub (stockprop_id, pub_id);
 -- Table: studydesignprop
 --
 CREATE TABLE studydesignprop (
-  studydesignprop_id INTEGER PRIMARY KEY ,
+  studydesignprop_id INTEGER PRIMARY KEY,
   studydesign_id integer NOT NULL,
   type_id integer NOT NULL,
   value text,
-  rank integer '0'
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(studydesign_id) REFERENCES studydesign(studydesign_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX studydesignprop_idx_studydesign_id ON studydesignprop (studydesign_id);
@@ -1984,11 +2573,13 @@ CREATE UNIQUE INDEX studydesignprop_c1 ON studydesignprop (studydesign_id, type_
 -- Table: studyfactor
 --
 CREATE TABLE studyfactor (
-  studyfactor_id INTEGER PRIMARY KEY ,
+  studyfactor_id INTEGER PRIMARY KEY,
   studydesign_id integer NOT NULL,
   type_id integer,
   name text NOT NULL,
-  description text
+  description text,
+  FOREIGN KEY(studydesign_id) REFERENCES studydesign(studydesign_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX studyfactor_idx_studydesign_id ON studyfactor (studydesign_id);
@@ -1999,11 +2590,13 @@ CREATE INDEX studyfactor_idx_type_id ON studyfactor (type_id);
 -- Table: assayprop
 --
 CREATE TABLE assayprop (
-  assayprop_id INTEGER PRIMARY KEY ,
+  assayprop_id INTEGER PRIMARY KEY,
   assay_id integer NOT NULL,
   type_id integer NOT NULL,
   value text,
-  rank integer '0'
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(assay_id) REFERENCES assay(assay_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX assayprop_idx_assay_id ON assayprop (assay_id);
@@ -2016,11 +2609,13 @@ CREATE UNIQUE INDEX assayprop_c1 ON assayprop (assay_id, type_id, rank);
 -- Table: feature_expressionprop
 --
 CREATE TABLE feature_expressionprop (
-  feature_expressionprop_id INTEGER PRIMARY KEY ,
+  feature_expressionprop_id INTEGER PRIMARY KEY,
   feature_expression_id integer NOT NULL,
   type_id integer NOT NULL,
   value text,
-  rank integer '0'
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(feature_expression_id) REFERENCES feature_expression(feature_expression_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX feature_expressionprop_idx_feature_expression_id ON feature_expressionprop (feature_expression_id);
@@ -2033,9 +2628,11 @@ CREATE UNIQUE INDEX feature_expressionprop_c1 ON feature_expressionprop (feature
 -- Table: feature_relationshipprop_pub
 --
 CREATE TABLE feature_relationshipprop_pub (
-  feature_relationshipprop_pub_id INTEGER PRIMARY KEY ,
+  feature_relationshipprop_pub_id INTEGER PRIMARY KEY,
   feature_relationshipprop_id integer NOT NULL,
-  pub_id integer NOT NULL
+  pub_id integer NOT NULL,
+  FOREIGN KEY(feature_relationshipprop_id) REFERENCES feature_relationshipprop(feature_relationshipprop_id),
+  FOREIGN KEY(pub_id) REFERENCES pub(pub_id)
 );
 
 CREATE INDEX feature_relationshipprop_pub_idx_feature_relationshipprop_id ON feature_relationshipprop_pub (feature_relationshipprop_id);
@@ -2048,7 +2645,7 @@ CREATE UNIQUE INDEX feature_relationshipprop_pub_c1 ON feature_relationshipprop_
 -- Table: phenotype_comparison
 --
 CREATE TABLE phenotype_comparison (
-  phenotype_comparison_id INTEGER PRIMARY KEY ,
+  phenotype_comparison_id INTEGER PRIMARY KEY,
   genotype1_id integer NOT NULL,
   environment1_id integer NOT NULL,
   genotype2_id integer NOT NULL,
@@ -2056,7 +2653,15 @@ CREATE TABLE phenotype_comparison (
   phenotype1_id integer NOT NULL,
   phenotype2_id integer,
   pub_id integer NOT NULL,
-  organism_id integer NOT NULL
+  organism_id integer NOT NULL,
+  FOREIGN KEY(environment1_id) REFERENCES environment(environment_id),
+  FOREIGN KEY(environment2_id) REFERENCES environment(environment_id),
+  FOREIGN KEY(genotype1_id) REFERENCES genotype(genotype_id),
+  FOREIGN KEY(genotype2_id) REFERENCES genotype(genotype_id),
+  FOREIGN KEY(organism_id) REFERENCES organism(organism_id),
+  FOREIGN KEY(phenotype1_id) REFERENCES phenotype(phenotype_id),
+  FOREIGN KEY(phenotype2_id) REFERENCES phenotype(phenotype_id),
+  FOREIGN KEY(pub_id) REFERENCES pub(pub_id)
 );
 
 CREATE INDEX phenotype_comparison_idx_environment1_id ON phenotype_comparison (environment1_id);
@@ -2081,9 +2686,11 @@ CREATE UNIQUE INDEX phenotype_comparison_c1 ON phenotype_comparison (genotype1_i
 -- Table: phylonode_dbxref
 --
 CREATE TABLE phylonode_dbxref (
-  phylonode_dbxref_id INTEGER PRIMARY KEY ,
+  phylonode_dbxref_id INTEGER PRIMARY KEY,
   phylonode_id integer NOT NULL,
-  dbxref_id integer NOT NULL
+  dbxref_id integer NOT NULL,
+  FOREIGN KEY(dbxref_id) REFERENCES dbxref(dbxref_id),
+  FOREIGN KEY(phylonode_id) REFERENCES phylonode(phylonode_id)
 );
 
 CREATE INDEX phylonode_dbxref_idx_dbxref_id ON phylonode_dbxref (dbxref_id);
@@ -2096,9 +2703,11 @@ CREATE UNIQUE INDEX phylonode_dbxref_phylonode_id_key ON phylonode_dbxref (phylo
 -- Table: phylonode_organism
 --
 CREATE TABLE phylonode_organism (
-  phylonode_organism_id INTEGER PRIMARY KEY ,
+  phylonode_organism_id INTEGER PRIMARY KEY,
   phylonode_id integer NOT NULL,
-  organism_id integer NOT NULL
+  organism_id integer NOT NULL,
+  FOREIGN KEY(organism_id) REFERENCES organism(organism_id),
+  FOREIGN KEY(phylonode_id) REFERENCES phylonode(phylonode_id)
 );
 
 CREATE INDEX phylonode_organism_idx_organism_id ON phylonode_organism (organism_id);
@@ -2111,12 +2720,16 @@ CREATE UNIQUE INDEX phylonode_organism_phylonode_id_key ON phylonode_organism (p
 -- Table: phylonode_relationship
 --
 CREATE TABLE phylonode_relationship (
-  phylonode_relationship_id INTEGER PRIMARY KEY ,
+  phylonode_relationship_id INTEGER PRIMARY KEY,
   subject_id integer NOT NULL,
   object_id integer NOT NULL,
   type_id integer NOT NULL,
   rank integer,
-  phylotree_id integer NOT NULL
+  phylotree_id integer NOT NULL,
+  FOREIGN KEY(object_id) REFERENCES phylonode(phylonode_id),
+  FOREIGN KEY(phylotree_id) REFERENCES phylotree(phylotree_id),
+  FOREIGN KEY(subject_id) REFERENCES phylonode(phylonode_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX phylonode_relationship_idx_object_id ON phylonode_relationship (object_id);
@@ -2133,11 +2746,13 @@ CREATE UNIQUE INDEX phylonode_relationship_subject_id_key ON phylonode_relations
 -- Table: phylonodeprop
 --
 CREATE TABLE phylonodeprop (
-  phylonodeprop_id INTEGER PRIMARY KEY ,
+  phylonodeprop_id INTEGER PRIMARY KEY,
   phylonode_id integer NOT NULL,
   type_id integer NOT NULL,
-  value text '',
-  rank integer '0'
+  value text NOT NULL DEFAULT '',
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(phylonode_id) REFERENCES phylonode(phylonode_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX phylonodeprop_idx_phylonode_id ON phylonodeprop (phylonode_id);
@@ -2150,12 +2765,15 @@ CREATE UNIQUE INDEX phylonodeprop_phylonode_id_key ON phylonodeprop (phylonode_i
 -- Table: treatment
 --
 CREATE TABLE treatment (
-  treatment_id INTEGER PRIMARY KEY ,
-  rank integer '0',
+  treatment_id INTEGER PRIMARY KEY,
+  rank integer NOT NULL DEFAULT '0',
   biomaterial_id integer NOT NULL,
   type_id integer NOT NULL,
   protocol_id integer,
-  name text
+  name text,
+  FOREIGN KEY(biomaterial_id) REFERENCES biomaterial(biomaterial_id),
+  FOREIGN KEY(protocol_id) REFERENCES protocol(protocol_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX treatment_idx_biomaterial_id ON treatment (biomaterial_id);
@@ -2168,13 +2786,16 @@ CREATE INDEX treatment_idx_type_id ON treatment (type_id);
 -- Table: acquisition
 --
 CREATE TABLE acquisition (
-  acquisition_id INTEGER PRIMARY KEY ,
+  acquisition_id INTEGER PRIMARY KEY,
   assay_id integer NOT NULL,
   protocol_id integer,
   channel_id integer,
-  acquisitiondate timestamp without time zone DEFAULT now(),
+  acquisitiondate timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
   name text,
-  uri text
+  uri text,
+  FOREIGN KEY(assay_id) REFERENCES assay(assay_id),
+  FOREIGN KEY(channel_id) REFERENCES channel(channel_id),
+  FOREIGN KEY(protocol_id) REFERENCES protocol(protocol_id)
 );
 
 CREATE INDEX acquisition_idx_assay_id ON acquisition (assay_id);
@@ -2189,9 +2810,11 @@ CREATE UNIQUE INDEX acquisition_c1 ON acquisition (name);
 -- Table: assay_project
 --
 CREATE TABLE assay_project (
-  assay_project_id INTEGER PRIMARY KEY ,
+  assay_project_id INTEGER PRIMARY KEY,
   assay_id integer NOT NULL,
-  project_id integer NOT NULL
+  project_id integer NOT NULL,
+  FOREIGN KEY(assay_id) REFERENCES assay(assay_id),
+  FOREIGN KEY(project_id) REFERENCES project(project_id)
 );
 
 CREATE INDEX assay_project_idx_assay_id ON assay_project (assay_id);
@@ -2204,12 +2827,15 @@ CREATE UNIQUE INDEX assay_project_c1 ON assay_project (assay_id, project_id);
 -- Table: biomaterial_treatment
 --
 CREATE TABLE biomaterial_treatment (
-  biomaterial_treatment_id INTEGER PRIMARY KEY ,
+  biomaterial_treatment_id INTEGER PRIMARY KEY,
   biomaterial_id integer NOT NULL,
   treatment_id integer NOT NULL,
   unittype_id integer,
   value real,
-  rank integer '0'
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(biomaterial_id) REFERENCES biomaterial(biomaterial_id),
+  FOREIGN KEY(treatment_id) REFERENCES treatment(treatment_id),
+  FOREIGN KEY(unittype_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX biomaterial_treatment_idx_biomaterial_id ON biomaterial_treatment (biomaterial_id);
@@ -2224,14 +2850,17 @@ CREATE UNIQUE INDEX biomaterial_treatment_c1 ON biomaterial_treatment (biomateri
 -- Table: control
 --
 CREATE TABLE control (
-  control_id INTEGER PRIMARY KEY ,
+  control_id INTEGER PRIMARY KEY,
   type_id integer NOT NULL,
   assay_id integer NOT NULL,
   tableinfo_id integer NOT NULL,
   row_id integer NOT NULL,
   name text,
   value text,
-  rank integer '0'
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(assay_id) REFERENCES assay(assay_id),
+  FOREIGN KEY(tableinfo_id) REFERENCES tableinfo(tableinfo_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX control_idx_assay_id ON control (assay_id);
@@ -2244,11 +2873,15 @@ CREATE INDEX control_idx_type_id ON control (type_id);
 -- Table: element
 --
 CREATE TABLE element (
-  element_id INTEGER PRIMARY KEY ,
+  element_id INTEGER PRIMARY KEY,
   feature_id integer,
   arraydesign_id integer NOT NULL,
   type_id integer,
-  dbxref_id integer
+  dbxref_id integer,
+  FOREIGN KEY(arraydesign_id) REFERENCES arraydesign(arraydesign_id),
+  FOREIGN KEY(dbxref_id) REFERENCES dbxref(dbxref_id),
+  FOREIGN KEY(feature_id) REFERENCES feature(feature_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX element_idx_arraydesign_id ON element (arraydesign_id);
@@ -2265,11 +2898,14 @@ CREATE UNIQUE INDEX element_c1 ON element (feature_id, arraydesign_id);
 -- Table: phenotype_comparison_cvterm
 --
 CREATE TABLE phenotype_comparison_cvterm (
-  phenotype_comparison_cvterm_id INTEGER PRIMARY KEY ,
+  phenotype_comparison_cvterm_id INTEGER PRIMARY KEY,
   phenotype_comparison_id integer NOT NULL,
   cvterm_id integer NOT NULL,
   pub_id integer NOT NULL,
-  rank integer '0'
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(cvterm_id) REFERENCES cvterm(cvterm_id),
+  FOREIGN KEY(phenotype_comparison_id) REFERENCES phenotype_comparison(phenotype_comparison_id),
+  FOREIGN KEY(pub_id) REFERENCES pub(pub_id)
 );
 
 CREATE INDEX phenotype_comparison_cvterm_idx_cvterm_id ON phenotype_comparison_cvterm (cvterm_id);
@@ -2284,9 +2920,11 @@ CREATE UNIQUE INDEX phenotype_comparison_cvterm_c1 ON phenotype_comparison_cvter
 -- Table: phylonode_pub
 --
 CREATE TABLE phylonode_pub (
-  phylonode_pub_id INTEGER PRIMARY KEY ,
+  phylonode_pub_id INTEGER PRIMARY KEY,
   phylonode_id integer NOT NULL,
-  pub_id integer NOT NULL
+  pub_id integer NOT NULL,
+  FOREIGN KEY(phylonode_id) REFERENCES phylonode(phylonode_id),
+  FOREIGN KEY(pub_id) REFERENCES pub(pub_id)
 );
 
 CREATE INDEX phylonode_pub_idx_phylonode_id ON phylonode_pub (phylonode_id);
@@ -2299,9 +2937,11 @@ CREATE UNIQUE INDEX phylonode_pub_phylonode_id_key ON phylonode_pub (phylonode_i
 -- Table: study_assay
 --
 CREATE TABLE study_assay (
-  study_assay_id INTEGER PRIMARY KEY ,
+  study_assay_id INTEGER PRIMARY KEY,
   study_id integer NOT NULL,
-  assay_id integer NOT NULL
+  assay_id integer NOT NULL,
+  FOREIGN KEY(assay_id) REFERENCES assay(assay_id),
+  FOREIGN KEY(study_id) REFERENCES study(study_id)
 );
 
 CREATE INDEX study_assay_idx_assay_id ON study_assay (assay_id);
@@ -2314,10 +2954,13 @@ CREATE UNIQUE INDEX study_assay_c1 ON study_assay (study_id, assay_id);
 -- Table: studyprop_feature
 --
 CREATE TABLE studyprop_feature (
-  studyprop_feature_id INTEGER PRIMARY KEY ,
+  studyprop_feature_id INTEGER PRIMARY KEY,
   studyprop_id integer NOT NULL,
   feature_id integer NOT NULL,
-  type_id integer
+  type_id integer,
+  FOREIGN KEY(feature_id) REFERENCES feature(feature_id),
+  FOREIGN KEY(studyprop_id) REFERENCES studyprop(studyprop_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX studyprop_feature_idx_feature_id ON studyprop_feature (feature_id);
@@ -2332,12 +2975,15 @@ CREATE UNIQUE INDEX studyprop_feature_studyprop_id_key ON studyprop_feature (stu
 -- Table: acquisition_relationship
 --
 CREATE TABLE acquisition_relationship (
-  acquisition_relationship_id INTEGER PRIMARY KEY ,
+  acquisition_relationship_id INTEGER PRIMARY KEY,
   subject_id integer NOT NULL,
   type_id integer NOT NULL,
   object_id integer NOT NULL,
   value text,
-  rank integer '0'
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(object_id) REFERENCES acquisition(acquisition_id),
+  FOREIGN KEY(subject_id) REFERENCES acquisition(acquisition_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX acquisition_relationship_idx_object_id ON acquisition_relationship (object_id);
@@ -2352,11 +2998,13 @@ CREATE UNIQUE INDEX acquisition_relationship_c1 ON acquisition_relationship (sub
 -- Table: acquisitionprop
 --
 CREATE TABLE acquisitionprop (
-  acquisitionprop_id INTEGER PRIMARY KEY ,
+  acquisitionprop_id INTEGER PRIMARY KEY,
   acquisition_id integer NOT NULL,
   type_id integer NOT NULL,
   value text,
-  rank integer '0'
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(acquisition_id) REFERENCES acquisition(acquisition_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX acquisitionprop_idx_acquisition_id ON acquisitionprop (acquisition_id);
@@ -2369,12 +3017,15 @@ CREATE UNIQUE INDEX acquisitionprop_c1 ON acquisitionprop (acquisition_id, type_
 -- Table: element_relationship
 --
 CREATE TABLE element_relationship (
-  element_relationship_id INTEGER PRIMARY KEY ,
+  element_relationship_id INTEGER PRIMARY KEY,
   subject_id integer NOT NULL,
   type_id integer NOT NULL,
   object_id integer NOT NULL,
   value text,
-  rank integer '0'
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(object_id) REFERENCES element(element_id),
+  FOREIGN KEY(subject_id) REFERENCES element(element_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX element_relationship_idx_object_id ON element_relationship (object_id);
@@ -2389,11 +3040,14 @@ CREATE UNIQUE INDEX element_relationship_c1 ON element_relationship (subject_id,
 -- Table: assay_biomaterial
 --
 CREATE TABLE assay_biomaterial (
-  assay_biomaterial_id INTEGER PRIMARY KEY ,
+  assay_biomaterial_id INTEGER PRIMARY KEY,
   assay_id integer NOT NULL,
   biomaterial_id integer NOT NULL,
   channel_id integer,
-  rank integer '0'
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(assay_id) REFERENCES assay(assay_id),
+  FOREIGN KEY(biomaterial_id) REFERENCES biomaterial(biomaterial_id),
+  FOREIGN KEY(channel_id) REFERENCES channel(channel_id)
 );
 
 CREATE INDEX assay_biomaterial_idx_assay_id ON assay_biomaterial (assay_id);
@@ -2408,14 +3062,18 @@ CREATE UNIQUE INDEX assay_biomaterial_c1 ON assay_biomaterial (assay_id, biomate
 -- Table: quantification
 --
 CREATE TABLE quantification (
-  quantification_id INTEGER PRIMARY KEY ,
+  quantification_id INTEGER PRIMARY KEY,
   acquisition_id integer NOT NULL,
   operator_id integer,
   protocol_id integer,
   analysis_id integer NOT NULL,
-  quantificationdate timestamp without time zone DEFAULT now(),
+  quantificationdate timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
   name text,
-  uri text
+  uri text,
+  FOREIGN KEY(acquisition_id) REFERENCES acquisition(acquisition_id),
+  FOREIGN KEY(analysis_id) REFERENCES analysis(analysis_id),
+  FOREIGN KEY(operator_id) REFERENCES contact(contact_id),
+  FOREIGN KEY(protocol_id) REFERENCES protocol(protocol_id)
 );
 
 CREATE INDEX quantification_idx_acquisition_id ON quantification (acquisition_id);
@@ -2432,12 +3090,14 @@ CREATE UNIQUE INDEX quantification_c1 ON quantification (name, analysis_id);
 -- Table: studyfactorvalue
 --
 CREATE TABLE studyfactorvalue (
-  studyfactorvalue_id INTEGER PRIMARY KEY ,
+  studyfactorvalue_id INTEGER PRIMARY KEY,
   studyfactor_id integer NOT NULL,
   assay_id integer NOT NULL,
   factorvalue text,
   name text,
-  rank integer '0'
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(assay_id) REFERENCES assay(assay_id),
+  FOREIGN KEY(studyfactor_id) REFERENCES studyfactor(studyfactor_id)
 );
 
 CREATE INDEX studyfactorvalue_idx_assay_id ON studyfactorvalue (assay_id);
@@ -2448,10 +3108,13 @@ CREATE INDEX studyfactorvalue_idx_studyfactor_id ON studyfactorvalue (studyfacto
 -- Table: quantification_relationship
 --
 CREATE TABLE quantification_relationship (
-  quantification_relationship_id INTEGER PRIMARY KEY ,
+  quantification_relationship_id INTEGER PRIMARY KEY,
   subject_id integer NOT NULL,
   type_id integer NOT NULL,
-  object_id integer NOT NULL
+  object_id integer NOT NULL,
+  FOREIGN KEY(object_id) REFERENCES quantification(quantification_id),
+  FOREIGN KEY(subject_id) REFERENCES quantification(quantification_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX quantification_relationship_idx_object_id ON quantification_relationship (object_id);
@@ -2466,11 +3129,13 @@ CREATE UNIQUE INDEX quantification_relationship_c1 ON quantification_relationshi
 -- Table: quantificationprop
 --
 CREATE TABLE quantificationprop (
-  quantificationprop_id INTEGER PRIMARY KEY ,
+  quantificationprop_id INTEGER PRIMARY KEY,
   quantification_id integer NOT NULL,
   type_id integer NOT NULL,
   value text,
-  rank integer '0'
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(quantification_id) REFERENCES quantification(quantification_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX quantificationprop_idx_quantification_id ON quantificationprop (quantification_id);
@@ -2483,10 +3148,12 @@ CREATE UNIQUE INDEX quantificationprop_c1 ON quantificationprop (quantification_
 -- Table: elementresult
 --
 CREATE TABLE elementresult (
-  elementresult_id INTEGER PRIMARY KEY ,
+  elementresult_id INTEGER PRIMARY KEY,
   element_id integer NOT NULL,
   quantification_id integer NOT NULL,
-  signal double precision NOT NULL
+  signal double precision NOT NULL,
+  FOREIGN KEY(element_id) REFERENCES element(element_id),
+  FOREIGN KEY(quantification_id) REFERENCES quantification(quantification_id)
 );
 
 CREATE INDEX elementresult_idx_element_id ON elementresult (element_id);
@@ -2499,12 +3166,15 @@ CREATE UNIQUE INDEX elementresult_c1 ON elementresult (element_id, quantificatio
 -- Table: elementresult_relationship
 --
 CREATE TABLE elementresult_relationship (
-  elementresult_relationship_id INTEGER PRIMARY KEY ,
+  elementresult_relationship_id INTEGER PRIMARY KEY,
   subject_id integer NOT NULL,
   type_id integer NOT NULL,
   object_id integer NOT NULL,
   value text,
-  rank integer '0'
+  rank integer NOT NULL DEFAULT '0',
+  FOREIGN KEY(object_id) REFERENCES elementresult(elementresult_id),
+  FOREIGN KEY(subject_id) REFERENCES elementresult(elementresult_id),
+  FOREIGN KEY(type_id) REFERENCES cvterm(cvterm_id)
 );
 
 CREATE INDEX elementresult_relationship_idx_object_id ON elementresult_relationship (object_id);
@@ -2516,4 +3186,3 @@ CREATE INDEX elementresult_relationship_idx_type_id ON elementresult_relationshi
 CREATE UNIQUE INDEX elementresult_relationship_c1 ON elementresult_relationship (subject_id, object_id, type_id, rank);
 
 COMMIT;
-

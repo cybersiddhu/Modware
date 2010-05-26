@@ -5,6 +5,8 @@ use version; our $VERSION = qv('0.1');
 # Other modules:
 use Moose::Role;
 use Carp;
+use File::Basename;
+use File::Path;
 
 # Module implementation
 #
@@ -22,6 +24,17 @@ after 'driver_dsn' => sub {
 
 sub create_db {
     my ($self) = @_;
+
+    #create the parent folder if it does not exist
+    my $folder = dirname $self->database;
+    if ( !-e $folder ) {
+        try {
+            mkpath $folder;
+        }
+        catch {
+            confess $_;
+        };
+    }
     if ( !$self->has_db ) {
         $self->dbh;
     }
@@ -59,8 +72,6 @@ before 'deploy_schema' => sub {
     my ($self) = @_;
     $self->dbh->do("PRAGMA foreign_keys = ON");
 };
-
-
 
 1;    # Magic true value required at end of module
 

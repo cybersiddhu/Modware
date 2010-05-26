@@ -88,6 +88,7 @@ sub deploy_schema {
     my $dbh    = $self->dbh;
     my $fh     = $self->ddl->openr;
     my $data = do { local ($/); <$fh> };
+    $fh->close();
 LINE:
     foreach my $line ( split( /\n{2,}/, $data ) ) {
         #next LINE if $line =~ /^\-\-/;
@@ -99,14 +100,13 @@ LINE:
         $line =~ s{/}{};
         try {
             $dbh->do($line);
-            $dbh->commit;
         }
         catch {
             $dbh->rollback;
             confess $_, "\n";
         };
     }
-    $fh->close();
+    $dbh->commit;
 }
 
 1;    # Magic true value required at end of module
