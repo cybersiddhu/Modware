@@ -1,6 +1,7 @@
 #!/usr/bin/perl -w
 
 use strict;
+use Cwd;
 use Pod::Usage;
 use Getopt::Long;
 use SQL::Translator;
@@ -9,6 +10,7 @@ use Data::Dumper;
 use SQL::Translator::Schema::Constants;
 use SQL::Translator::Utils qw(debug header_comment);
 use Path::Class;
+use List::MoreUtils qw/any/;
 
 use vars qw[ $VERSION $DEBUG $WARN ];
 
@@ -20,13 +22,41 @@ our $max_id_length = 30;
 my %global_names;
 
 GetOptions( 'h|help' => sub { pod2usage(1); } );
-my $output = Path::Class::File->new('chado.sqlite')->openw;
+my $views = do {
+    my $names;
+    my $view_file
+        = Path::Class::Dir->new(getcwd)->parent->parent->subdir('data')
+        ->file('chado_views.txt')->openr;
+    while ( my $line = $view_file->getline ) {
+        chomp $line;
+        $line =~ s/\_//g;
+        push @$names, $line;
+    }
+    $view_file->close;
+    $names;
+};
 
 my $schema = Bio::Chado::Schema->connect;
-my $trans  = SQL::Translator->new(
+
+my $allowed_sources;
+for my $name ( $schema->sources ) {
+    my $result_source = ( ( split /::/,  lc $name ) )[1];
+    if ( any { $_ eq  $result_source } @$views ) {
+        warn "skipping $name\n";
+        next;
+    }
+    push @$allowed_sources, $name;
+}
+
+my $output = Path::Class::File->new('chado.sqlite')->openw;
+my $trans = SQL::Translator->new(
     parser      => 'SQL::Translator::Parser::DBIx::Class',
-    parser_args => { package => $schema, add_fk_index => 1 },
-    producer    => \&produce,
+    parser_args => {
+        package      => $schema,
+        add_fk_index => 1,
+        sources      => $allowed_sources
+    },
+    producer => \&produce,
 ) or die SQL::Translator->error;
 
 my $data = $trans->translate or die $trans->error;
@@ -327,10 +357,11 @@ sub create_field {
     # Default?  XXX Need better quoting!
     my $default = $field->default_value;
     if ( defined $default && !$field->is_primary_key ) {
-        if (ref $default && $$default =~ /now/ ) {
+        if ( ref $default && $$default =~ /now/ ) {
             $field_def .= ' DEFAULT CURRENT_TIMESTAMP';
             return $field_def;
         }
+        return $field_def if ref $default && $$default =~ /nextval/;
         SQL::Translator::Producer->_apply_default_value(
             \$field_def,
             $default,

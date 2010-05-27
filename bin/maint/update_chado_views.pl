@@ -1,4 +1,3 @@
-
 #!/usr/bin/perl -w
 
 use strict;
@@ -6,41 +5,72 @@ use Pod::Usage;
 use Getopt::Long;
 use Bio::Chado::Schema;
 use Path::Class;
-use IPC::Cmd;
+use IPC::Cmd qw/can_run run/;
 use Cwd;
 use XML::Twig::XPath;
+use SQL::Translator;
 
 my $gmod_folder;
+my $output;
 my $data_folder
     = Path::Class::Dir->new(getcwd)->parent->parent->subdir('data');
 
 GetOptions(
     'h|help'     => sub { pod2usage(1); },
-    'f|folder:s' => \$gmod_folder
+    'f|folder:s' => \$gmod_folder,
+    'o|output:s' => \$output
 );
 
-$gmod_folder ||= $data_folder->subdir('gmod-current');
+$gmod_folder
+    = $gmod_folder
+    ? Path::Class::Dir->new($gmod_folder)
+    : $data_folder->subdir('gmod-current');
+$output
+    = $output
+    ? Path::Class::File->new($output)
+    : $data_folder->file('chado_views.txt');
 
 my $svn = can_run('svn') or die "svn client is not installed\n";
-my $cmd = [
+my $cmd
+    = -e $gmod_folder->stringify
+    ? [
+    $svn, 'up',
+    'https://gmod.svn.sourceforge.net/svnroot/gmod/schema/trunk/chado',
+    $gmod_folder->stringify
+    ]
+    : [
     $svn, 'co',
     'https://gmod.svn.sourceforge.net/svnroot/gmod/schema/trunk/chado',
     $gmod_folder->stringify
-];
+    ];
 
 my ( $success, $error_code, $full_buf, $stdout_buf, $stderr_buf )
-    = run( command => $cmd, verbose => 0 );
+    = run( command => $cmd, verbose => 1 );
 
-if ( !$sucess ) {
+if ( !$success ) {
     die "unable to run command: $stderr_buf\n";
 }
 
-my $twig = XML::Twig::XPath->new->parsefile(
+my $outhandler = $output->openw;
+my $twig       = XML::Twig::XPath->new->parsefile(
     $gmod_folder->file('chado-module-metadata.xml')->stringify );
 my @nodes
     = $twig->findnodes(
-    '//component[@type = "views" and @required = "true"]/source[@type = "sql"]'
+    '//component[@type = "views" or @type = "bridge"]/source[@type = "sql"]'
     );
+
+for my $elem (@nodes) {
+    print "translating ", $elem->att('path'), "\n";
+    my $reader = $gmod_folder->file('modules',  $elem->att('path') )->openr;
+    while ( my $line = $reader->getline ) {
+        if ( $line =~ /create\s+or\s+replace\s+view\s+(\S+)/i ) {
+            $outhandler->print( $1, "\n" );
+        }
+    }
+    $reader->close;
+}
+
+$outhandler->close;
 
 =head1 NAME
 

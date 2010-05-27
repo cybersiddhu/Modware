@@ -100,13 +100,13 @@ LINE:
         $line =~ s{/}{};
         try {
             $dbh->do($line);
+    		$dbh->commit;
         }
         catch {
             $dbh->rollback;
             confess $_, "\n";
         };
     }
-    $dbh->commit;
 }
 
 1;    # Magic true value required at end of module

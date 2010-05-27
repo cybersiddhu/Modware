@@ -1,19 +1,10 @@
 -- 
 -- Created by main
--- Created on Tue May 25 03:56:42 2010
+-- Created on Thu May 27 13:35:55 2010
 -- 
 
 
 BEGIN TRANSACTION;
-
---
--- Table: all_feature_names
---
-CREATE TABLE all_feature_names (
-  feature_id integer,
-  name character varying(255),
-  organism_id integer
-);
 
 --
 -- Table: analysis
@@ -45,30 +36,6 @@ CREATE TABLE channel (
 CREATE UNIQUE INDEX channel_c1 ON channel (name);
 
 --
--- Table: common_ancestor_cvterm
---
-CREATE TABLE common_ancestor_cvterm (
-  cvterm1_id integer,
-  cvterm2_id integer,
-  ancestor_cvterm_id integer,
-  pathdistance1 integer,
-  pathdistance2 integer,
-  total_pathdistance integer
-);
-
---
--- Table: common_descendant_cvterm
---
-CREATE TABLE common_descendant_cvterm (
-  cvterm1_id integer,
-  cvterm2_id integer,
-  ancestor_cvterm_id integer,
-  pathdistance1 integer,
-  pathdistance2 integer,
-  total_pathdistance integer
-);
-
---
 -- Table: cv
 --
 CREATE TABLE cv (
@@ -96,14 +63,6 @@ CREATE TABLE cv_cvterm_count_with_obs (
 );
 
 --
--- Table: cv_leaf
---
-CREATE TABLE cv_leaf (
-  cv_id integer,
-  cvterm_id integer
-);
-
---
 -- Table: cv_link_count
 --
 CREATE TABLE cv_link_count (
@@ -121,14 +80,6 @@ CREATE TABLE cv_path_count (
   relation_name character varying(1024),
   relation_cv_name character varying(255),
   num_paths bigint
-);
-
---
--- Table: cv_root
---
-CREATE TABLE cv_root (
-  cv_id integer,
-  root_cvterm_id integer
 );
 
 --
@@ -150,24 +101,6 @@ CREATE UNIQUE INDEX db_c1 ON db (name);
 CREATE TABLE db_dbxref_count (
   name character varying(255),
   num_dbxrefs bigint
-);
-
---
--- Table: dfeatureloc
---
-CREATE TABLE dfeatureloc (
-  featureloc_id integer,
-  feature_id integer,
-  srcfeature_id integer,
-  nbeg integer,
-  is_nbeg_partial boolean,
-  nend integer,
-  is_nend_partial boolean,
-  strand smallint,
-  phase integer,
-  residue_info text,
-  locgroup integer,
-  rank integer
 );
 
 --
@@ -204,149 +137,6 @@ CREATE TABLE expression (
 CREATE UNIQUE INDEX expression_c1 ON expression (uniquename);
 
 --
--- Table: f_loc
---
-CREATE TABLE f_loc (
-  feature_id integer,
-  name character varying(255),
-  dbxref_id integer,
-  nbeg integer,
-  nend integer,
-  strand smallint
-);
-
---
--- Table: f_type
---
-CREATE TABLE f_type (
-  feature_id integer,
-  name character varying(255),
-  dbxref_id integer,
-  type character varying(1024),
-  residues text,
-  seqlen integer,
-  md5checksum character(32),
-  type_id integer,
-  timeaccessioned timestamp without time zone,
-  timelastmodified timestamp without time zone
-);
-
---
--- Table: feature_contains
---
-CREATE TABLE feature_contains (
-  subject_id integer,
-  object_id integer
-);
-
---
--- Table: feature_difference
---
-CREATE TABLE feature_difference (
-  subject_id integer,
-  object_id integer,
-  srcfeature_id smallint,
-  fmin integer,
-  fmax integer,
-  strand integer
-);
-
---
--- Table: feature_disjoint
---
-CREATE TABLE feature_disjoint (
-  subject_id integer,
-  object_id integer
-);
-
---
--- Table: feature_distance
---
-CREATE TABLE feature_distance (
-  subject_id integer,
-  object_id integer,
-  srcfeature_id integer,
-  subject_strand smallint,
-  object_strand smallint,
-  distance integer
-);
-
---
--- Table: feature_intersection
---
-CREATE TABLE feature_intersection (
-  subject_id integer,
-  object_id integer,
-  srcfeature_id integer,
-  subject_strand smallint,
-  object_strand smallint,
-  fmin integer,
-  fmax integer
-);
-
---
--- Table: feature_meets
---
-CREATE TABLE feature_meets (
-  subject_id integer,
-  object_id integer
-);
-
---
--- Table: feature_meets_on_same_strand
---
-CREATE TABLE feature_meets_on_same_strand (
-  subject_id integer,
-  object_id integer
-);
-
---
--- Table: feature_union
---
-CREATE TABLE feature_union (
-  subject_id integer,
-  object_id integer,
-  srcfeature_id integer,
-  subject_strand smallint,
-  object_strand smallint,
-  fmin integer,
-  fmax integer
-);
-
---
--- Table: featureset_meets
---
-CREATE TABLE featureset_meets (
-  subject_id integer,
-  object_id integer
-);
-
---
--- Table: fnr_type
---
-CREATE TABLE fnr_type (
-  feature_id integer,
-  name character varying(255),
-  dbxref_id integer,
-  type character varying(1024),
-  residues text,
-  seqlen integer,
-  md5checksum character(32),
-  type_id integer,
-  timeaccessioned timestamp without time zone,
-  timelastmodified timestamp without time zone
-);
-
---
--- Table: fp_key
---
-CREATE TABLE fp_key (
-  feature_id integer,
-  pkey character varying(1024),
-  value text
-);
-
---
 -- Table: genotype
 --
 CREATE TABLE genotype (
@@ -357,42 +147,6 @@ CREATE TABLE genotype (
 );
 
 CREATE UNIQUE INDEX genotype_c1 ON genotype (uniquename);
-
---
--- Table: gff3atts
---
-CREATE TABLE gff3atts (
-  feature_id integer,
-  type text,
-  attribute character varying
-);
-
---
--- Table: gff3view
---
-CREATE TABLE gff3view (
-  feature_id integer,
-  ref character varying(255),
-  source character varying(255),
-  type character varying(1024),
-  fstart integer,
-  fend integer,
-  score double precision,
-  strand smallint,
-  phase integer,
-  seqlen integer,
-  name character varying(255),
-  organism_id integer
-);
-
---
--- Table: gffatts
---
-CREATE TABLE gffatts (
-  feature_id integer,
-  type text,
-  attribute character varying
-);
 
 --
 -- Table: intron_combined_view
@@ -453,36 +207,6 @@ CREATE TABLE project (
 );
 
 CREATE UNIQUE INDEX project_c1 ON project (name);
-
---
--- Table: protein_coding_gene
---
-CREATE TABLE protein_coding_gene (
-  feature_id integer,
-  dbxref_id integer,
-  organism_id integer,
-  name character varying(255),
-  uniquename text,
-  residues text,
-  seqlen integer,
-  md5checksum character(32),
-  type_id integer,
-  is_analysis boolean,
-  is_obsolete boolean,
-  timeaccessioned timestamp without time zone,
-  timelastmodified timestamp without time zone
-);
-
---
--- Table: stats_paths_to_root
---
-CREATE TABLE stats_paths_to_root (
-  cvterm_id integer,
-  total_paths bigint,
-  avg_distance numeric,
-  min_distance integer,
-  max_distance integer
-);
 
 --
 -- Table: tableinfo
@@ -1832,7 +1556,7 @@ CREATE UNIQUE INDEX feature_relationshipprop_c1 ON feature_relationshipprop (fea
 --
 CREATE TABLE featurepos (
   featurepos_id INTEGER PRIMARY KEY,
-  featuremap_id integer NOT NULL DEFAULT nextval('featurepos_featuremap_id_seq'::regclass),
+  featuremap_id integer NOT NULL,
   feature_id integer NOT NULL,
   map_feature_id integer NOT NULL,
   mappos double precision NOT NULL,
