@@ -6,8 +6,7 @@ __PACKAGE__->add_property('handler');
 
 sub ACTION_create {
     my ($self) = @_;
-    Test::Chado->load_config;
-    my $handler = Test::Chado->handler;
+    my $handler = Test::Chado->new->default_handler;
     $self->handler($handler);
     $handler->create_db;
 }
@@ -19,11 +18,15 @@ sub ACTION_deploy {
 }
 
 sub ACTION_deploy_schema {
-    Test::Chado->handler->deploy_schema;
+	my ($self) = @_;
+    my $handler = Test::Chado->new->default_handler;
+    $handler->deploy_schema;
 }
 
 sub ACTION_drop {
-    Test::Chado->handler->drop_db;
+	my ($self) = @_;
+    my $handler = Test::Chado->new->default_handler;
+    $handler->drop_db;
 }
 
 
