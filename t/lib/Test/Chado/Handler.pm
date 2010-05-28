@@ -14,35 +14,36 @@ use Carp;
 # Module implementation
 #
 
-has 'name' => ( is => 'rw', isa => 'Str' );
-
+has 'name'  => ( is => 'rw', isa => 'Str' );
+has 'loader'  => ( is => 'rw', isa => 'Str',  default => 'bcs' );
 has 'section' => (
     is      => 'rw',
-    isa     => 'HashRef',
-    default => sub { {} },
-    traits  => ['Hash'],
-    trigger => \&_setup_values,
-    handles => {
-        get_value => 'get',
-        has_value => 'exists'
-    }
+    isa     => 'Test::Chado::Config::Database',
+    predicate => 'has_section', 
+    trigger => \&_setup_values
+);
+
+has 'fixture' => (
+	is => 'rw', 
+	isa => 'Test::Chado::Config::Fixture', 
+	predicate => 'has_fixture'
 );
 
 sub _setup_values {
-    my ( $self, $value ) = @_;
+    my ( $self, $obj ) = @_;
     for my $param (qw/dsn user password ddl/) {
-        $self->$param( $self->get_value($param) ) if $self->has_value($param);
+        $self->$param( $obj->get_value($param) ) if $obj->has_value($param);
     }
     my $superuser
-        = $self->has_value('superuser') ? $self->get_value('superuser')
-        : $self->has_value('user')      ? $self->get_value('user')
+        = $obj->has_value('superuser') ? $obj->get_value('superuser')
+        : $obj->has_value('user')      ? $obj->get_value('user')
         :                                 undef;
     return if !$superuser;
     $self->superuser($superuser);
     $self->superpass(
-          $self->has_value('superpass')
-        ? $self->get_value('superpass')
-        : $self->get_value('password')
+          $obj->has_value('superpass')
+        ? $obj->get_value('superpass')
+        : $obj->get_value('password')
     );
 
 }
@@ -108,6 +109,11 @@ LINE:
         };
     }
 }
+
+after 'deploy_schema' => sub {
+	my ($self) = @_;
+	apply_all_roles($self,  'Test::Chado::Role::Loader::', uc $self->loader);
+};
 
 1;    # Magic true value required at end of module
 

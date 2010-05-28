@@ -1,50 +1,72 @@
-package Test::Chado::Role::Sqlite;
+package Test::Chado::Config::Fixture;
 
-use version; our $VERSION = qv('0.1');
+use version; our $VERSION = qv('1.0.0');
 
 # Other modules:
-use Moose::Role;
+use Moose;
+use FindBin qw/$Bin/;
+use YAML qw/LoadFile/;
+use XML::Twig;
+use Carp;
 
 # Module implementation
 #
-requires 'driver';
-requires 'dsn';
-requires 'database';
+with 'Test::Chado::Role::Config';
 
-after 'driver_dsn' => sub {
-    my ( $self, $value ) = @_;
-    if ( $value =~ /file=(\w+)\;/ ) {
-        $self->database(Path::Class::File->new($1)->absolute);
+
+before [qw/organism seq_ontology rel_ontology pub_ontology/] => sub {
+    my $self = shift;
+    if ( !$self->has_config ) {
+        confess 'configuration parameters are not set';
     }
 };
 
-
-
-sub create_db {
-	my ($self) = @_;
-	if (!$self->has_db) {
-		$self->dbh;
-	}
-}
-
-sub drop_db {
-	my ($self) = @_;
-	$self->dbh->disconnect;
-	unlink $self->database;
-}
-
-has 'dbh' => (
-    is      => 'ro',
-    isa     => 'DBI',
-    predicate => 'has_db';
+has 'organism' => (
+    is      => 'rw',
+    isa     => 'ArrayRef',
+    traits  => ['Array'],
+    lazy    => 1,
     default => sub {
-        DBI->connect( $self->connection_info ) or confess $DBI::errstr;
+        my $self = shift;
+        LoadFile( catfile( $Bin, $self->get_value('organism') ) );
+    },
+    handles => { 'organisms' => 'count', 'add_organism' => 'push' }
+);
+
+has 'seq_ontology' => (
+    is      => 'rw',
+    isa     => 'XML::Twig',
+    lazy    => 1,
+    default => sub {
+        my $self = shift;
+        my $str  = $self->get_value('ontology');
+        XML::Twig->new->parsefile( catfile( $Bin, $str->{sequence} ) );
     }
 );
 
+has 'rel_ontology' => (
+    is      => 'rw',
+    isa     => 'XML::Twig',
+    lazy    => 1,
+    default => sub {
+        my $self = shift;
+        my $str  = $self->get_value('ontology');
+        XML::Twig->new->parsefile( catfile( $Bin, $str->{relation} ) );
+    }
+);
 
+has 'pub_ontology' => (
+    is      => 'rw',
+    isa     => 'XML::Twig',
+    lazy    => 1,
+    default => sub {
+        my $self = shift;
+        my $str  = $self->get_value('ontology');
+        XML::Twig->new->parsefile( catfile( $Bin, $str->{publication} ) );
+    }
+);
 
-
+no Moose;
 1;    # Magic true value required at end of module
 
 __END__

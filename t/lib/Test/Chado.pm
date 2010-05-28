@@ -4,69 +4,73 @@ use version; our $VERSION = qv('1.0.0');
 
 # Other modules:
 use Carp;
-use MooseX::Singleton;
-use Moose::Util::TypeConstraints;
 use YAML qw/LoadFile/;
 use FindBin qw/$Bin/;
+use Moose;
 use File::Spec::Functions;
 use Test::Chado::Handler;
+use Test::Chado::Config::Database;
+use Test::Chado::Config::Fixture;
 use Data::Dumper;
 
 # Module implementation
 #
+with 'Test::Chado::Role::Config';
 
-coerce 'HashRef' => from 'Str' => via { LoadFile($_) };
-
-has 'load_config' => (
-    is        => 'rw',
-    isa       => 'HashRef',
-    predicate => 'has_config',
-    lazy      => 1,
-    coerce    => 1,
-    traits    => ['Hash'],
-    default   => sub {
-        LoadFile( catfile( $Bin, 't', 'config', 'database.yaml' ) );
-    },
-    handles => {
-        get_source   => 'get',
-        all_sources  => 'keys',
-        pair_sources => 'kv'
+sub handlers_from_config {
+    my ($self) = @_;
+    my @handlers;
+    for my $name ( $self->sections ) {
+        push @handlers, $self->_build_from_config($name);
     }
-);
-
-sub handlers {
-    my ($class) = @_;
-    my @sources;
-    for my $pair ( $class->pair_sources ) {
-        push @sources,
-            Test::Chado::Handler->new(
-            section => $pair->[1],
-            name    => $pair->[0]
-            );
-    }
-    @sources;
+    @handlers;
 }
 
-has 'handler' => (
+sub handler_from_config {
+    my ( $self, $name ) = @_;
+    if ( !$name ) {
+        return $self->default_handler;
+    }
+    $self->_build_from_config($name);
+}
+
+has 'default_handler' => (
     is      => 'ro',
     isa     => 'Test::Chado::Handler',
     lazy    => 1,
-    default => sub {
-        my ($class) = @_;
-        my $handler = Test::Chado::Handler->new(
-            name    => 'default',
-            section => $class->get_source('default')
-        );
-        $handler;
-    }
+    builder => _build_from_config
 );
 
-before 'handler' => sub {
-    my ($class) = @_;
-    if ( !$class->has_config ) {
-        $class->load_config;
+before '_build_from_config' => sub {
+    my $self = shift;
+    if ( !$self->has_config ) {
+        $self->config( catfile( $Bin, 't', 'config', 'database.yaml' ) );
     }
 };
+
+sub _build_from_config {
+    my ( $self, $name ) = @_;
+    $name || = 'default';
+
+#There could be multiple databases configured in the default configuration file
+#so we load the yaml file first and then later pass the each section to the database
+#configuration handling class.
+    my $db_str  = $self->config;
+    my $db_conf = Test::Chado::Config::Database->new;
+    $db_conf->config( $db_str->{$name} );
+
+    #Here we directly pass the yaml configuration file to the class
+    my $fixture_conf = Test::Chado::Config::Fixture->new;
+    $fixture_conf->config( catfile( $Bin, 't', 'config', 'fixture.yaml' ) );
+
+    my $handler = Test::Chado::Handler->new(
+        name    => 'default',
+        section => $db_conf,
+        fixture => $fixture_conf,
+        loader  => $db_str->{loader}
+    );
+    $handler;
+}
 
 1;    # Magic true value required at end of module
 
@@ -86,11 +90,9 @@ This document describes B<Test::Chado> version 0.1
 
 use Test::Chado;
 
- Test::Chado->load_config; #loads the default test configuration
- my $handler = Test::Chado->handler; #default handler for test Sqlite database
+ my $handler = Test::Chado->new->default_handler; #default handler for test Sqlite database
 
  my $dbh = $handler->dbh; #DBI connection object
-
  $handler->create_db;
  $handler->deploy_schema;
  $handler->load_fixture;

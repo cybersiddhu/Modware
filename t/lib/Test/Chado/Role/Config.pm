@@ -1,71 +1,34 @@
-package Test::Chado::Role::Pg;
+package Test::Chado::Role::Config;
 
-use version; our $VERSION = qv('1.0.0');
+use version; our $VERSION = qv('0.1');
 
 # Other modules:
 use Moose::Role;
+use Moose::Util::TypeConstraints;
+use YAML qw/LoadFile/;
 
 # Module implementation
 #
 
-requires 'driver';
-requires 'connection_info';
-requires 'dsn';
-requires 'superuser';
-requires 'superpass';
-requires 'user';
-requires 'password';
-requires 'database';
+subtype 'ModConfig' => as 'HashRef';
+coerce 'ModConfig' => from 'Str' => via { LoadFile($_) };
 
-after 'driver_dsn' => sub {
-    my ( $self, $value ) = @_;
-    if ( $value =~ /d(atabase|b|bname)=(\w+)\;/ ) {
-        $self->database($2);
-    }
-};
-
-sub create_db {
-    my ($self)   = @_;
-    my $user     = $self->superuser;
-    my $password = $self->superpass;
-    my $dbname = $self->database;
-    try {
-        $self->super_dbh->do("CREATE DATABASE $dbname"); 
-	}
-	catch {
-		confess "cannot create database $dbname\n";
-	};
-}
-
-sub drop_db {
-	my ($self) = @_;
-	my $dbname = $self->database;
-	try {
-        $self->super_dbh->do("DROP DATABASE $dbname"); 
-	}
-	catch {
-		confess "cannot delete database $dbname\n";
-	};
-}
-
-has 'dbh' => (
-    is      => 'ro',
-    isa     => 'DBI',
-    default => sub {
-        DBI->connect( $self->connection_info ) or confess $DBI::errstr;
+has 'config' => (
+    is        => 'rw',
+    isa       => 'ModConfig',
+    predicate => 'has_config',
+    lazy      => 1,
+    coerce    => 1,
+    traits    => ['Hash'],
+    handles   => {
+        get_value  => 'get',
+        pair_value => 'kv',
+        sections   => 'keys',
+        has_value  => 'exists'
     }
 );
 
-has 'super_dbh' => (
-    is      => 'ro',
-    isa     => 'DBI',
-    default => sub {
-        DBI->connect( $self->dsn, $self->superuser, $self->superpass )
-            or confess $DBI::errstr;
-    }
-);
-
-
+no Moose::Role;
 
 1;    # Magic true value required at end of module
 

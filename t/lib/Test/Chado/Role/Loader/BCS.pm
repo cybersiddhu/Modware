@@ -1,85 +1,27 @@
-package Test::Chado::Role::Mysql;
+package Test::Chado::Role::Loader::BCS;
 
-use version; our $VERSION = qv('1.0.0');
+use version; our $VERSION = qv('0.1');
+
 
 # Other modules:
 use Moose::Role;
+use Carp;
+use Bio::Chado::Schema;
 
 # Module implementation
 #
-requires 'driver';
-requires 'connection_info';
-requires 'dsn';
-requires 'superuser';
-requires 'superpass';
-requires 'user';
-requires 'password';
-requires 'database';
+requires 'dbh';
 
-after 'driver_dsn' => sub {
-    my ( $self, $value ) = @_;
-    if ( $value =~ /database=(\w+)\;/ ) {
-        $self->database($1);
-    }
-};
-
-sub create_db {
-    my ($self)   = @_;
-    my $user     = $self->superuser;
-    my $password = $self->superpass;
-    my $dbname   = $self->database;
-    try {
-        $self->super_dbh->do("CREATE DATABASE $dbname");
-    }
-    catch {
-        confess "cannot create database $dbname\n";
-    };
-}
-
-sub drop_db {
-    my ($self)   = @_;
-    my $user     = $self->superuser;
-    my $password = $self->superpass;
-    my $dbname   = $self->database;
-    try {
-        $self->super_dbh->do("DROP DATABASE IF EXISTS $dbname");
-    }
-    catch {
-        confess "cannot drop database $dbname\n";
-    };
-}
-
-sub drop_schema {
-    my ($self) = @_;
-    my $tables = $self->super_dbh->selectcol_arrayref(
-        "SHOW FULL TABLES WHERE Table_type = 'BASE TABLE'" );
-
-    try {
-        $self->super_dbh->do("DROP TABLE $_") for @$tables;
-        $self->super_dbh->commit;
-    }
-    catch {
-        $self->super_dbh->rollback;
-        confess "unable to drop schema $_\n";
-    };
-}
-
-has 'dbh' => (
-    is      => 'ro',
-    isa     => 'DBI',
-    default => sub {
-        DBI->connect( $self->connection_info ) or confess $DBI::errstr;
-    }
+has 'schema' => (
+	is => 'rw', 
+	isa => 'Bio::Chado::Schema', 
+	lazy_build => 1
 );
 
-has 'super_dbh' => (
-    is      => 'ro',
-    isa     => 'DBI',
-    default => sub {
-        DBI->connect( $self->dsn, $self->superuser, $self->superpass )
-            or confess $DBI::errstr;
-    }
-);
+sub _build_schema {
+	my ($self) = @_;
+	Bio::Chado::Schema->connect(sub { $self->dbh });
+}
 
 1;    # Magic true value required at end of module
 
@@ -169,7 +111,7 @@ classes provided by the module.
 
 =for author to fill in:
 List every single error and warning message that the module can
-generate (even the ones that will " never happen "), with a full
+generate (even the ones that will "never happen"), with a full
 explanation of each problem, one or more likely causes, and any
 suggested remedies.
 
@@ -272,7 +214,7 @@ A list of all the other modules that this module relies upon,
   BECAUSE THIS SOFTWARE IS LICENSED FREE OF CHARGE, THERE IS NO WARRANTY
   FOR THE SOFTWARE, TO THE EXTENT PERMITTED BY APPLICABLE LAW. EXCEPT WHEN
   OTHERWISE STATED IN WRITING THE COPYRIGHT HOLDERS AND/OR OTHER PARTIES
-  PROVIDE THE SOFTWARE " AS IS " WITHOUT WARRANTY OF ANY KIND, EITHER
+  PROVIDE THE SOFTWARE "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER
   EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
   WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. THE
   ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE SOFTWARE IS WITH
