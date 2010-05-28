@@ -65,7 +65,7 @@ after 'driver' => sub {
     my ( $self, $driver ) = @_;
     return if !$driver;
     $driver = lc $driver;
-    apply_all_roles( $self, 'Test::Chado::Role::' . ucfirst $driver );
+    apply_all_roles( $self, 'Test::Chado::Role::Handler' . ucfirst $driver );
 };
 
 subtype 'FileClass' => as 'Object' => where { $_->isa('Path::Class::File') };

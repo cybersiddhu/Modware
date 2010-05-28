@@ -1,0 +1,5 @@
+organism: "t/data/fixture/organism.yaml"
+ontology:
+   sequence: "t/data/fixture/sequence.obo_xml"
+   relation: "t/data/fixture/relationship.obo_xml"
+   publication: "t/data/fixture/publication.obo_xml"

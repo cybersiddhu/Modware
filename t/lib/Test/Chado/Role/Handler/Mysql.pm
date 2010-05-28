@@ -1,4 +1,4 @@
-package Test::Chado::Role::Mysql;
+package Test::Chado::Role::Handler::Mysql;
 
 use version; our $VERSION = qv('1.0.0');
 

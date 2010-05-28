@@ -1,4 +1,4 @@
-package Test::Chado::Role::Sqlite;
+package Test::Chado::Role::Handler::Sqlite;
 
 use version; our $VERSION = qv('0.1');
 

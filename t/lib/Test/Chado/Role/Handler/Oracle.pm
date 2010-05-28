@@ -1,4 +1,4 @@
-package Test::Chado::Role::Pg;
+package Test::Chado::Role::Handler::Oracle;
 
 use version; our $VERSION = qv('1.0.0');
 
@@ -7,7 +7,6 @@ use Moose::Role;
 
 # Module implementation
 #
-
 requires 'driver';
 requires 'connection_info';
 requires 'dsn';
@@ -15,38 +14,104 @@ requires 'superuser';
 requires 'superpass';
 requires 'user';
 requires 'password';
-requires 'database';
-
-after 'driver_dsn' => sub {
-    my ( $self, $value ) = @_;
-    if ( $value =~ /d(atabase|b|bname)=(\w+)\;/ ) {
-        $self->database($2);
-    }
-};
 
 sub create_db {
-    my ($self)   = @_;
-    my $user     = $self->superuser;
-    my $password = $self->superpass;
-    my $dbname = $self->database;
+    my ($self) = @_;
+    my $user   = $self->user;
+    my $pass   = $self->pass;
     try {
-        $self->super_dbh->do("CREATE DATABASE $dbname"); 
-	}
-	catch {
-		confess "cannot create database $dbname\n";
-	};
+        $self->super_dbh->do("CREATE $user identified by $pass");
+    }
+    catch {
+        confess "unable to create database $_\n";
+    };
 }
 
 sub drop_db {
-	my ($self) = @_;
-	my $dbname = $self->database;
-	try {
-        $self->super_dbh->do("DROP DATABASE $dbname"); 
-	}
-	catch {
-		confess "cannot delete database $dbname\n";
-	};
+    my ($self) = @_;
+    my $user   = $self->user;
+    my $pass   = $self->pass;
+    try {
+        $self->super_dbh->do("DROP USER $user CASCADE");
+    }
+    catch {
+        confess "unable to drop database $_\n";
+    };
+
 }
+
+sub drop_schema {
+    my ($self) = @_;
+    my $dbh = $self->super_dbh;
+    my $sidx
+        = $dbh->prepare(
+        qq{select index_name, table_name FROM user_indexes where generated = 'N'}
+        );
+    my $tgsth = $dbh->prepare(
+        qq { select trigger_name,table_name FROM user_triggers });
+    my $vsth = $dbh->prepare(qq{ select view_name FROM user_views });
+    my $isth = $dbh->prepare(qq{ select sequence_name FROM user_sequences });
+    my $tsth = $dbh->prepare(qq{ select table_name FROM user_tables });
+
+    $tsth->execute() or croak $tsth->execute();
+TABLE:
+    while ( my ($table) = $tsth->fetchrow_array() ) {
+        try { $dbh->do(qq{ drop table $table cascade constraints purge }) }
+        catch {
+            $dbh->rollback();
+            confess "$_\n";
+        };
+    }
+
+    $isth->execute() or croak $isth->errstr();
+LINE:
+    while ( my ($seq) = $isth->fetchrow_array() ) {
+        if ( $seq =~ /^SQ/ ) {
+            try {
+                $dbh->do(qq{ drop sequence $seq });
+            }
+            catch {
+                $dbh->rollback();
+                confess "$_\n";
+            };
+        }
+    }
+
+    $sidx->execute() or croak $dbh->errstr();
+INDEX:
+    while ( my ( $name, $table ) = $sidx->fetchrow_array() ) {
+        try {
+            $dbh->do(qq{ alter table $table drop constraint $name cascade });
+        }
+        catch {
+            $dbh->rollback();
+            confess "$_\n";
+        };
+    }
+
+    $vsth->execute() or croak $dbh->errstr();
+VIEW:
+    while ( my ($view) = $vsth->fetchrow_array() ) {
+        try { $dbh->do(qq{ drop view $view cascade constraints }) }
+        catch {
+            $dbh->rollback();
+            confess "$_\n";
+        };
+    }
+
+    $tgsth->execute() or croak $dbh->errstr();
+TRIGGER:
+    while ( my ( $trigger, $table ) = $tgsth->fetchrow_array() ) {
+        next TRIGGER if $table =~ /\$0$/;
+        try { $dbh->do(qq { drop trigger $trigger }) }
+        catch {
+            $dbh->rollback();
+            confess "$_\n";
+        };
+    }
+    $dbh->commit;
+}
+
 
 has 'dbh' => (
     is      => 'ro',
@@ -64,8 +129,6 @@ has 'super_dbh' => (
             or confess $DBI::errstr;
     }
 );
-
-
 
 1;    # Magic true value required at end of module
 
@@ -157,7 +220,7 @@ classes provided by the module.
 List every single error and warning message that the module can
 generate (even the ones that will "never happen"), with a full
 explanation of each problem, one or more likely causes, and any
-suggested remedies.
+suggested remecroaks.
 
 =over
 
