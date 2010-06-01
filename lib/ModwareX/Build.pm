@@ -23,6 +23,18 @@ sub ACTION_deploy_schema {
     $handler->deploy_schema;
 }
 
+sub ACTION_load_organism {
+	my ($self) = @_;
+	$self->depends_on('deploy');
+	$self->handler->load_organism;
+}
+
+sub ACTION_unload_organism {
+	my ($self) = @_;
+    my $handler = Test::Chado->new->default_handler;
+	$handler->unload_organism;
+}
+
 sub ACTION_drop {
 	my ($self) = @_;
     my $handler = Test::Chado->new->default_handler;

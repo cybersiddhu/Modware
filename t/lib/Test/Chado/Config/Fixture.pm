@@ -1,25 +1,17 @@
 package Test::Chado::Config::Fixture;
 
-use version; our $VERSION = qv('1.0.0');
+use version; our $VERSION = qv('0.1');
 
 # Other modules:
 use Moose;
 use FindBin qw/$Bin/;
 use YAML qw/LoadFile/;
-use XML::Twig;
 use Carp;
+use File::Spec::Functions;
 
 # Module implementation
 #
 with 'Test::Chado::Role::Config';
-
-
-before [qw/organism seq_ontology rel_ontology pub_ontology/] => sub {
-    my $self = shift;
-    if ( !$self->has_config ) {
-        confess 'configuration parameters are not set';
-    }
-};
 
 has 'organism' => (
     is      => 'rw',
@@ -30,17 +22,21 @@ has 'organism' => (
         my $self = shift;
         LoadFile( catfile( $Bin, $self->get_value('organism') ) );
     },
-    handles => { 'organisms' => 'count', 'add_organism' => 'push' }
+    handles => {
+        'organism_record' => 'count',
+        'add_organism'    => 'push',
+        'organisms'       => 'elements'
+    }
 );
 
 has 'seq_ontology' => (
     is      => 'rw',
-    isa     => 'XML::Twig',
+    isa     => 'Str',
     lazy    => 1,
     default => sub {
         my $self = shift;
         my $str  = $self->get_value('ontology');
-        XML::Twig->new->parsefile( catfile( $Bin, $str->{sequence} ) );
+        $str->{sequence} ;
     }
 );
 
@@ -50,21 +46,28 @@ has 'rel_ontology' => (
     lazy    => 1,
     default => sub {
         my $self = shift;
-        my $str  = $self->get_value('ontology');
-        XML::Twig->new->parsefile( catfile( $Bin, $str->{relation} ) );
+        my $str = $self->get_value('ontology');
+        $str->{relationship};
     }
 );
 
 has 'pub_ontology' => (
     is      => 'rw',
-    isa     => 'XML::Twig',
+    isa     => 'Str'
     lazy    => 1,
     default => sub {
         my $self = shift;
-        my $str  = $self->get_value('ontology');
-        XML::Twig->new->parsefile( catfile( $Bin, $str->{publication} ) );
+        my $str = $self->get_value('ontology');
+        $str->{publication};
     }
 );
+
+before [qw/organism seq_ontology rel_ontology pub_ontology/] => sub {
+    my $self = shift;
+    if ( !$self->has_config ) {
+        confess 'configuration parameters are not set';
+    }
+};
 
 no Moose;
 1;    # Magic true value required at end of module

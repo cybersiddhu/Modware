@@ -14,19 +14,13 @@ use Carp;
 # Module implementation
 #
 
-has 'name'  => ( is => 'rw', isa => 'Str' );
-has 'loader'  => ( is => 'rw', isa => 'Str',  default => 'bcs' );
+has 'name' => ( is => 'rw', isa => 'Str' );
+has 'loader' => ( is => 'rw', isa => 'Str', default => 'bcs' );
 has 'section' => (
-    is      => 'rw',
-    isa     => 'Test::Chado::Config::Database',
-    predicate => 'has_section', 
-    trigger => \&_setup_values
-);
-
-has 'fixture' => (
-	is => 'rw', 
-	isa => 'Test::Chado::Config::Fixture', 
-	predicate => 'has_fixture'
+    is        => 'rw',
+    isa       => 'Test::Chado::Config::Database',
+    predicate => 'has_section',
+    trigger   => \&_setup_values
 );
 
 sub _setup_values {
@@ -37,7 +31,7 @@ sub _setup_values {
     my $superuser
         = $obj->has_value('superuser') ? $obj->get_value('superuser')
         : $obj->has_value('user')      ? $obj->get_value('user')
-        :                                 undef;
+        :                                undef;
     return if !$superuser;
     $self->superuser($superuser);
     $self->superpass(
@@ -47,6 +41,18 @@ sub _setup_values {
     );
 
 }
+
+has 'fixture' => (
+    is        => 'rw',
+    isa       => 'Test::Chado::Config::Fixture',
+    predicate => 'has_fixture',
+    trigger   => sub {
+        my ($self) = @_;
+        apply_all_roles( $self,
+            'Test::Chado::Role::Loader::' . uc $self->loader );
+        }
+);
+
 
 has [qw/dsn driver user password superuser superpass driver_dsn database/] =>
     ( is => 'rw', isa => 'Str' );
@@ -65,11 +71,13 @@ after 'driver' => sub {
     my ( $self, $driver ) = @_;
     return if !$driver;
     $driver = lc $driver;
-    apply_all_roles( $self, 'Test::Chado::Role::Handler' . ucfirst $driver );
+    apply_all_roles( $self,
+        'Test::Chado::Role::Handler::' . ucfirst $driver );
 };
 
 subtype 'FileClass' => as 'Object' => where { $_->isa('Path::Class::File') };
-coerce 'FileClass' => from 'Str' => via { Path::Class::File->new($_)->absolute };
+coerce 'FileClass' => from 'Str' =>
+    via { Path::Class::File->new($_)->absolute };
 
 has 'ddl' => (
     is     => 'rw',
@@ -83,7 +91,6 @@ has 'attr_hash' => (
     default => sub { { AutoCommit => 0 } }
 );
 
-
 sub deploy_schema {
     my ($self) = @_;
     my $dbh    = $self->dbh;
@@ -92,16 +99,17 @@ sub deploy_schema {
     $fh->close();
 LINE:
     foreach my $line ( split( /\n{2,}/, $data ) ) {
+
         #next LINE if $line =~ /^\-\-/;
-        if ($line =~ /^\-\-/) {
-        	my @separated = grep { !/^\-\-/ } split (/\n/, $line);
-        	$line = join("\n", @separated);
+        if ( $line =~ /^\-\-/ ) {
+            my @separated = grep { !/^\-\-/ } split( /\n/, $line );
+            $line = join( "\n", @separated );
         }
         $line =~ s{;$}{};
         $line =~ s{/}{};
         try {
             $dbh->do($line);
-    		$dbh->commit;
+            $dbh->commit;
         }
         catch {
             $dbh->rollback;
@@ -110,10 +118,7 @@ LINE:
     }
 }
 
-after 'deploy_schema' => sub {
-	my ($self) = @_;
-	apply_all_roles($self,  'Test::Chado::Role::Loader::', uc $self->loader);
-};
+no Moose;
 
 1;    # Magic true value required at end of module
 

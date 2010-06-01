@@ -2,25 +2,283 @@ package Test::Chado::Role::Loader::BCS;
 
 use version; our $VERSION = qv('0.1');
 
-
 # Other modules:
 use Moose::Role;
 use Carp;
 use Bio::Chado::Schema;
+use Data::Dumper;
+use Try::Tiny;
+use XML::Twig;
+use XML::Twig::XPath;
 
 # Module implementation
 #
 requires 'dbh';
 
 has 'schema' => (
-	is => 'rw', 
-	isa => 'Bio::Chado::Schema', 
-	lazy_build => 1
+    is         => 'rw',
+    isa        => 'Bio::Chado::Schema',
+    lazy_build => 1
 );
 
 sub _build_schema {
-	my ($self) = @_;
-	Bio::Chado::Schema->connect(sub { $self->dbh });
+    my ($self) = @_;
+    Bio::Chado::Schema->connect( sub { $self->dbh } );
+}
+
+sub load_organism {
+    my ($self) = @_;
+    my $organism = $self->fixture->organism;
+    unshift @$organism, [qw/abbreviation genus species common_name/];
+
+    my $schema = $self->schema;
+    try {
+        $schema->txn_do(
+            sub {
+                $schema->populate( 'Organism::Organism', $organism );
+            }
+        );
+        $schema->txn_commit;
+    }
+    catch {
+        confess "error: $_";
+    };
+}
+
+sub unload_organism {
+    my ($self) = @_;
+    my $schema = $self->schema;
+    try {
+        $schema->txn_do(
+            sub { $schema->resultset('Organism::Organism')->delete_all; } );
+        $schema->txn_commit;
+    }
+    catch {
+        confess "error in deletion: $_";
+    };
+}
+
+has 'obo_xml_loader' => (
+    is      => 'rw',
+    isa     => 'XML::Twig',
+    lazy    => 1,
+    default => sub {
+        my $self = shift;
+        XML::Twig->new(
+            twig_handlers => {
+                term    => sub { $self->load_term },
+                typedef => sub { $self->load_typedef }
+            }
+        );
+    }
+);
+
+has 'defered_nodes' => (
+    is      => 'rw',
+    isa     => 'HashRef',
+    traits  => ['Hash'],
+    default => sub { {} },
+    lazy    => 1,
+    handles => {
+        add_to_cache => 'set',
+        lookup       => 'get',
+        cached_nodes => 'keys'
+    }
+);
+
+has 'dbrow' => (
+    is        => 'rw',
+    isa       => 'HashRef[Bio::Chado::Schema::General::Db]',
+    traits    => ['Hash'],
+    lazy      => 1,
+    predicate => 'dbrow_done',
+    default   => sub {
+        my $self = shift;
+        my $row  = $self->schema->resultset('General::Db')->find_or_create(
+            {   name        => 'GMOD:ModwareX',
+                description => 'Test database for module modwareX'
+            }
+        );
+        return { default => $row };
+    },
+    handles => {
+        get_dbrow => 'get',
+        set_db_id => 'set',
+        has_db_id => 'defined'
+    }
+);
+
+sub default_db_id {
+    $_[0]->get_db_id('default');
+
+}
+
+sub get_db_id {
+    $_[0]->get_dbrow( $_[1] )->db_id;
+}
+
+before 'get_db_id' => sub {
+    $_[0]->dbrow if !$_[0]->dbrow_done;
+};
+
+has 'cvrow' => (
+    is      => 'rw',
+    isa     => 'Bio::Chado::Schema::Cv::Cv',
+    lazy    => 1,
+    default => sub {
+        my $self = shift;
+        my $twig = XML::Twig::XPath->new->parsefile(
+            $self->fixture->rel_ontology );
+        my ($node) = $twig->findnodes('/obo/header/default-namespace');
+        my $namespace = $node->getValue;
+
+        my $cvrow = $self->schema->resultset('Cv::Cv')->find_or_create(
+            {   name       => "ModwareX-$namespace",
+                definition => 'Ontology namespace for modwareX module'
+            }
+        );
+        $cvrow;
+
+    },
+    handles => [qw/cv_id/]
+);
+
+sub load_relationship {
+    my ($self) = @_;
+    my $file   = $self->fixture->rel_ontology;
+    my $loader = $self->obo_xml_loader;
+    $loader->parsefile($file);
+    $loader->purge;
+
+    for my $node_id ( $self->cached_ids ) {
+        my $data_str = $self->lookup($node_id);
+        for my $type ( keys %$data_str ) {
+        }
+    }
+}
+
+sub load_typedef {
+    my ( $self, $twig, $node ) = @_;
+
+    my $name        = $node->first_child_text('name');
+    my $id          = $node->first_child_text('id');
+    my $is_obsolete = $node->first_child_text('is_obsolete');
+
+    my $def_elem = $node->first_child('def');
+    my $definition = $def_elem->first_child_text('defstr') if $def_elem;
+
+    my $schema = $self->schema;
+    my $cvterm_row;
+    try {
+        $cvterm_row = $schema->txn_do(
+            sub {
+                my $cvterm_row = $schema->resultset('Cv::Cvterm')->create(
+                    {   cv_id               => $self->cv_id,
+                        is_relationshiptype => 1,
+                        name                => $name,
+                        definition          => $definition || '',
+                        is_obsolste         => $is_obsolste || 0,
+                        dbxref              => {
+                            db_id     => $self->default_db_id,
+                            accession => $id,
+                        }
+                    }
+                );
+                $cvterm_row;
+            }
+        );
+        $schema->txn_commit;
+    }
+    catch {
+        confess "Error in inserting cvterm $_\n";
+    };
+
+    #hold on to the relationships between nodes
+    $self->cache_relationship( $node, $cvterm_row );
+
+    #no additional dbxref
+    return if !$def_elem;
+
+    $self->create_more_dbxref($def_elem);
+}
+
+sub cache_relationship {
+    my ( $self, $node, $cvterm_row ) = @_;
+    for my $elem ( $node->children('is_a') ) {
+        $self->add_to_cache( $cvterm_row->cvterm_id,
+            { is_a => $elem->text } );
+    }
+
+    for my $elem ( $node->children('relationship') ) {
+        $self->add_to_cache(
+            $cvterm_row->cvterm_id,
+            {   $node->first_child_text('type') =>
+                    $node->first_child_text('to')
+            }
+        );
+    }
+}
+
+sub create_more_dbxref {
+    my ( $self, $def_elem ) = @_;
+    my $schema = $self->schema;
+
+    # - first one goes with alternate id
+    try {
+        $schema->txn_do(
+            sub {
+                $cvterm_row->create_related(
+                    'cvterm_dbxrefs',
+                    {   dbxref => {
+                            accession =>
+                                $def_elem->first_child_text('alt_id'),
+                            db_id => $self->default_db_id
+                        }
+                    }
+                );
+            }
+        );
+        $schema->txn_commit;
+    }
+    catch {
+        confess "error in creating dbxref $_";
+    };
+
+    #no more additional dbxrefs
+    my $def_dbx = $def_elem->first_child('dbxref');
+    return if !$def_dbx;
+
+    my $dbname = $def_dbx->first_child_text('dbname');
+    my $extra_db_id;
+    if ( $self->has_db_id($dbname) ) {
+        $extra_db_id = $self->get_db_id($dbname);
+    }
+    else {
+        my $extra_db_row = $schema->resultset('General::Db')->find_or_create(
+            {   name => $def_dbx->first_child_text('dbname') . ':ModwareX',
+                description => 'Extra test database for module modwarex'
+            }
+        );
+        $self->set_db_id( $dbname, $extra_db_row );
+        $extra_db_id = $extra_db_row->db_id;
+    }
+
+    try {
+        $schema->txn_do(
+            sub {
+                $cvterm_row->create_related(
+                    'cvterm_dbxrefs',
+                    {   dbxref => {
+                            accession => $def_dbx->first_child_text('acc'),
+                            db_id     => $extra_db_id
+                        }
+                    }
+                );
+            }
+        );
+    }
+    catch { confess "error in creating dbxref $_" };
+
 }
 
 1;    # Magic true value required at end of module

@@ -38,7 +38,7 @@ has 'default_handler' => (
     is      => 'ro',
     isa     => 'Test::Chado::Handler',
     lazy    => 1,
-    builder => _build_from_config
+    builder => '_build_from_config'
 );
 
 before '_build_from_config' => sub {
@@ -50,7 +50,7 @@ before '_build_from_config' => sub {
 
 sub _build_from_config {
     my ( $self, $name ) = @_;
-    $name || = 'default';
+    $name ||= 'default';
 
 #There could be multiple databases configured in the default configuration file
 #so we load the yaml file first and then later pass the each section to the database
