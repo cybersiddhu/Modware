@@ -10,6 +10,8 @@ use Data::Dumper;
 use Try::Tiny;
 use XML::Twig;
 use XML::Twig::XPath;
+use Graph;
+use Graph::Traversal::BFS;
 
 # Module implementation
 #
@@ -66,25 +68,39 @@ has 'obo_xml_loader' => (
         my $self = shift;
         XML::Twig->new(
             twig_handlers => {
-                term    => sub { $self->load_term },
-                typedef => sub { $self->load_typedef }
+                term    => sub { $self->load_term(@_) },
+                typedef => sub { $self->load_typedef(@_) }
             }
         );
     }
 );
 
-has 'defered_nodes' => (
+has 'graph' => (
     is      => 'rw',
-    isa     => 'HashRef',
-    traits  => ['Hash'],
-    default => sub { {} },
+    isa     => 'Graph',
+    default => sub { Graph->new( directed => 1 ) },
     lazy    => 1,
-    handles => {
-        add_to_cache => 'set',
-        lookup       => 'get',
-        cached_nodes => 'keys'
-    }
 );
+
+has 'traverse_graph' => (
+    is      => 'rw',
+    isa     => 'Graph::Traversal',
+    lazy    => 1,
+    default => sub {
+        my $self = shift;
+        Graph::Traversal::BFS->new(
+            $self->graph,
+            pre_edge => sub {
+                $self->handle_relationship(@_);
+            }
+        );
+    },
+    handles => { store_relationship => 'bfs' }
+);
+
+before 'dbrow' => sub {
+    $_[0]->cvrow if !$_[0]->has_cvrow;
+};
 
 has 'dbrow' => (
     is        => 'rw',
@@ -95,7 +111,7 @@ has 'dbrow' => (
     default   => sub {
         my $self = shift;
         my $row  = $self->schema->resultset('General::Db')->find_or_create(
-            {   name        => 'GMOD:ModwareX',
+            {   name        => 'GMOD:ModwareX-' . $self->namespace,
                 description => 'Test database for module modwareX'
             }
         );
@@ -121,24 +137,31 @@ before 'get_db_id' => sub {
     $_[0]->dbrow if !$_[0]->dbrow_done;
 };
 
+has 'namespace' => (
+    is  => 'rw',
+    isa => 'Str'
+);
+
 has 'cvrow' => (
-    is      => 'rw',
-    isa     => 'Bio::Chado::Schema::Cv::Cv',
-    lazy    => 1,
-    default => sub {
+    is        => 'rw',
+    isa       => 'Bio::Chado::Schema::Cv::Cv',
+    predicate => 'has_cvrow',
+    lazy      => 1,
+    default   => sub {
         my $self = shift;
         my $twig = XML::Twig::XPath->new->parsefile(
             $self->fixture->rel_ontology );
         my ($node) = $twig->findnodes('/obo/header/default-namespace');
         my $namespace = $node->getValue;
+        $self->namespace($namespace);
 
         my $cvrow = $self->schema->resultset('Cv::Cv')->find_or_create(
             {   name       => "ModwareX-$namespace",
                 definition => 'Ontology namespace for modwareX module'
             }
         );
+        $twig->purge;
         $cvrow;
-
     },
     handles => [qw/cv_id/]
 );
@@ -149,12 +172,97 @@ sub load_relationship {
     my $loader = $self->obo_xml_loader;
     $loader->parsefile($file);
     $loader->purge;
+    $self->store_relationship;
+}
 
-    for my $node_id ( $self->cached_ids ) {
-        my $data_str = $self->lookup($node_id);
-        for my $type ( keys %$data_str ) {
-        }
+sub unload_relationship {
+    my ($self) = @_;
+    my $schema = $self->schema;
+    try {
+        $schema->txn_do(
+            sub {
+                $schema->resultset('General::Db')
+                    ->search( { name => 'GMOD:ModwareX-relationship' } )
+                    ->delete_all;
+                $schema->resultset('Cv::Cv')
+                    ->search( { name => 'ModwareX-relationship' } )
+                    ->delete_all;
+            }
+        );
+        $schema->txn_commit;
     }
+    catch {
+        confess "error in deleting: $_";
+    }
+}
+
+sub handle_relationship {
+    my ( $self, $parent, $child, $traverse ) = @_;
+    my ( $relation_id, $parent_id, $child_id );
+
+    # -- get the id from the storage
+
+    # -- relation/edge
+    if ( $self->graph->has_edge_attribute( $parent, $child, 'id' ) ) {
+        $relation_id
+            = $self->graph->get_edge_attribute( $parent, $child, 'id' );
+    }
+    else {
+        $relation_id = $self->name2id(
+            $self->graph->get_edge_attribute(
+                $parent, $child, 'relationship'
+            )
+        );
+        $self->graph->set_edge_attribute( $parent, $child, 'id',
+            $relation_id );
+    }
+
+    # -- parent
+    if ( $self->graph->has_vertex_attribute( $parent, 'id' ) ) {
+        $parent_id = $self->graph->get_vertex_attribute( $parent, 'id' );
+    }
+    else {
+        $parent_id = $self->name2id($parent);
+        $self->graph->set_vertex_attribute( $parent, 'id', $parent_id );
+    }
+
+    # -- child
+    if ( $self->graph->has_vertex_attribute( $child, 'id' ) ) {
+        $child_id = $self->graph->get_vertex_attribute( $child, 'id' );
+    }
+    else {
+        $child_id = $self->name2id($child);
+        $self->graph->set_vertex_attribute( $child, 'id', $child_id );
+    }
+
+    my $schema = $self->schema;
+    try {
+        $schema->txn_do(
+            sub {
+                $schema->resultset('Cv::CvtermRelationship')->create(
+                    {   object_id  => $parent_id,
+                        subject_id => $child_id,
+                        type_id    => $relation_id
+                    }
+                );
+            }
+        );
+        $schema->txn_commit;
+    }
+    catch { confess "error in inserting: $_" };
+}
+
+sub name2id {
+    my ( $self, $name ) = @_;
+    my $row = $self->schema->resultset('Cv::Cvterm')->find(
+        {   'me.name'  => $name,
+            'cv.cv_id' => $self->cv_id
+        },
+        {   join => 'cv',
+            rows => 1
+        }
+    )->single;
+    $row->cvterm_id;
 }
 
 sub load_typedef {
@@ -177,7 +285,7 @@ sub load_typedef {
                         is_relationshiptype => 1,
                         name                => $name,
                         definition          => $definition || '',
-                        is_obsolste         => $is_obsolste || 0,
+                        is_obsolete         => $is_obsolete || 0,
                         dbxref              => {
                             db_id     => $self->default_db_id,
                             accession => $id,
@@ -194,33 +302,41 @@ sub load_typedef {
     };
 
     #hold on to the relationships between nodes
-    $self->cache_relationship( $node, $cvterm_row );
+    $self->build_relationship( $node, $cvterm_row );
 
     #no additional dbxref
     return if !$def_elem;
 
-    $self->create_more_dbxref($def_elem);
+    $self->create_more_dbxref( $def_elem, $cvterm_row );
 }
 
-sub cache_relationship {
+sub build_relationship {
     my ( $self, $node, $cvterm_row ) = @_;
+    my $child = $cvterm_row->name;
     for my $elem ( $node->children('is_a') ) {
-        $self->add_to_cache( $cvterm_row->cvterm_id,
-            { is_a => $elem->text } );
+        my $parent = $self->normalize_name($elem);
+        $self->graph->add_edge( $parent, $child );
+        $self->graph->set_edge_attribute( $parent, $child, 'relationship',
+            'is_a' );
     }
 
     for my $elem ( $node->children('relationship') ) {
-        $self->add_to_cache(
-            $cvterm_row->cvterm_id,
-            {   $node->first_child_text('type') =>
-                    $node->first_child_text('to')
-            }
-        );
+        my $parent = $self->normalize_name( $elem->first_child_text('to') );
+        $self->graph->add_edge( $parent, $child );
+        $self->graph->set_edge_attribute( $parent, $child, 'relationship',
+            $elem->first_child_text('type') );
     }
 }
 
+sub normalize_name {
+    my ( $self, $name ) = @_;
+    return $name if $name !~ /:/;
+    my $value = ( ( split /:/, $name ) )[1];
+    return $value;
+}
+
 sub create_more_dbxref {
-    my ( $self, $def_elem ) = @_;
+    my ( $self, $def_elem, $cvterm_row ) = @_;
     my $schema = $self->schema;
 
     # - first one goes with alternate id
@@ -276,9 +392,9 @@ sub create_more_dbxref {
                 );
             }
         );
+        $schema->txn_commit;
     }
     catch { confess "error in creating dbxref $_" };
-
 }
 
 1;    # Magic true value required at end of module

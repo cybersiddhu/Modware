@@ -36,29 +36,29 @@ has 'seq_ontology' => (
     default => sub {
         my $self = shift;
         my $str  = $self->get_value('ontology');
-        $str->{sequence} ;
+        catfile($Bin,  $str->{sequence} );
     }
 );
 
 has 'rel_ontology' => (
     is      => 'rw',
-    isa     => 'XML::Twig',
+    isa     => 'Str',
     lazy    => 1,
     default => sub {
         my $self = shift;
         my $str = $self->get_value('ontology');
-        $str->{relationship};
+        catfile($Bin, $str->{relation});
     }
 );
 
 has 'pub_ontology' => (
     is      => 'rw',
-    isa     => 'Str'
+    isa     => 'Str', 
     lazy    => 1,
     default => sub {
         my $self = shift;
         my $str = $self->get_value('ontology');
-        $str->{publication};
+        catfile($Bin, $str->{publication});
     }
 );
 

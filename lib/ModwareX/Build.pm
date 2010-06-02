@@ -18,31 +18,52 @@ sub ACTION_deploy {
 }
 
 sub ACTION_deploy_schema {
-	my ($self) = @_;
+    my ($self) = @_;
     my $handler = Test::Chado->new->default_handler;
     $handler->deploy_schema;
 }
 
 sub ACTION_load_organism {
-	my ($self) = @_;
-	$self->depends_on('deploy');
-	$self->handler->load_organism;
+    my ($self) = @_;
+    my $handler = Test::Chado->new->default_handler;
+    $self->handler($handler);
+    $handler->load_organism;
+}
+
+sub ACTION_load_relationship {
+    my ($self) = @_;
+    my $handler = Test::Chado->new->default_handler;
+    $self->handler($handler);
+    $handler->load_relationship;
+}
+
+sub ACTION_unload_relationship {
+    my ($self) = @_;
+    my $handler = Test::Chado->new->default_handler;
+    $self->handler($handler);
+    $handler->unload_relationship;
+}
+
+sub ACTION_unload_fixture {
+    my ($self) = @_;
+    my $handler = Test::Chado->new->default_handler;
+    $self->handler($handler);
+    $handler->unload_relationship;
+    $handler->unload_organism;
 }
 
 sub ACTION_unload_organism {
-	my ($self) = @_;
+    my ($self) = @_;
     my $handler = Test::Chado->new->default_handler;
-	$handler->unload_organism;
+    $self->handler($handler);
+    $handler->unload_organism;
 }
 
 sub ACTION_drop {
-	my ($self) = @_;
+    my ($self) = @_;
     my $handler = Test::Chado->new->default_handler;
     $handler->drop_db;
 }
-
-
-
 
 1;    # Magic true value required at end of module
 
