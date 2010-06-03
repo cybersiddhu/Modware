@@ -12,6 +12,7 @@ use XML::Twig;
 use XML::Twig::XPath;
 use Graph;
 use Graph::Traversal::BFS;
+use Data::Dumper;
 
 # Module implementation
 #
@@ -92,7 +93,17 @@ has 'traverse_graph' => (
             $self->graph,
             pre_edge => sub {
                 $self->handle_relationship(@_);
-            }
+            }, 
+            back_edge => sub {
+                $self->handle_relationship(@_);
+            }, 
+            down_edge => sub {
+                $self->handle_relationship(@_);
+            }, 
+            non_tree_edge => sub {
+                $self->handle_relationship(@_);
+            }, 
+
         );
     },
     handles => { store_relationship => 'bfs' }
@@ -200,14 +211,13 @@ sub handle_relationship {
     my ( $self, $parent, $child, $traverse ) = @_;
     my ( $relation_id, $parent_id, $child_id );
 
-    # -- get the id from the storage
-
     # -- relation/edge
     if ( $self->graph->has_edge_attribute( $parent, $child, 'id' ) ) {
         $relation_id
             = $self->graph->get_edge_attribute( $parent, $child, 'id' );
     }
     else {
+    	# -- get the id from the storage
         $relation_id = $self->name2id(
             $self->graph->get_edge_attribute(
                 $parent, $child, 'relationship'
@@ -254,7 +264,7 @@ sub handle_relationship {
 
 sub name2id {
     my ( $self, $name ) = @_;
-    my $row = $self->schema->resultset('Cv::Cvterm')->find(
+    my $row = $self->schema->resultset('Cv::Cvterm')->search(
         {   'me.name'  => $name,
             'cv.cv_id' => $self->cv_id
         },
@@ -283,7 +293,7 @@ sub load_typedef {
                 my $cvterm_row = $schema->resultset('Cv::Cvterm')->create(
                     {   cv_id               => $self->cv_id,
                         is_relationshiptype => 1,
-                        name                => $name,
+                        name                => $self->normalize_name($name),
                         definition          => $definition || '',
                         is_obsolete         => $is_obsolete || 0,
                         dbxref              => {
@@ -314,8 +324,7 @@ sub build_relationship {
     my ( $self, $node, $cvterm_row ) = @_;
     my $child = $cvterm_row->name;
     for my $elem ( $node->children('is_a') ) {
-        my $parent = $self->normalize_name($elem);
-        $self->graph->add_edge( $parent, $child );
+        my $parent = $self->normalize_name($elem->text);
         $self->graph->set_edge_attribute( $parent, $child, 'relationship',
             'is_a' );
     }
