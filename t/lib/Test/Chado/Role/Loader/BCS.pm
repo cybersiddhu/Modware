@@ -1,6 +1,7 @@
 package Test::Chado::Role::Loader::BCS;
 
 use version; our $VERSION = qv('0.1');
+use warnings;
 
 # Other modules:
 use Moose::Role;
@@ -12,7 +13,6 @@ use XML::Twig;
 use XML::Twig::XPath;
 use Graph;
 use Graph::Traversal::BFS;
-use Data::Dumper;
 
 # Module implementation
 #
@@ -24,13 +24,146 @@ has 'schema' => (
     lazy_build => 1
 );
 
+has 'obo_xml_loader' => (
+    is         => 'rw',
+    isa        => 'XML::Twig',
+    lazy_build => 1
+);
+
+has 'graph' => (
+    is      => 'rw',
+    isa     => 'Graph',
+    default => sub { Graph->new( directed => 1 ) },
+    lazy    => 1,
+    clearer => 'clear_graph'
+);
+
+has 'traverse_graph' => (
+    is         => 'rw',
+    isa        => 'Graph::Traversal',
+    lazy_build => 1,
+    handles    => { store_relationship => 'bfs' }
+);
+
+before 'dbrow' => sub {
+    $_[0]->cvrow if !$_[0]->has_cvrow;
+};
+
+has 'dbrow' => (
+    is         => 'rw',
+    isa        => 'HashRef[Bio::Chado::Schema::General::Db]',
+    traits     => ['Hash'],
+    lazy_build => 1,
+    handles    => {
+        get_dbrow => 'get',
+        set_db_id => 'set',
+        has_db_id => 'defined'
+    }
+);
+
+before 'get_db_id' => sub {
+    $_[0]->dbrow if !$_[0]->has_dbrow;
+};
+
+has 'namespace' => (
+    is      => 'rw',
+    isa     => 'Str',
+    clearer => 'clear_namespace'
+);
+
+has 'cvrow' => (
+    is         => 'rw',
+    isa        => 'Bio::Chado::Schema::Cv::Cv',
+    lazy_build => 1,
+    handles    => [qw/cv_id/]
+);
+
+has 'obo_xml' => (
+    is  => 'rw',
+    isa => 'Str'
+);
+
+sub default_db_id {
+    $_[0]->get_db_id('default');
+
+}
+
+sub get_db_id {
+    $_[0]->get_dbrow( $_[1] )->db_id;
+}
+
 sub _build_schema {
     my ($self) = @_;
     Bio::Chado::Schema->connect( sub { $self->dbh } );
 }
 
-sub load_organism {
+sub _build_obo_xml_loader {
     my ($self) = @_;
+    XML::Twig->new(
+        twig_handlers => {
+            term    => sub { $self->load_term(@_) },
+            typedef => sub { $self->load_typedef(@_) }
+        }
+    );
+}
+
+sub _build_cvrow {
+    my $self      = shift;
+    my $twig      = XML::Twig::XPath->new->parsefile( $self->obo_xml );
+    my ($node)    = $twig->findnodes('/obo/header/default-namespace');
+    my $namespace = $node->getValue;
+    $self->namespace($namespace);
+
+    my $cvrow = $self->schema->resultset('Cv::Cv')->find_or_create(
+        {   name       => "ModwareX-$namespace",
+            definition => 'Ontology namespace for modwareX module'
+        }
+    );
+    $twig->purge;
+    $cvrow;
+}
+
+sub _build_traverse_graph {
+    my ($self) = @_;
+    Graph::Traversal::BFS->new(
+        $self->graph,
+        pre_edge => sub {
+            $self->handle_relationship(@_);
+        },
+        back_edge => sub {
+            $self->handle_relationship(@_);
+        },
+        down_edge => sub {
+            $self->handle_relationship(@_);
+        },
+        non_tree_edge => sub {
+            $self->handle_relationship(@_);
+        },
+    );
+}
+
+sub _build_dbrow {
+    my ($self) = @_;
+    my $row = $self->schema->resultset('General::Db')->find_or_create(
+        {   name        => 'GMOD:ModwareX-' . $self->namespace,
+            description => 'Test database for module modwareX'
+        }
+    );
+    return { default => $row };
+
+}
+
+sub reset_all {
+    my ($self) = @_;
+    $self->clear_graph;
+    $self->clear_traverse_graph;
+    $self->clear_dbrow;
+    $self->clear_cvrow;
+    $self->clear_namespace;
+}
+
+sub load_organism {
+    my $self     = shift;
     my $organism = $self->fixture->organism;
     unshift @$organism, [qw/abbreviation genus species common_name/];
 
@@ -61,142 +194,51 @@ sub unload_organism {
     };
 }
 
-has 'obo_xml_loader' => (
-    is      => 'rw',
-    isa     => 'XML::Twig',
-    lazy    => 1,
-    default => sub {
-        my $self = shift;
-        XML::Twig->new(
-            twig_handlers => {
-                term    => sub { $self->load_term(@_) },
-                typedef => sub { $self->load_typedef(@_) }
-            }
-        );
-    }
-);
-
-has 'graph' => (
-    is      => 'rw',
-    isa     => 'Graph',
-    default => sub { Graph->new( directed => 1 ) },
-    lazy    => 1,
-);
-
-has 'traverse_graph' => (
-    is      => 'rw',
-    isa     => 'Graph::Traversal',
-    lazy    => 1,
-    default => sub {
-        my $self = shift;
-        Graph::Traversal::BFS->new(
-            $self->graph,
-            pre_edge => sub {
-                $self->handle_relationship(@_);
-            }, 
-            back_edge => sub {
-                $self->handle_relationship(@_);
-            }, 
-            down_edge => sub {
-                $self->handle_relationship(@_);
-            }, 
-            non_tree_edge => sub {
-                $self->handle_relationship(@_);
-            }, 
-
-        );
-    },
-    handles => { store_relationship => 'bfs' }
-);
-
-before 'dbrow' => sub {
-    $_[0]->cvrow if !$_[0]->has_cvrow;
-};
-
-has 'dbrow' => (
-    is        => 'rw',
-    isa       => 'HashRef[Bio::Chado::Schema::General::Db]',
-    traits    => ['Hash'],
-    lazy      => 1,
-    predicate => 'dbrow_done',
-    default   => sub {
-        my $self = shift;
-        my $row  = $self->schema->resultset('General::Db')->find_or_create(
-            {   name        => 'GMOD:ModwareX-' . $self->namespace,
-                description => 'Test database for module modwareX'
-            }
-        );
-        return { default => $row };
-    },
-    handles => {
-        get_dbrow => 'get',
-        set_db_id => 'set',
-        has_db_id => 'defined'
-    }
-);
-
-sub default_db_id {
-    $_[0]->get_db_id('default');
-
-}
-
-sub get_db_id {
-    $_[0]->get_dbrow( $_[1] )->db_id;
-}
-
-before 'get_db_id' => sub {
-    $_[0]->dbrow if !$_[0]->dbrow_done;
-};
-
-has 'namespace' => (
-    is  => 'rw',
-    isa => 'Str'
-);
-
-has 'cvrow' => (
-    is        => 'rw',
-    isa       => 'Bio::Chado::Schema::Cv::Cv',
-    predicate => 'has_cvrow',
-    lazy      => 1,
-    default   => sub {
-        my $self = shift;
-        my $twig = XML::Twig::XPath->new->parsefile(
-            $self->fixture->rel_ontology );
-        my ($node) = $twig->findnodes('/obo/header/default-namespace');
-        my $namespace = $node->getValue;
-        $self->namespace($namespace);
-
-        my $cvrow = $self->schema->resultset('Cv::Cv')->find_or_create(
-            {   name       => "ModwareX-$namespace",
-                definition => 'Ontology namespace for modwareX module'
-            }
-        );
-        $twig->purge;
-        $cvrow;
-    },
-    handles => [qw/cv_id/]
-);
-
-sub load_relationship {
+sub load_rel {
     my ($self) = @_;
-    my $file   = $self->fixture->rel_ontology;
+    $self->obo_xml( $self->fixture->rel_ontology );
+    $self->load_ontology;
+}
+
+sub load_so {
+    my ($self) = @_;
+    $self->obo_xml( $self->fixture->seq_ontology );
+    $self->load_ontology;
+}
+
+sub load_ontology {
+    my ($self) = @_;
+    $self->reset_all;
     my $loader = $self->obo_xml_loader;
-    $loader->parsefile($file);
+    $loader->parsefile( $self->obo_xml );
     $loader->purge;
     $self->store_relationship;
+
 }
 
-sub unload_relationship {
+sub unload_rel {
     my ($self) = @_;
+    $self->unload_ontology('relationship');
+}
+
+sub unload_so {
+    my ($self) = @_;
+    $self->unload_ontology('sequence');
+}
+
+sub unload_ontology {
+	my ($self,  $namespace) = @_;	
     my $schema = $self->schema;
     try {
         $schema->txn_do(
             sub {
                 $schema->resultset('General::Db')
-                    ->search( { name => 'GMOD:ModwareX-relationship' } )
+                    ->search(
+                    { name => { -like => '%ModwareX-'.$namespace } } )
                     ->delete_all;
                 $schema->resultset('Cv::Cv')
-                    ->search( { name => 'ModwareX-relationship' } )
+                    ->search(
+                    { name => { -like => '%ModwareX-'.$namespace } } )
                     ->delete_all;
             }
         );
@@ -217,11 +259,12 @@ sub handle_relationship {
             = $self->graph->get_edge_attribute( $parent, $child, 'id' );
     }
     else {
-    	# -- get the id from the storage
+
+        # -- get the id from the storage
         $relation_id = $self->name2id(
             $self->graph->get_edge_attribute(
                 $parent, $child, 'relationship'
-            )
+            ),
         );
         $self->graph->set_edge_attribute( $parent, $child, 'id',
             $relation_id );
@@ -264,15 +307,38 @@ sub handle_relationship {
 
 sub name2id {
     my ( $self, $name ) = @_;
-    my $row = $self->schema->resultset('Cv::Cvterm')->search(
-        {   'me.name'  => $name,
-            'cv.cv_id' => $self->cv_id
-        },
-        {   join => 'cv',
-            rows => 1
+    my $row = $self->schema->resultset('Cv::Cvterm')
+        ->search( { 'name' => $name, }, { rows => 1 } )->single;
+
+    if ( !$row ) {    #try again in dbxref
+        $row
+            = $self->schema->resultset('General::Dbxref')
+            ->search( { accession => { -like => '%' . $name } },
+            { rows => 1 } )->single;
+        if ( !$row ) {
+            $self->alert("serious problem: **$name** nowhere to be found");
+            return;
         }
-    )->single;
+        return $row->cvterm->cvterm_id;
+    }
     $row->cvterm_id;
+}
+
+sub build_relationship {
+    my ( $self, $node, $cvterm_row ) = @_;
+    my $child = $cvterm_row->name;
+    for my $elem ( $node->children('is_a') ) {
+        my $parent = $self->normalize_name( $elem->text );
+        $self->graph->set_edge_attribute( $parent, $child, 'relationship',
+            'is_a' );
+    }
+
+    for my $elem ( $node->children('relationship') ) {
+        my $parent = $self->normalize_name( $elem->first_child_text('to') );
+        $self->graph->add_edge( $parent, $child );
+        $self->graph->set_edge_attribute( $parent, $child, 'relationship',
+            $self->normalize_name( $elem->first_child_text('type') ) );
+    }
 }
 
 sub load_typedef {
@@ -320,21 +386,48 @@ sub load_typedef {
     $self->create_more_dbxref( $def_elem, $cvterm_row );
 }
 
-sub build_relationship {
-    my ( $self, $node, $cvterm_row ) = @_;
-    my $child = $cvterm_row->name;
-    for my $elem ( $node->children('is_a') ) {
-        my $parent = $self->normalize_name($elem->text);
-        $self->graph->set_edge_attribute( $parent, $child, 'relationship',
-            'is_a' );
-    }
+sub load_term {
+    my ( $self, $twig, $node ) = @_;
 
-    for my $elem ( $node->children('relationship') ) {
-        my $parent = $self->normalize_name( $elem->first_child_text('to') );
-        $self->graph->add_edge( $parent, $child );
-        $self->graph->set_edge_attribute( $parent, $child, 'relationship',
-            $elem->first_child_text('type') );
+    my $name        = $node->first_child_text('name');
+    my $id          = $node->first_child_text('id');
+    my $is_obsolete = $node->first_child_text('is_obsolete');
+
+    my $def_elem = $node->first_child('def');
+    my $definition = $def_elem->first_child_text('defstr') if $def_elem;
+
+    my $schema = $self->schema;
+    my $cvterm_row;
+    try {
+        $cvterm_row = $schema->txn_do(
+            sub {
+                my $cvterm_row = $schema->resultset('Cv::Cvterm')->create(
+                    {   cv_id       => $self->cv_id,
+                        name        => $self->normalize_name($name),
+                        definition  => $definition || '',
+                        is_obsolete => $is_obsolete || 0,
+                        dbxref      => {
+                            db_id     => $self->default_db_id,
+                            accession => $id,
+                        }
+                    }
+                );
+                $cvterm_row;
+            }
+        );
+        $schema->txn_commit;
     }
+    catch {
+        confess "Error in inserting cvterm $_\n";
+    };
+
+    #hold on to the relationships between nodes
+    $self->build_relationship( $node, $cvterm_row );
+
+    #no additional dbxref
+    return if !$def_elem;
+
+    $self->create_more_dbxref( $def_elem, $cvterm_row );
 }
 
 sub normalize_name {
@@ -349,25 +442,26 @@ sub create_more_dbxref {
     my $schema = $self->schema;
 
     # - first one goes with alternate id
-    try {
-        $schema->txn_do(
-            sub {
-                $cvterm_row->create_related(
-                    'cvterm_dbxrefs',
-                    {   dbxref => {
-                            accession =>
-                                $def_elem->first_child_text('alt_id'),
-                            db_id => $self->default_db_id
+    my $alt_id = $def_elem->first_child_text('alt_id');
+    if ($alt_id) {
+        try {
+            $schema->txn_do(
+                sub {
+                    $cvterm_row->create_related(
+                        'cvterm_dbxrefs',
+                        {   dbxref => {
+                                accession => db_id => $self->default_db_id
+                            }
                         }
-                    }
-                );
-            }
-        );
-        $schema->txn_commit;
+                    );
+                }
+            );
+            $schema->txn_commit;
+        }
+        catch {
+            confess "error in creating dbxref $_";
+        };
     }
-    catch {
-        confess "error in creating dbxref $_";
-    };
 
     #no more additional dbxrefs
     my $def_dbx = $def_elem->first_child('dbxref');
@@ -380,7 +474,9 @@ sub create_more_dbxref {
     }
     else {
         my $extra_db_row = $schema->resultset('General::Db')->find_or_create(
-            {   name => $def_dbx->first_child_text('dbname') . ':ModwareX',
+            {   name => $def_dbx->first_child_text('dbname')
+                    . ':ModwareX-'
+                    . $self->namespace,
                 description => 'Extra test database for module modwarex'
             }
         );
