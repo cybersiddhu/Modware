@@ -57,6 +57,7 @@ has 'dbh' => (
     }
 );
 
+
 has 'connection_info' => (
     is         => 'ro',
     isa        => 'ArrayRef',
@@ -72,6 +73,11 @@ before 'deploy_schema' => sub {
     my ($self) = @_;
     $self->dbh->do("PRAGMA foreign_keys = ON");
 };
+
+sub run_fixture_hooks {
+	my ($self) = @_;
+    $self->dbh->do("PRAGMA foreign_keys = ON");
+}
 
 1;    # Magic true value required at end of module
 

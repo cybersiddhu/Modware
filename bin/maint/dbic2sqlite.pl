@@ -274,7 +274,8 @@ FKEY:
         my @ref_fields = $ct->reference_fields;
         my $ref_names
             = @ref_fields == 1 ? $ref_fields[0] : join( ", ", @ref_fields );
-        $fkey_def .= $ref_names . ')';
+		my $action = $ct->on_delete ? $ct->on_delete : 'CASCADE';
+        $fkey_def .= $ref_names . ') ON DELETE '. $action;
         push @field_defs, $fkey_def;
     }
 

@@ -13,6 +13,7 @@ use Carp;
 
 # Module implementation
 #
+with 'MooseX::LogDispatch::Levels';
 
 has 'name' => ( is => 'rw', isa => 'Str' );
 has 'loader' => ( is => 'rw', isa => 'Str', default => 'bcs' );
@@ -50,6 +51,7 @@ has 'fixture' => (
         my ($self) = @_;
         apply_all_roles( $self,
             'Test::Chado::Role::Loader::' . uc $self->loader );
+            $self->run_fixture_hooks;
         }
 );
 
