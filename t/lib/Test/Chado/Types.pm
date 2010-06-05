@@ -1,14 +1,37 @@
-package  ModwareX::Types ;
+package Test::Chado::Types;
 
 use version; our $VERSION = qv('0.1');
 
 # Other modules:
-use MooseX::Types;
-use MooseX::Types::Moose qw/Int Str Any Object/;
-
+use MooseX::Types -declare => [qw/ExistingFile FileClass ModConfig/];
+use MooseX::Types::Moose qw/Int Str Any Object ArrayRef HashRef/;
+use Path::Class::File;
+use YAML qw/LoadFile/;
 
 # Module implementation
 #
+subtype ExistingFile, 
+as Str, 
+where { -e $_ and -f $_ }, 
+message { "$_ must be a file or File $_ must exist" };
+
+subtype FileClass, 
+as Object, 
+where { $_->isa('Path::Class::File') };
+
+
+coerce FileClass, 
+from Str, 
+via { Path::Class::File->new($_)->absolute };
+
+
+subtype ModConfig, 
+as HashRef; 
+
+coerce ModConfig, 
+from Str, 
+via { LoadFile($_) };
+
 
 1;    # Magic true value required at end of module
 

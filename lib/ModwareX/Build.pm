@@ -44,6 +44,13 @@ sub ACTION_load_so {
     $handler->load_so;
 }
 
+sub ACTION_load_pub {
+    my ($self) = @_;
+    my $handler = Test::Chado->new->default_handler;
+    $self->handler($handler);
+    $handler->load_pub;
+}
+
 sub ACTION_load_fixture {
     my ($self) = @_;
     my $handler = Test::Chado->new->default_handler;
@@ -51,13 +58,21 @@ sub ACTION_load_fixture {
     $handler->load_organism;
     $handler->load_rel;
     $handler->load_so;
+    $handler->load_pub;
 }
 
-sub ACTION_unload_rel_ontology {
+sub ACTION_unload_rel {
     my ($self) = @_;
     my $handler = Test::Chado->new->default_handler;
     $self->handler($handler);
     $handler->unload_rel;
+}
+
+sub ACTION_unload_pub {
+    my ($self) = @_;
+    my $handler = Test::Chado->new->default_handler;
+    $self->handler($handler);
+    $handler->unload_pub;
 }
 
 sub ACTION_unload_so {
@@ -73,6 +88,7 @@ sub ACTION_unload_fixture {
     $self->handler($handler);
     $handler->unload_rel;
     $handler->unload_so;
+    $handler->unload_pub;
     $handler->unload_organism;
 }
 

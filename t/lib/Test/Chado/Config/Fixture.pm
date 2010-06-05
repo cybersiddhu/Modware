@@ -8,10 +8,13 @@ use FindBin qw/$Bin/;
 use YAML qw/LoadFile/;
 use Carp;
 use File::Spec::Functions;
+use Test::Chado::Types;
+use Test::Chado::Config::Fixture::Ontology;
 
 # Module implementation
 #
 with 'Test::Chado::Role::Config';
+with 'MooseX::LogDispatch::Levels';
 
 has 'organism' => (
     is      => 'rw',
@@ -29,43 +32,34 @@ has 'organism' => (
     }
 );
 
-has 'seq_ontology' => (
-    is      => 'rw',
-    isa     => 'Str',
-    lazy    => 1,
-    default => sub {
-        my $self = shift;
-        my $str  = $self->get_value('ontology');
-        catfile($Bin,  $str->{sequence} );
-    }
-);
-
-has 'rel_ontology' => (
-    is      => 'rw',
-    isa     => 'Str',
-    lazy    => 1,
-    default => sub {
-        my $self = shift;
-        my $str = $self->get_value('ontology');
-        catfile($Bin, $str->{relation});
-    }
-);
-
-has 'pub_ontology' => (
-    is      => 'rw',
-    isa     => 'Str', 
-    lazy    => 1,
-    default => sub {
-        my $self = shift;
-        my $str = $self->get_value('ontology');
-        catfile($Bin, $str->{publication});
-    }
-);
-
-before [qw/organism seq_ontology rel_ontology pub_ontology/] => sub {
+sub install_attributes {
     my $self = shift;
-    if ( !$self->has_config ) {
-        confess 'configuration parameters are not set';
+    for my $name ( keys %{ $self->get_value('ontology') } ) {
+        my $attr_name = $name . '_ontology';
+        __PACKAGE__->meta->add_attribute(
+            Moose::Meta::Attribute->new(
+                $attr_name => (
+                    is  => 'rw',
+                    isa => 'Test::Chado::Config::Fixture::Ontology',
+                )
+            )
+        );
+    }
+}
+
+after 'config' => sub {
+    my $self = shift;
+    $self->install_attributes;
+    my $str = $self->get_value('ontology');
+    for my $name ( keys %$str ) {
+        my $attr = $name . '_ontology';
+        if ( __PACKAGE__->meta->has_attribute($attr) ) {
+            my $obj = Test::Chado::Config::Fixture::Ontology->new;
+            $obj->file( $str->{$name}->{file} );
+            $obj->namespace( $str->{$name}->{namespace} )
+                if exists $str->{$name}->{namespace};
+            $self->$attr($obj);
+        }
     }
 };
 
@@ -76,12 +70,12 @@ __END__
 
 =head1 NAME
 
-<MODULE NAME> - [One line description of module's purpose here]
+B<Test::Chado::Config::Fixture> - [Module for handling fixture configuration]
 
 
 =head1 VERSION
 
-This document describes <MODULE NAME> version 0.0.1
+This document describes Test::Chado::Config::Fixture version 0.1
 
 
 =head1 SYNOPSIS

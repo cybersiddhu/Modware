@@ -4,28 +4,27 @@ use version; our $VERSION = qv('0.1');
 
 # Other modules:
 use Moose::Role;
-use Moose::Util::TypeConstraints;
 use YAML qw/LoadFile/;
+use Test::Chado::Types qw/ModConfig/;
 
 # Module implementation
 #
 
-subtype 'ModConfig' => as 'HashRef';
-coerce 'ModConfig' => from 'Str' => via { LoadFile($_) };
-
 has 'config' => (
     is        => 'rw',
-    isa       => 'ModConfig',
+    isa       => ModConfig,
     predicate => 'has_config',
-    coerce  => 1,
-    traits  => ['Hash'],
-    handles => {
+    coerce    => 1,
+    traits    => ['Hash'],
+    handles   => {
         get_value  => 'get',
         pair_value => 'kv',
         sections   => 'keys',
         has_value  => 'exists'
     }
 );
+
+
 
 no Moose::Role;
 

@@ -1,27 +1,37 @@
-package  ModwareX::Types ;
+package Test::Chado::Config::Fixture::Ontology;
 
 use version; our $VERSION = qv('0.1');
 
 # Other modules:
-use MooseX::Types;
-use MooseX::Types::Moose qw/Int Str Any Object/;
-
+use Carp;
+use Moose;
+use Test::Chado::Types qw/ExistingFile/;
 
 # Module implementation
-#
+has 'file' => (
+    is  => 'rw',
+    isa => ExistingFile,
+);
 
+has 'namespace' => (
+    is  => 'rw',
+    isa => 'Str',
+    predicate => 'has_namespace'
+);
+
+no Moose;
 1;    # Magic true value required at end of module
 
 __END__
 
 =head1 NAME
 
-<MODULE NAME> - [One line description of module's purpose here]
+B<Test::Chado::Config::Fixture::Ontology> - [Module for handling ontology fixtures]
 
 
 =head1 VERSION
 
-This document describes <MODULE NAME> version 0.0.1
+This document describes B<Test::Chado::Config::Fixture::Ontology> version 0.1
 
 
 =head1 SYNOPSIS

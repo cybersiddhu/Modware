@@ -1,5 +1,11 @@
 organism: "t/data/fixture/organism.yaml"
 ontology:
-   sequence: "t/data/fixture/sofa.obo_xml"
-   relation: "t/data/fixture/relationship.obo_xml"
-   publication: "t/data/fixture/publication.obo_xml"
+   sequence: 
+        file: "t/data/fixture/sofa.obo_xml"
+        namespace: sequence
+   relation: 
+        file: "t/data/fixture/relationship.obo_xml"
+        namespace: relationship
+   publication: 
+        file: "t/data/fixture/publication.obo_xml"
+        namespace: pub_type

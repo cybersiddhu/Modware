@@ -24,6 +24,11 @@ has 'schema' => (
     lazy_build => 1
 );
 
+has 'ontology_name' => (
+    is  => 'rw',
+    isa => 'Str'
+);
+
 has 'obo_xml_loader' => (
     is         => 'rw',
     isa        => 'XML::Twig',
@@ -49,6 +54,10 @@ before 'dbrow' => sub {
     $_[0]->cvrow if !$_[0]->has_cvrow;
 };
 
+before 'get_db_id' => sub {
+    $_[0]->dbrow if !$_[0]->has_dbrow;
+};
+
 has 'dbrow' => (
     is         => 'rw',
     isa        => 'HashRef[Bio::Chado::Schema::General::Db]',
@@ -61,27 +70,41 @@ has 'dbrow' => (
     }
 );
 
-before 'get_db_id' => sub {
-    $_[0]->dbrow if !$_[0]->has_dbrow;
-};
+has 'ontology_namespace' => (
+    is         => 'rw',
+    isa        => 'Str',
+    lazy_build => 1
+);
 
-has 'namespace' => (
-    is      => 'rw',
-    isa     => 'Str',
-    clearer => 'clear_namespace'
+has 'loader_tag' => (
+    is  => 'rw',
+    isa => 'Str'
 );
 
 has 'cvrow' => (
     is         => 'rw',
-    isa        => 'Bio::Chado::Schema::Cv::Cv',
+    isa        => 'HashRef[Bio::Chado::Schema::Cv::Cv]',
+    traits     => ['Hash'],
     lazy_build => 1,
-    handles    => [qw/cv_id/]
+    handles    => {
+        get_cvrow => 'get',
+        set_cv_id => 'set',
+        has_cv_id => 'defined'
+    }
 );
 
 has 'obo_xml' => (
     is  => 'rw',
     isa => 'Str'
 );
+
+sub default_cv_id {
+    $_[0]->get_cv_id('default');
+}
+
+sub get_cv_id {
+    $_[0]->get_cvrow( $_[1] )->cv_id;
+}
 
 sub default_db_id {
     $_[0]->get_db_id('default');
@@ -107,20 +130,51 @@ sub _build_obo_xml_loader {
     );
 }
 
-sub _build_cvrow {
-    my $self      = shift;
-    my $twig      = XML::Twig::XPath->new->parsefile( $self->obo_xml );
-    my ($node)    = $twig->findnodes('/obo/header/default-namespace');
-    my $namespace = $node->getValue;
-    $self->namespace($namespace);
+sub _build_ontology_namespace {
+    my $self   = shift;
+    my $method = $self->ontology_name . '_ontology';
+    my $namespace;
 
-    my $cvrow = $self->schema->resultset('Cv::Cv')->find_or_create(
-        {   name       => "ModwareX-$namespace",
+    #which namespace to use incase it is not present for a particular node
+    my $twig = XML::Twig::XPath->new->parsefile( $self->obo_xml );
+    my ($node) = $twig->findnodes('/obo/header/default-namespace');
+    $namespace = $node->getValue;
+    $twig->purge;
+
+    if ( !$namespace ) {
+        if ( $self->fixture->$method->has_namespace ) {
+            $namespace = $self->fixture->$method->namespace;
+        }
+    }
+
+    confess "no default namespace being set for this ontology" if !$namespace;
+    $namespace;
+}
+
+sub _build_cvrow {
+    my ($self)    = @_;
+    my $namespace = $self->ontology_namespace;
+    my $name      = 'ModwareX-' . $self->loader_tag . '-' . $namespace;
+    my $cvrow     = $self->schema->resultset('Cv::Cv')->find_or_create(
+        {   name       => $name,
             definition => 'Ontology namespace for modwareX module'
         }
     );
-    $twig->purge;
-    $cvrow;
+    return { $namespace => $cvrow, default => $cvrow };
+}
+
+sub _build_dbrow {
+    my ($self) = @_;
+    my $name   = $self->ontology_namespace;
+    my $row    = $self->schema->resultset('General::Db')->find_or_create(
+        {   name => 'GMOD:ModwareX-'
+                . $self->loader_tag . '-'
+                . $self->ontology_namespace,
+            description => 'Test database for module modwareX'
+        }
+    );
+    return { default => $row, $name => $row };
+
 }
 
 sub _build_traverse_graph {
@@ -142,24 +196,13 @@ sub _build_traverse_graph {
     );
 }
 
-sub _build_dbrow {
-    my ($self) = @_;
-    my $row = $self->schema->resultset('General::Db')->find_or_create(
-        {   name        => 'GMOD:ModwareX-' . $self->namespace,
-            description => 'Test database for module modwareX'
-        }
-    );
-    return { default => $row };
-
-}
-
 sub reset_all {
     my ($self) = @_;
     $self->clear_graph;
     $self->clear_traverse_graph;
     $self->clear_dbrow;
     $self->clear_cvrow;
-    $self->clear_namespace;
+    $self->clear_ontology_namespace;
 }
 
 sub load_organism {
@@ -194,16 +237,36 @@ sub unload_organism {
     };
 }
 
+sub load_pub {
+    my ($self) = @_;
+    my $name = 'publication';
+    $self->ontology_name($name);
+    $self->loader_tag($name);
+    my $method = $name . '_ontology';
+    $self->obo_xml( $self->fixture->$method->file );
+    $self->load_ontology;
+
+}
+
 sub load_rel {
     my ($self) = @_;
-    $self->obo_xml( $self->fixture->rel_ontology );
+    my $name = 'relation';
+    $self->ontology_name($name);
+    $self->loader_tag($name);
+    my $method = $name . '_ontology';
+    $self->obo_xml( $self->fixture->$method->file );
     $self->load_ontology;
 }
 
 sub load_so {
     my ($self) = @_;
-    $self->obo_xml( $self->fixture->seq_ontology );
+    my $name = 'sequence';
+    $self->ontology_name($name);
+    $self->loader_tag($name);
+    my $method = $name . '_ontology';
+    $self->obo_xml( $self->fixture->$method->file );
     $self->load_ontology;
+
 }
 
 sub load_ontology {
@@ -216,30 +279,47 @@ sub load_ontology {
 
 }
 
+sub unload_pub {
+    my ($self) = @_;
+    my $name = 'publication';
+    $self->ontology_name($name);
+    $self->loader_tag($name);
+    my $str       = $self->fixture->get_value('ontology');
+    my $namespace = $str->{$name}->{namespace};
+    $self->unload_ontology($namespace);
+}
+
 sub unload_rel {
     my ($self) = @_;
-    $self->unload_ontology('relationship');
+    my $name = 'relation';
+    $self->ontology_name($name);
+    $self->loader_tag($name);
+    my $str       = $self->fixture->get_value('ontology');
+    my $namespace = $str->{$name}->{namespace};
+    $self->unload_ontology($namespace);
 }
 
 sub unload_so {
     my ($self) = @_;
-    $self->unload_ontology('sequence');
+    my $name = 'sequence';
+    $self->ontology_name($name);
+    $self->loader_tag($name);
+    my $str       = $self->fixture->get_value('ontology');
+    my $namespace = $str->{$name}->{namespace};
+    $self->unload_ontology($namespace);
 }
 
 sub unload_ontology {
-	my ($self,  $namespace) = @_;	
+    my ($self) = @_;
     my $schema = $self->schema;
     try {
         $schema->txn_do(
             sub {
+                my $name = '%ModwareX-' . $self->loader_tag . '%';
                 $schema->resultset('General::Db')
-                    ->search(
-                    { name => { -like => '%ModwareX-'.$namespace } } )
-                    ->delete_all;
+                    ->search( { name => { -like => $name } } )->delete_all;
                 $schema->resultset('Cv::Cv')
-                    ->search(
-                    { name => { -like => '%ModwareX-'.$namespace } } )
-                    ->delete_all;
+                    ->search( { name => { -like => $name } } )->delete_all;
             }
         );
         $schema->txn_commit;
@@ -347,6 +427,8 @@ sub load_typedef {
     my $name        = $node->first_child_text('name');
     my $id          = $node->first_child_text('id');
     my $is_obsolete = $node->first_child_text('is_obsolete');
+    my $namespace   = $node->first_child_text('namespace');
+    $namespace = $self->ontology_namespace if !$namespace;
 
     my $def_elem = $node->first_child('def');
     my $definition = $def_elem->first_child_text('defstr') if $def_elem;
@@ -357,13 +439,13 @@ sub load_typedef {
         $cvterm_row = $schema->txn_do(
             sub {
                 my $cvterm_row = $schema->resultset('Cv::Cvterm')->create(
-                    {   cv_id               => $self->cv_id,
+                    {   cv_id => $self->lookup_cv_id($namespace),
                         is_relationshiptype => 1,
                         name                => $self->normalize_name($name),
                         definition          => $definition || '',
                         is_obsolete         => $is_obsolete || 0,
                         dbxref              => {
-                            db_id     => $self->default_db_id,
+                            db_id     => $self->lookup_db_id($namespace),
                             accession => $id,
                         }
                     }
@@ -383,7 +465,7 @@ sub load_typedef {
     #no additional dbxref
     return if !$def_elem;
 
-    $self->create_more_dbxref( $def_elem, $cvterm_row );
+    $self->create_more_dbxref( $def_elem, $cvterm_row, $namespace );
 }
 
 sub load_term {
@@ -392,6 +474,8 @@ sub load_term {
     my $name        = $node->first_child_text('name');
     my $id          = $node->first_child_text('id');
     my $is_obsolete = $node->first_child_text('is_obsolete');
+    my $namespace   = $node->first_child_text('namespace');
+    $namespace = $self->ontology_namespace if !$namespace;
 
     my $def_elem = $node->first_child('def');
     my $definition = $def_elem->first_child_text('defstr') if $def_elem;
@@ -402,12 +486,12 @@ sub load_term {
         $cvterm_row = $schema->txn_do(
             sub {
                 my $cvterm_row = $schema->resultset('Cv::Cvterm')->create(
-                    {   cv_id       => $self->cv_id,
+                    {   cv_id       => $self->lookup_cv_id($namespace),
                         name        => $self->normalize_name($name),
                         definition  => $definition || '',
                         is_obsolete => $is_obsolete || 0,
                         dbxref      => {
-                            db_id     => $self->default_db_id,
+                            db_id     => $self->lookup_db_id($namespace),
                             accession => $id,
                         }
                     }
@@ -427,7 +511,7 @@ sub load_term {
     #no additional dbxref
     return if !$def_elem;
 
-    $self->create_more_dbxref( $def_elem, $cvterm_row );
+    $self->create_more_dbxref( $def_elem, $cvterm_row, $namespace );
 }
 
 sub normalize_name {
@@ -438,7 +522,7 @@ sub normalize_name {
 }
 
 sub create_more_dbxref {
-    my ( $self, $def_elem, $cvterm_row ) = @_;
+    my ( $self, $def_elem, $cvterm_row, $namespace ) = @_;
     my $schema = $self->schema;
 
     # - first one goes with alternate id
@@ -450,7 +534,8 @@ sub create_more_dbxref {
                     $cvterm_row->create_related(
                         'cvterm_dbxrefs',
                         {   dbxref => {
-                                accession => db_id => $self->default_db_id
+                                accession => $alt_id,
+                                db_id     => $self->lookup_db_id($namespace)
                             }
                         }
                     );
@@ -468,22 +553,6 @@ sub create_more_dbxref {
     return if !$def_dbx;
 
     my $dbname = $def_dbx->first_child_text('dbname');
-    my $extra_db_id;
-    if ( $self->has_db_id($dbname) ) {
-        $extra_db_id = $self->get_db_id($dbname);
-    }
-    else {
-        my $extra_db_row = $schema->resultset('General::Db')->find_or_create(
-            {   name => $def_dbx->first_child_text('dbname')
-                    . ':ModwareX-'
-                    . $self->namespace,
-                description => 'Extra test database for module modwarex'
-            }
-        );
-        $self->set_db_id( $dbname, $extra_db_row );
-        $extra_db_id = $extra_db_row->db_id;
-    }
-
     try {
         $schema->txn_do(
             sub {
@@ -491,7 +560,7 @@ sub create_more_dbxref {
                     'cvterm_dbxrefs',
                     {   dbxref => {
                             accession => $def_dbx->first_child_text('acc'),
-                            db_id     => $extra_db_id
+                            db_id     => $self->lookup_db_id($dbname)
                         }
                     }
                 );
@@ -500,6 +569,62 @@ sub create_more_dbxref {
         $schema->txn_commit;
     }
     catch { confess "error in creating dbxref $_" };
+}
+
+sub lookup_cv_id {
+    my ( $self, $namespace ) = @_;
+    my $schema = $self->schema;
+    if ( $self->has_cv_id($namespace) ) {
+        return $self->get_cv_id($namespace);
+    }
+    my $cvrow;
+    try {
+        $cvrow = $schema->txn_do(
+            sub {
+                my $name = 'ModwareX-' . $self->loader_tag . '-' . $namespace;
+                my $cvrow = $schema->resultset('Cv::Cv')->create(
+                    {   name       => $name,
+                        definition => "Ontology namespace for modwarex module"
+                    }
+                );
+                $cvrow;
+            }
+        );
+        $schema->txn_commit;
+    }
+    catch {
+        confess "unable to create cv row: $_";
+    };
+    $self->set_cv_id( $namespace, $cvrow );
+    $cvrow->cv_id;
+}
+
+sub lookup_db_id {
+    my ( $self, $dbname ) = @_;
+    my $schema = $self->schema;
+    if ( $self->has_db_id($dbname) ) {
+        return $self->get_db_id($dbname);
+    }
+    my $dbrow;
+    try {
+        $dbrow = $schema->txn_do(
+            sub {
+                my $name  = 'ModwareX-' . $self->loader_tag . '-' . $dbname;
+                my $dbrow = $schema->resultset('General::Db')->create(
+                    {   name        => $name,
+                        description => "Ontology dbname for modwarex module"
+                    }
+                );
+                $dbrow;
+            }
+        );
+        $schema->txn_commit;
+    }
+    catch {
+        confess "unable to create db row: $_";
+    };
+    $self->set_db_id( $dbname, $dbrow );
+    $dbrow->db_id;
 }
 
 1;    # Magic true value required at end of module

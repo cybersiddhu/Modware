@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 use strict;
 use inc::latest 'Module::Build';
-use lib ('lib', 't/lib');
+use lib ( 'lib', 't/lib' );
 use ModwareX::Build;
 
 my $build = ModwareX::Build->new(
@@ -21,6 +21,8 @@ my $build = ModwareX::Build->new(
         'Moose'                     => '0.96',
         'MooseX::Singleton'         => '0.22',
         'MooseX::Params::Validate'  => '0.14',
+        'MooseX::Aliases'           => '0.08',
+        'MooseX::Types'             => '0.22',
         'Path::Class'               => '0.18'
     },
     add_to_cleanup => ['ModwareX-*'],
