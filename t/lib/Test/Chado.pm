@@ -67,7 +67,7 @@ sub _build_from_config {
         name    => 'default',
         section => $db_conf,
         fixture => $fixture_conf,
-        loader  => $db_str->{loader}
+        loader  => $db_str->{$name}->{loader}
     );
     $handler;
 }
