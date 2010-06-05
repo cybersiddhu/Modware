@@ -27,6 +27,11 @@ my $build = ModwareX::Build->new(
     },
     add_to_cleanup => ['ModwareX-*'],
     create_readme  => 1,
+    get_options => {
+    	dsn => { type => ':s' }, 
+    	user => { type => ':s' }, 
+    	password => { type => ':s' }
+    }
 );
 
 $build->create_build_script;
