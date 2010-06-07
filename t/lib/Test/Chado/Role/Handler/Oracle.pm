@@ -130,6 +130,11 @@ has 'super_dbh' => (
     }
 );
 
+
+sub run_fixture_hooks {
+	return;
+}
+
 1;    # Magic true value required at end of module
 
 __END__
