@@ -10,6 +10,8 @@ use Path::Class::File;
 use DBI;
 use Try::Tiny;
 use Carp;
+use FindBin qw/$Bin/;
+use File::Spec::Functions;
 
 # Module implementation
 #
@@ -51,10 +53,9 @@ has 'fixture' => (
         my ($self) = @_;
         apply_all_roles( $self,
             'Test::Chado::Role::Loader::' . uc $self->loader );
-            $self->run_fixture_hooks;
-        }
+        $self->run_fixture_hooks;
+    }
 );
-
 
 has [qw/dsn driver user password superuser superpass driver_dsn database/] =>
     ( is => 'rw', isa => 'Str' );
@@ -82,9 +83,13 @@ coerce 'FileClass' => from 'Str' =>
     via { Path::Class::File->new($_)->absolute };
 
 has 'ddl' => (
-    is     => 'rw',
-    isa    => 'FileClass',
-    coerce => 1
+    is      => 'rw',
+    isa     => 'FileClass',
+    coerce  => 1,
+    default => sub {
+        my ($self) = @_;
+        catfile( $Bin, 't', 'data', 'ddl', 'chado.' . lc $self->driver );
+    }
 );
 
 has 'attr_hash' => (

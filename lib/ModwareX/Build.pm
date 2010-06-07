@@ -4,9 +4,24 @@ use Test::Chado;
 
 __PACKAGE__->add_property('handler');
 
+sub db_handler {
+    my ($self) = @_;
+    if ( my $dsn = $self->args('dsn') ) {
+        my $handler = Test::Chado->new->handler;
+        $handler->dsn($dsn);
+        $handler->user( $self->args('user') );
+        $handler->password( $self->args('password') );
+        my $loader = $self->args('loader') ? $self->args('loader') : 'bcs';
+        $handler->loader($loader);
+        $handler->name('custom');
+        return $handler;
+    }
+    Test::Chado->new->default_handler;
+}
+
 sub ACTION_create {
     my ($self) = @_;
-    my $handler = Test::Chado->new->default_handler;
+    my $handler = $self->db_handler;
     $self->handler($handler);
     $handler->create_db;
 }
@@ -19,41 +34,41 @@ sub ACTION_deploy {
 
 sub ACTION_deploy_schema {
     my ($self) = @_;
-    my $handler = Test::Chado->new->default_handler;
+    my $handler = $self->db_handler;
     $handler->deploy_schema;
 }
 
 sub ACTION_load_organism {
     my ($self) = @_;
-    my $handler = Test::Chado->new->default_handler;
+    my $handler = $self->db_handler;
     $self->handler($handler);
     $handler->load_organism;
 }
 
 sub ACTION_load_rel {
     my ($self) = @_;
-    my $handler = Test::Chado->new->default_handler;
+    my $handler = $self->db_handler;
     $self->handler($handler);
     $handler->load_rel;
 }
 
 sub ACTION_load_so {
     my ($self) = @_;
-    my $handler = Test::Chado->new->default_handler;
+    my $handler = $self->db_handler;
     $self->handler($handler);
     $handler->load_so;
 }
 
 sub ACTION_load_pub {
     my ($self) = @_;
-    my $handler = Test::Chado->new->default_handler;
+    my $handler = $self->db_handler;
     $self->handler($handler);
     $handler->load_pub;
 }
 
 sub ACTION_load_fixture {
     my ($self) = @_;
-    my $handler = Test::Chado->new->default_handler;
+    my $handler = $self->db_handler;
     $self->handler($handler);
     $handler->load_organism;
     $handler->load_rel;
@@ -63,28 +78,28 @@ sub ACTION_load_fixture {
 
 sub ACTION_unload_rel {
     my ($self) = @_;
-    my $handler = Test::Chado->new->default_handler;
+    my $handler = $self->db_handler;
     $self->handler($handler);
     $handler->unload_rel;
 }
 
 sub ACTION_unload_pub {
     my ($self) = @_;
-    my $handler = Test::Chado->new->default_handler;
+    my $handler = $self->db_handler;
     $self->handler($handler);
     $handler->unload_pub;
 }
 
 sub ACTION_unload_so {
     my ($self) = @_;
-    my $handler = Test::Chado->new->default_handler;
+    my $handler = $self->db_handler;
     $self->handler($handler);
     $handler->unload_so;
 }
 
 sub ACTION_unload_fixture {
     my ($self) = @_;
-    my $handler = Test::Chado->new->default_handler;
+    my $handler = $self->db_handler;
     $self->handler($handler);
     $handler->unload_rel;
     $handler->unload_so;
@@ -94,14 +109,14 @@ sub ACTION_unload_fixture {
 
 sub ACTION_unload_organism {
     my ($self) = @_;
-    my $handler = Test::Chado->new->default_handler;
+    my $handler = $self->db_handler;
     $self->handler($handler);
     $handler->unload_organism;
 }
 
 sub ACTION_drop {
     my ($self) = @_;
-    my $handler = Test::Chado->new->default_handler;
+    my $handler = $self->db_handler;
     $handler->drop_db;
 }
 

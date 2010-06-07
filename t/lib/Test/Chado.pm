@@ -17,7 +17,21 @@ use Data::Dumper;
 #
 with 'Test::Chado::Role::Config';
 
-sub handlers_from_config {
+has 'handler' => (
+    is      => 'rw',
+    isa     => 'Test::Chado::Hanlder',
+    default => sub {
+        my $handler      = Test::Chado::Handler->new;
+        my $fixture_conf = Test::Chado::Config::Fixture->new;
+        $fixture_conf->config(
+            catfile( $Bin, 't', 'config', 'fixture.yaml' ) );
+        $handler->fixture($fixture_conf);
+        $handler;
+    },
+    lazy => 1
+);
+
+sub handlers_from_profile {
     my ($self) = @_;
     my @handlers;
     for my $name ( $self->sections ) {
@@ -26,29 +40,29 @@ sub handlers_from_config {
     @handlers;
 }
 
-sub handler_from_config {
+sub handler_from_profile {
     my ( $self, $name ) = @_;
     if ( !$name ) {
         return $self->default_handler;
     }
-    $self->_build_from_config($name);
+    $self->_build_from_profile($name);
 }
 
 has 'default_handler' => (
     is      => 'ro',
     isa     => 'Test::Chado::Handler',
     lazy    => 1,
-    builder => '_build_from_config'
+    builder => '_build_from_profile'
 );
 
-before '_build_from_config' => sub {
+before '_build_from_profile' => sub {
     my $self = shift;
     if ( !$self->has_config ) {
         $self->config( catfile( $Bin, 't', 'config', 'database.yaml' ) );
     }
 };
 
-sub _build_from_config {
+sub _build_from_profile {
     my ( $self, $name ) = @_;
     $name ||= 'default';
 
