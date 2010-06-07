@@ -21,6 +21,9 @@ GetOptions(
     'o|output:s' => \$output
 );
 
+my @hardcoded_list
+    = qw/cv_cvterm_count cv_cvterm_count_with_obs cv_link_count cv_path_count type_feature_count db_dbxref_count intron_combined_view intronloc_view/;
+
 $gmod_folder
     = $gmod_folder
     ? Path::Class::Dir->new($gmod_folder)
@@ -61,7 +64,7 @@ my @nodes
 
 for my $elem (@nodes) {
     print "translating ", $elem->att('path'), "\n";
-    my $reader = $gmod_folder->file('modules',  $elem->att('path') )->openr;
+    my $reader = $gmod_folder->file( 'modules', $elem->att('path') )->openr;
     while ( my $line = $reader->getline ) {
         if ( $line =~ /create\s+or\s+replace\s+view\s+(\S+)/i ) {
             $outhandler->print( $1, "\n" );
@@ -70,6 +73,7 @@ for my $elem (@nodes) {
     $reader->close;
 }
 
+$outhandler->print( join( "\n", @hardcoded_list ), "\n" );
 $outhandler->close;
 
 =head1 NAME

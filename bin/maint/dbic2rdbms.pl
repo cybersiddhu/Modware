@@ -57,12 +57,38 @@ my $trans  = SQL::Translator->new(
         add_fk_index => 1,
         sources      => $allowed_sources
     },
-    producer => normalize_type( lc $type ),
+    producer          => normalize_type( lc $type ),
+    quote_field_names => 0,
+    quote_table_names => 0
 ) or die SQL::Translator->error;
 
 my $data = $trans->translate or die $trans->error;
-$data =~ s/DEFAULT\s+nextval\S+//mg;
-$data =~ s/without time zone//mg;
+
+if ( $type =~ /mysql/i ) {
+    $data =~ s/DEFAULT\s+nextval\S+//mg;
+    $data =~ s/without time zone//mg;
+}
+
+if ( $type =~ /oracle/i ) {
+    $data =~ s/DEFAULT\s+nextval\S+//mg;
+    $data
+        =~ s/without time zone DEFAULT now\(\) NOT NULL/DEFAULT sysdate/mg;
+    $data
+        =~ s/without time zone DEFAULT now\(\)/DEFAULT sysdate/mg;
+    $data =~ s/date DEFAULT now\(\) NOT NULL/date DEFAULT sysdate/mg;
+    $data =~ s/false NOT NULL/\'0\' NOT NULL/mg;
+    $data =~ s/false/\'0\'/mg;
+    $data =~ s/true NOT NULL/\'1\' NOT NULL/mg;
+    $data =~ s/true/\'0\'/mg;
+    $data =~ s/\bsynonym\b/synonym_/mg;
+    $data =~ s/comment\b/comment_/mg;
+    $data =~ s/phylonode_relationship_subject_id/phylonode_rel_subj_id/mg;
+    $data =~ s/feature_relationshipprop_pub_c1/feat_relprop_pub_c1/mg;
+    $data =~ s/phylonode_([a-z]+)_phylonode_id_key/phylo_$1_phylo_id_key/mg;
+    $data =~ s/studyprop_feature_studyprop_id_key/studprop_feat_studprop_id_key/mg;
+    $data =~ s/ALTER TABLE (.+)\;/ALTER TABLE $1 ON DELETE CASCADE\;/mg;
+}
+
 $output->print($data);
 $output->close;
 
