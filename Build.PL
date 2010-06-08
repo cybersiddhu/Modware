@@ -27,10 +27,15 @@ my $build = ModwareX::Build->new(
     },
     add_to_cleanup => ['ModwareX-*'],
     create_readme  => 1,
-    get_options => {
-    	dsn => { type => ':s' }, 
-    	user => { type => ':s' }, 
-    	password => { type => ':s' }
+    get_options    => {
+        dsn           => { type => ':s' },
+        user          => { type => ':s' },
+        password      => { type => ':s' },
+        config        => { type => ':s' },
+        profile       => { type => ':s' },
+        superuser     => { type => ':s' },
+        superpassword => { type => ':s' },
+        default       => {},
     }
 );
 
