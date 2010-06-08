@@ -4,11 +4,12 @@ use version; our $VERSION = qv('1.0.0');
 
 # Other modules:
 use Moose::Role;
+use Try::Tiny;
+use DBI;
 
 # Module implementation
 #
 requires 'driver';
-requires 'connection_info';
 requires 'dsn';
 requires 'superuser';
 requires 'superpass';
@@ -112,27 +113,64 @@ TRIGGER:
     $dbh->commit;
 }
 
-
 has 'dbh' => (
     is      => 'ro',
-    isa     => 'DBI',
+    isa     => 'DBI::db',
     default => sub {
+        my $self = shift;
         DBI->connect( $self->connection_info ) or confess $DBI::errstr;
     }
 );
 
 has 'super_dbh' => (
     is      => 'ro',
-    isa     => 'DBI',
+    isa     => 'DBI::db',
     default => sub {
-        DBI->connect( $self->dsn, $self->superuser, $self->superpass )
-            or confess $DBI::errstr;
+        my $self = shift;
+        $self->add_dbh_attribute( 'LongTruncOk', 1 );
+        DBI->connect(
+            $self->dsn,       $self->superuser,
+            $self->superpass, $self->attr_hash
+        ) or confess $DBI::errstr;
     }
 );
 
+has 'connection_info' => (
+    is         => 'ro',
+    isa        => 'ArrayRef',
+    lazy       => 1,
+    auto_deref => 1,
+    default    => sub {
+        my ($self) = @_;
+        $self->add_dbh_attribute( 'LongTruncOk', 1 );
+        [ $self->dsn, $self->user, $self->password, $self->attr_hash ];
+    }
+);
+
+sub deploy_schema {
+    my ($self) = @_;
+    my $dbh    = $self->dbh;
+    my $fh     = $self->ddl->openr;
+    my $data = do { local ($/); <$fh> };
+    $fh->close();
+LINE:
+    foreach my $line ( split( /\n{2,}/, $data ) ) {
+        next LINE if $line =~ /^\-\-/;
+        $line =~ s{;$}{};
+        $line =~ s{/}{};
+        try {
+            $dbh->do($line);
+            $dbh->commit;
+        }
+        catch {
+            $dbh->rollback;
+            confess $_, "\n";
+        };
+    }
+}
 
 sub run_fixture_hooks {
-	return;
+    return;
 }
 
 1;    # Magic true value required at end of module

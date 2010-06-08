@@ -155,11 +155,10 @@ sub _build_cvrow {
     my ($self)    = @_;
     my $namespace = $self->ontology_namespace;
     my $name      = 'ModwareX-' . $self->loader_tag . '-' . $namespace;
-    my $cvrow     = $self->schema->resultset('Cv::Cv')->find_or_create(
-        {   name       => $name,
-            definition => 'Ontology namespace for modwareX module'
-        }
-    );
+    my $cvrow     = $self->schema->resultset('Cv::Cv')
+        ->find_or_create( { name => $name } );
+    $cvrow->definition('Ontology namespace for modwareX module');
+    $cvrow->update;
     return { $namespace => $cvrow, default => $cvrow };
 }
 
@@ -167,12 +166,13 @@ sub _build_dbrow {
     my ($self) = @_;
     my $name   = $self->ontology_namespace;
     my $row    = $self->schema->resultset('General::Db')->find_or_create(
-        {   name => 'GMOD:ModwareX-'
+        {         name => 'GMOD:ModwareX-'
                 . $self->loader_tag . '-'
                 . $self->ontology_namespace,
-            description => 'Test database for module modwareX'
         }
     );
+    $row->description('Test database for module modwareX');
+    $row->update;
     return { default => $row, $name => $row };
 
 }
@@ -229,7 +229,13 @@ sub unload_organism {
     my $schema = $self->schema;
     try {
         $schema->txn_do(
-            sub { $schema->resultset('Organism::Organism')->delete_all; } );
+            sub {
+                $schema->resultset('Organism::Organism')
+                    ->search( {},
+                    { columns => [ 'organism_id', 'common_name' ] } )
+                    ->delete_all;
+            }
+        );
         $schema->txn_commit;
     }
     catch {

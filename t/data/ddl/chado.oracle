@@ -215,7 +215,7 @@ CREATE TABLE dbxref (
   dbxref_id number  NOT NULL,
   db_id number NOT NULL,
   accession varchar2(255) NOT NULL,
-  version varchar2(255) DEFAULT '' NOT NULL,
+  version varchar2(255) DEFAULT '0' NOT NULL,
   description clob,
   PRIMARY KEY (dbxref_id),
   CONSTRAINT dbxref_c1 UNIQUE (db_id, accession, version)
@@ -2958,8 +2958,6 @@ CREATE INDEX magedocumentation_idx_tableinf on magedocumentation (tableinfo_id);
 
 CREATE INDEX cvterm_idx_cv_id on cvterm (cv_id);
 
-CREATE INDEX cvterm_idx_dbxref_id on cvterm (dbxref_id);
-
 CREATE INDEX organism_dbxref_idx_dbxref_id on organism_dbxref (dbxref_id);
 
 CREATE INDEX organism_dbxref_idx_organism_i on organism_dbxref (organism_id);
@@ -3469,8 +3467,6 @@ CREATE INDEX phylonode_dbxref_idx_dbxref_id on phylonode_dbxref (dbxref_id);
 CREATE INDEX phylonode_dbxref_idx_phylonode on phylonode_dbxref (phylonode_id);
 
 CREATE INDEX phylonode_organism_idx_organis on phylonode_organism (organism_id);
-
-CREATE INDEX phylonode_organism_idx_phylono on phylonode_organism (phylonode_id);
 
 CREATE INDEX phylonode_relationship_idx_obj on phylonode_relationship (object_id);
 

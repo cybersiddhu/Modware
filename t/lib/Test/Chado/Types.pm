@@ -32,6 +32,7 @@ coerce ModConfig,
 from Str, 
 via { LoadFile($_) };
 
+no Moose;
 
 1;    # Magic true value required at end of module
 

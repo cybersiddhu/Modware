@@ -49,16 +49,26 @@ has 'fixture' => (
     is        => 'rw',
     isa       => 'Test::Chado::Config::Fixture',
     predicate => 'has_fixture',
-    trigger   => sub {
-        my ($self) = @_;
-        apply_all_roles( $self,
-            'Test::Chado::Role::Loader::' . uc $self->loader );
-        $self->run_fixture_hooks;
-    }
 );
 
-has [qw/dsn driver user password superuser superpass driver_dsn database/] =>
-    ( is => 'rw', isa => 'Str' );
+for my $attr (qw/dsn driver user password superuser superpass driver_dsn database/) {
+    has $attr => 
+    		( is => 'rw', isa => 'Str',  predicate => 'has_'.$attr );
+}
+
+after 'user' => sub {
+	my ($self,  $user) = @_;
+	if (!$self->has_superuser) {
+		$self->superuser($user);
+	}
+};
+
+after 'password' => sub {
+	my ($self,  $pass) = @_;
+	if (!$self->has_superpass) {
+		$self->superpass($pass);
+	}
+};
 
 after 'dsn' => sub {
     my ( $self, $value ) = @_;
@@ -68,6 +78,7 @@ after 'dsn' => sub {
         or confess "cannot parse dsn:$DBI::errstr\n";
     $self->driver($driver);
     $self->driver_dsn($driver_dsn);
+    apply_all_roles($self,  'Test::Chado::Role::Loader::'. uc $self->loader );
 };
 
 after 'driver' => sub {
@@ -75,7 +86,7 @@ after 'driver' => sub {
     return if !$driver;
     $driver = lc $driver;
     apply_all_roles( $self,
-        'Test::Chado::Role::Handler::' . ucfirst $driver );
+        'Test::Chado::Role::Handler::' . ucfirst $driver);
 };
 
 subtype 'FileClass' => as 'Object' => where { $_->isa('Path::Class::File') };
@@ -85,45 +96,24 @@ coerce 'FileClass' => from 'Str' =>
 has 'ddl' => (
     is      => 'rw',
     isa     => 'FileClass',
-    coerce  => 1,
+    lazy => 1, 
     default => sub {
         my ($self) = @_;
-        catfile( $Bin, 't', 'data', 'ddl', 'chado.' . lc $self->driver );
+        Path::Class::File->new(
+        	catfile( $Bin, 't', 'data', 'ddl', 'chado.' . lc $self->driver ));
     }
 );
 
 has 'attr_hash' => (
     is      => 'rw',
     isa     => 'HashRef',
-    default => sub { { AutoCommit => 0 } }
+    traits => ['Hash'], 
+    default => sub { { AutoCommit => 0 } }, 
+    handles => {
+    	add_dbh_attribute => 'set'
+    }
 );
 
-sub deploy_schema {
-    my ($self) = @_;
-    my $dbh    = $self->dbh;
-    my $fh     = $self->ddl->openr;
-    my $data = do { local ($/); <$fh> };
-    $fh->close();
-LINE:
-    foreach my $line ( split( /\n{2,}/, $data ) ) {
-
-        #next LINE if $line =~ /^\-\-/;
-        if ( $line =~ /^\-\-/ ) {
-            my @separated = grep { !/^\-\-/ } split( /\n/, $line );
-            $line = join( "\n", @separated );
-        }
-        $line =~ s{;$}{};
-        $line =~ s{/}{};
-        try {
-            $dbh->do($line);
-            $dbh->commit;
-        }
-        catch {
-            $dbh->rollback;
-            confess $_, "\n";
-        };
-    }
-}
 
 no Moose;
 

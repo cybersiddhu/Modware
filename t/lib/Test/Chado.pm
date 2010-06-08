@@ -3,33 +3,32 @@ package Test::Chado;
 use version; our $VERSION = qv('1.0.0');
 
 # Other modules:
+use Moose;
 use Carp;
 use YAML qw/LoadFile/;
 use FindBin qw/$Bin/;
-use Moose;
 use File::Spec::Functions;
 use Test::Chado::Handler;
 use Test::Chado::Config::Database;
 use Test::Chado::Config::Fixture;
-use Data::Dumper;
 
 # Module implementation
 #
 with 'Test::Chado::Role::Config';
 
 has 'handler' => (
-    is      => 'rw',
-    isa     => 'Test::Chado::Hanlder',
-    default => sub {
-        my $handler      = Test::Chado::Handler->new;
-        my $fixture_conf = Test::Chado::Config::Fixture->new;
-        $fixture_conf->config(
-            catfile( $Bin, 't', 'config', 'fixture.yaml' ) );
-        $handler->fixture($fixture_conf);
-        $handler;
-    },
-    lazy => 1
+    is         => 'rw',
+    isa        => 'Test::Chado::Handler',
+    lazy_build => 1
 );
+
+sub _build_handler {
+    my ($self)       = @_;
+    my $fixture_conf = Test::Chado::Config::Fixture->new;
+    $fixture_conf->config( catfile( $Bin, 't', 'config', 'fixture.yaml' ) );
+    my $handler = Test::Chado::Handler->new(fixture => $fixture_conf);
+    $handler;
+}
 
 sub handlers_from_profile {
     my ($self) = @_;
@@ -66,9 +65,9 @@ sub _build_from_profile {
     my ( $self, $name ) = @_;
     $name ||= 'fallback';
 
-  #There could be multiple databases configured in the default configuration file
-  #so we load the yaml file first and then later pass the each section to the database
-  #configuration handling class.
+#There could be multiple databases configured in the default configuration file
+#so we load the yaml file first and then later pass the each section to the database
+#configuration handling class.
     my $db_str  = $self->config;
     my $db_conf = Test::Chado::Config::Database->new;
     $db_conf->config( $db_str->{$name} );
@@ -86,7 +85,7 @@ sub _build_from_profile {
     $handler;
 }
 
-no Moose::Role;
+no Moose;
 
 1;    # Magic true value required at end of module
 

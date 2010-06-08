@@ -29,9 +29,9 @@ sub db_handler {
     }
     elsif ( my $dsn = $self->args('dsn') ) {
         $handler = $chado->handler;
-        $handler->dsn($dsn);
         $handler->user( $self->args('user') );
         $handler->password( $self->args('password') );
+        $handler->dsn($dsn);
         my $loader = $self->args('loader') ? $self->args('loader') : 'bcs';
         $handler->loader($loader);
         $handler->name('custom');
@@ -236,7 +236,7 @@ sub ACTION_drop {
     $self->handler->drop_db;
 }
 
-sub ACTION_drop {
+sub ACTION_drop_schema {
     my ($self) = @_;
     $self->common_setup;
     $self->db_handler;

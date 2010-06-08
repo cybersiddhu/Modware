@@ -7,6 +7,7 @@ use Moose::Role;
 use Carp;
 use File::Basename;
 use File::Path;
+use Try::Tiny;
 
 # Module implementation
 #
@@ -53,7 +54,9 @@ has 'dbh' => (
     lazy      => 1,
     default   => sub {
         my ($self) = @_;
-        DBI->connect( $self->connection_info ) or confess $DBI::errstr;
+        my $dbh = DBI->connect( $self->connection_info ) or confess $DBI::errstr;
+    	$dbh->do("PRAGMA foreign_keys = ON");
+    	$dbh;
     }
 );
 
@@ -69,15 +72,40 @@ has 'connection_info' => (
     }
 );
 
-before 'deploy_schema' => sub {
+sub deploy_schema {
     my ($self) = @_;
-    $self->dbh->do("PRAGMA foreign_keys = ON");
-};
+    my $dbh    = $self->dbh;
+    my $fh     = $self->ddl->openr;
+    my $data = do { local ($/); <$fh> };
+    $fh->close();
+LINE:
+    foreach my $line ( split( /\n{2,}/, $data ) ) {
+
+        #next LINE if $line =~ /^\-\-/;
+        if ( $line =~ /^\-\-/ ) {
+            my @separated = grep { !/^\-\-/ } split( /\n/, $line );
+            $line = join( "\n", @separated );
+        }
+        next LINE if $line !~ /\S+/;
+        $line =~ s{;$}{};
+        $line =~ s{/}{};
+        try {
+            $dbh->do($line);
+            $dbh->commit;
+        }
+        catch {
+            $dbh->rollback;
+            confess $_, "\n";
+        };
+    }
+}
 
 sub run_fixture_hooks {
 	my ($self) = @_;
     $self->dbh->do("PRAGMA foreign_keys = ON");
 }
+
+no Moose::Role;
 
 1;    # Magic true value required at end of module
 
