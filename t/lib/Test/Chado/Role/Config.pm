@@ -4,7 +4,7 @@ use version; our $VERSION = qv('0.1');
 
 # Other modules:
 use Moose::Role;
-use YAML qw/LoadFile/;
+use YAML qw/LoadFile DumpFile/;
 use Test::Chado::Types qw/ModConfig/;
 
 # Module implementation
@@ -20,11 +20,17 @@ has 'config' => (
         get_value  => 'get',
         pair_value => 'kv',
         sections   => 'keys',
-        has_value  => 'exists'
+        has_value  => 'exists',
+        set_value  => 'set'
     }
 );
 
-
+sub save_config {
+    my ( $self, $file ) = @_;
+    if ($file) {
+        DumpFile( $file, $self->config );
+    }
+}
 
 no Moose::Role;
 
