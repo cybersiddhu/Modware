@@ -17,16 +17,20 @@ has 'config' => (
     coerce    => 1,
     traits    => ['Hash'],
     handles   => {
-        get_value  => 'get',
-        pair_value => 'kv',
-        sections   => 'keys',
-        has_value  => 'exists',
-        set_value  => 'set'
+        get_value     => 'get',
+        pair_value    => 'kv',
+        sections      => 'keys',
+        has_value     => 'exists',
+        add_to_config => 'set', 
+        delete_config => 'delete'
     }
 );
 
 sub save_config {
     my ( $self, $file ) = @_;
+
+    #include some checks for file
+
     if ($file) {
         DumpFile( $file, $self->config );
     }
