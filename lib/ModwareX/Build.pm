@@ -1,73 +1,171 @@
 package ModwareX::Build;
 use base qw/Module::Build/;
 use Test::Chado;
+use FindBin qw/$Bin/;
+use File::Spec::Fuctions;
 
 __PACKAGE__->add_property('handler');
+__PACKAGE__->add_property('chado');
+__PACKAGE__->add_property( 'default_profile' => 'fallback' );
+__PACKAGE__->add_property('running_profile');
+__PACKAGE__->add_property(
+    'config',
+    sub {
+        catfile( $Bin, 't', 'config', 'database.yaml' );
+    }
+);
 
 sub db_handler {
     my ($self) = @_;
-    if ( my $dsn = $self->args('dsn') ) {
-        my $handler = Test::Chado->new->handler;
+    my $handler;
+    my $chado = Test::Chado->new;
+    if ( $self->action_profile ) {
+        $handler = $chado->handler_from_profile( $self->action_profile );
+    }
+    elsif ( my $dsn = $self->args('dsn') ) {
+        $handler = $chado->handler;
         $handler->dsn($dsn);
         $handler->user( $self->args('user') );
         $handler->password( $self->args('password') );
         my $loader = $self->args('loader') ? $self->args('loader') : 'bcs';
         $handler->loader($loader);
         $handler->name('custom');
-        return $handler;
     }
-    Test::Chado->new->default_handler;
+    else {
+        $chado = Test::Chado->new( config => $self->args('config') );
+        if ( my $profile = $self->args('profile') ) {
+            if ( $self->args('default') ) {
+                $self->default_profile( $self->args('profile') );
+                $handler
+                    = $chado->handler_from_profile( $self->args('profile') );
+            }
+            else {
+                $handler
+                    = $chado->handler_from_profile( $self->default_profile );
+            }
+        }
+    }
+    $self->handler($handler);
+    $self->chado($chado);
+}
+
+sub ACTION_list_profile {
+    my ($self) = @_;
+    $self->db_handler;
+    my $chado = $self->chado;
+    for my $section ( keys %{ $chado->sections } ) {
+        print $section, "\n--------\n";
+        print "\tdsn: ",    $section->{dsn},    "\n";
+        print "\tloader: ", $section->{loader}, "\n";
+        print "\tuser: ", $section->{user}, "\n" if defined $section->{user};
+        print "\tpassword ", $section->{password}, "\n"
+            if defined $section->{password};
+    }
+    print "\n";
+}
+
+sub ACTION_add_profile {
+    my ($self) = @_;
+    die "no profile name given\n" if !$self->args('name');
+    my $config
+        = $self->args('config') ? $self->args('config') : $self->config;
+    my $chado = Test::Chado->new( config => $config );
+    $chado->add_to_config(
+        $self->args('name'),
+        {   dsn           => $self->args('dsn'),
+            user          => $self->args('user'),
+            password      => $self->args('password'),
+            superuser     => $self->args('superuser'),
+            superpassword => $self->args('superpassword'),
+        }
+    );
+    $chado->save_config;
+}
+
+sub ACTION_remove_profile {
+    my ( $self, $profile ) = @_;
+    die "no profile name given\n" if !$profile;
+    my $config
+        = $self->args('config') ? $self->args('config') : $self->config;
+    my $chado = Test::Chado->new( config => $config );
+    $chado->delete_config($profile);
+    $chado->save_config;
+}
+
+sub ACTION_show_profile {
+    my ( $self, $name ) = @_;
+    die "no profile name given\n" if !$name;
+    my $config
+        = $self->args('config') ? $self->args('config') : $self->config;
+    my $chado = Test::Chado->new( config => $config );
+    my $profile = $chado->get_value($name);
+    if ( !$profile ) {
+        print "no profile with $name\n";
+        return;
+    }
+    print "\tdsn: ",    $profile->{dsn},    "\n";
+    print "\tloader: ", $profile->{loader}, "\n";
+    print "\tuser: ",   $profile->{user},   "\n" if defined $profile->{user};
+    print "\tpassword ", $profile->{password}, "\n"
+        if defined $profile->{password};
 }
 
 sub ACTION_create {
-    my ($self) = @_;
+    my ( $self, $profile ) = @_;
+    $self->action_profile($profile) if $profile;
     my $handler = $self->db_handler;
-    $self->handler($handler);
     $handler->create_db;
 }
 
 sub ACTION_deploy {
-    my ($self) = @_;
+    my ( $self, $profile ) = @_;
+    $self->action_profile($profile) if $profile;
     $self->depends_on('create');
     $self->handler->deploy_schema;
 }
 
 sub ACTION_deploy_schema {
-    my ($self) = @_;
+    my ( $self, $profile ) = @_;
+    $self->action_profile($profile) if $profile;
     my $handler = $self->db_handler;
     $handler->deploy_schema;
 }
 
 sub ACTION_load_organism {
-    my ($self) = @_;
+    my ( $self, $profile ) = @_;
+    $self->action_profile($profile) if $profile;
     my $handler = $self->db_handler;
     $self->handler($handler);
     $handler->load_organism;
 }
 
 sub ACTION_load_rel {
-    my ($self) = @_;
+    my ( $self, $profile ) = @_;
+    $self->action_profile($profile) if $profile;
     my $handler = $self->db_handler;
     $self->handler($handler);
     $handler->load_rel;
 }
 
 sub ACTION_load_so {
-    my ($self) = @_;
+    my ( $self, $profile ) = @_;
+    $self->action_profile($profile) if $profile;
     my $handler = $self->db_handler;
     $self->handler($handler);
     $handler->load_so;
 }
 
 sub ACTION_load_pub {
-    my ($self) = @_;
+    my ( $self, $profile ) = @_;
+    $self->action_profile($profile) if $profile;
     my $handler = $self->db_handler;
     $self->handler($handler);
     $handler->load_pub;
 }
 
 sub ACTION_load_fixture {
-    my ($self) = @_;
+    my ( $self, $profile ) = @_;
+    $self->action_profile($profile) if $profile;
     my $handler = $self->db_handler;
     $self->handler($handler);
     $handler->load_organism;
@@ -77,28 +175,32 @@ sub ACTION_load_fixture {
 }
 
 sub ACTION_unload_rel {
-    my ($self) = @_;
+    my ( $self, $profile ) = @_;
+    $self->action_profile($profile) if $profile;
     my $handler = $self->db_handler;
     $self->handler($handler);
     $handler->unload_rel;
 }
 
 sub ACTION_unload_pub {
-    my ($self) = @_;
+    my ( $self, $profile ) = @_;
+    $self->action_profile($profile) if $profile;
     my $handler = $self->db_handler;
     $self->handler($handler);
     $handler->unload_pub;
 }
 
 sub ACTION_unload_so {
-    my ($self) = @_;
+    my ( $self, $profile ) = @_;
+    $self->action_profile($profile) if $profile;
     my $handler = $self->db_handler;
     $self->handler($handler);
     $handler->unload_so;
 }
 
 sub ACTION_unload_fixture {
-    my ($self) = @_;
+    my ( $self, $profile ) = @_;
+    $self->action_profile($profile) if $profile;
     my $handler = $self->db_handler;
     $self->handler($handler);
     $handler->unload_rel;
@@ -108,14 +210,16 @@ sub ACTION_unload_fixture {
 }
 
 sub ACTION_unload_organism {
-    my ($self) = @_;
+    my ( $self, $profile ) = @_;
+    $self->action_profile($profile) if $profile;
     my $handler = $self->db_handler;
     $self->handler($handler);
     $handler->unload_organism;
 }
 
 sub ACTION_drop {
-    my ($self) = @_;
+    my ( $self, $profile ) = @_;
+    $self->action_profile($profile) if $profile;
     my $handler = $self->db_handler;
     $handler->drop_db;
 }
@@ -126,17 +230,65 @@ __END__
 
 =head1 NAME
 
-<MODULE NAME> - [One line description of module's purpose here]
+B<ModwareX::Build> - [Module::Build actions for loading test fixtures in chado database]
 
 
 =head1 VERSION
 
-This document describes <MODULE NAME> version 0.0.1
+This document describes <MODULE NAME> version 0.1
 
 
 =head1 SYNOPSIS
 
-use <MODULE NAME>;
+#In your Build.PL
+
+use ModwareX::Build;
+
+my $build = ModwareX::Build->new(....);
+
+$build->create_build_script;
+
+#Default behaviour
+ perl Build.PL;
+  ./Build deploy;
+  ./Build load_fixture;
+  ./Build unload_fixture;
+   ./Build drop;
+
+#Other setup
+ perl Build.PL  --dsn "dbi:Pg:database=mydb" --user user --password pass
+
+./Build deploy_schema;
+
+./Build load_fixture;
+
+./Build unload_fixture;
+
+./Build drop_schema;
+
+#Setup with a profile 
+
+ perl Build.PL --profile myprofile --dsn "dbi:Oracle:sid=mysid" --user user --password
+ mypass --default;
+
+ ./Build list_profiles;
+
+ ./Build show_profile; 
+
+ ./Build deploy_schema;
+
+ ./Build load_fixture;
+
+ ./Build drop_schema;
+
+ ./Build add_profile --name mymod --dsn "dbi:Pg:database=mygmod" --user myuser --password
+ mypassword 
+
+ ./Build deploy_schema mygmod
+
+
+ #setup with custom config file and profiles
+
 
 =for author to fill in:
 Brief code example(s) here showing commonest usage(s).
