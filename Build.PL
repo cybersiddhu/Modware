@@ -1,9 +1,11 @@
 #!/usr/bin/perl -w
 use strict;
 use inc::latest 'Module::Build';
+use File::Spec::Functions;
 use lib ( 'lib', 't/lib' );
 use ModwareX::Build;
 
+my $config_file = catfile( 't', 'config', 'database.yaml' );
 my $build = ModwareX::Build->new(
     module_name   => 'ModwareX',
     license       => 'perl',
@@ -31,11 +33,11 @@ my $build = ModwareX::Build->new(
         dsn           => { type => ':s' },
         user          => { type => ':s' },
         password      => { type => ':s' },
-        config        => { type => ':s' },
+        config_file   => { store => \$config_file },
         profile       => { type => ':s' },
         superuser     => { type => ':s' },
         superpassword => { type => ':s' },
-        default       => {},
+        default => {},
     }
 );
 
