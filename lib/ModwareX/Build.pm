@@ -2,23 +2,28 @@ package ModwareX::Build;
 use base qw/Module::Build/;
 use Test::Chado;
 use FindBin qw/$Bin/;
-use File::Spec::Fuctions;
+use File::Spec::Functions;
 
 __PACKAGE__->add_property('handler');
 __PACKAGE__->add_property('chado');
 __PACKAGE__->add_property( 'default_profile' => 'fallback' );
-__PACKAGE__->add_property('running_profile');
+__PACKAGE__->add_property('action_profile');
 __PACKAGE__->add_property(
-    'config',
-    sub {
+    'dbconfig',
+    default => sub {
         catfile( $Bin, 't', 'config', 'database.yaml' );
+    },
+    check => sub {
+        my $self = shift;
+        $self->property_error("File $_ do not exist") if !-e $_;
     }
 );
 
 sub db_handler {
     my ($self) = @_;
     my $handler;
-    my $chado = Test::Chado->new;
+    my $chado = Test::Chado->new( config => $self->args('config_file')
+            || $self->dbconfig );
     if ( $self->action_profile ) {
         $handler = $chado->handler_from_profile( $self->action_profile );
     }
@@ -32,32 +37,43 @@ sub db_handler {
         $handler->name('custom');
     }
     else {
-        $chado = Test::Chado->new( config => $self->args('config') );
         if ( my $profile = $self->args('profile') ) {
             if ( $self->args('default') ) {
                 $self->default_profile( $self->args('profile') );
-                $handler
-                    = $chado->handler_from_profile( $self->args('profile') );
             }
-            else {
-                $handler
-                    = $chado->handler_from_profile( $self->default_profile );
-            }
+            $handler = $chado->handler_from_profile( $self->args('profile') );
+        }
+        else {
+            $handler = $chado->handler_from_profile( $self->default_profile );
         }
     }
     $self->handler($handler);
     $self->chado($chado);
 }
 
-sub ACTION_list_profile {
+sub check_and_setup {
+    my ($self) = @_;
+    die "no profile name given\n" if !$self->args('name');
+    my $name = $self->args('name');
+    $self->action_profile($name) if $name;
+}
+
+sub common_setup {
+    my ($self) = @_;
+    $self->action_profile( $self->args('name') ) if $self->args('name');
+}
+
+sub ACTION_list_profiles {
     my ($self) = @_;
     $self->db_handler;
     my $chado = $self->chado;
-    for my $section ( keys %{ $chado->sections } ) {
-        print $section, "\n--------\n";
+    for my $key ( $chado->sections ) {
+        my $section = $chado->get_value($key);
+        print "\nsection name:  $key\n--------\n";
         print "\tdsn: ",    $section->{dsn},    "\n";
         print "\tloader: ", $section->{loader}, "\n";
-        print "\tuser: ", $section->{user}, "\n" if defined $section->{user};
+        print "\tuser: ",   $section->{user},   "\n"
+            if defined $section->{user};
         print "\tpassword ", $section->{password}, "\n"
             if defined $section->{password};
     }
@@ -66,12 +82,14 @@ sub ACTION_list_profile {
 
 sub ACTION_add_profile {
     my ($self) = @_;
-    die "no profile name given\n" if !$self->args('name');
+    $self->check_and_setup;
     my $config
-        = $self->args('config') ? $self->args('config') : $self->config;
+        = $self->args('config_file')
+        ? $self->args('config_file')
+        : $self->dbconfig;
     my $chado = Test::Chado->new( config => $config );
     $chado->add_to_config(
-        $self->args('name'),
+        $self->args('action_profile'),
         {   dsn           => $self->args('dsn'),
             user          => $self->args('user'),
             password      => $self->args('password'),
@@ -83,145 +101,146 @@ sub ACTION_add_profile {
 }
 
 sub ACTION_remove_profile {
-    my ( $self, $profile ) = @_;
-    die "no profile name given\n" if !$profile;
+    my ($self) = @_;
+    $self->common_profile;
     my $config
-        = $self->args('config') ? $self->args('config') : $self->config;
+        = $self->args('config_file')
+        ? $self->args('config_file')
+        : $self->dbconfig;
     my $chado = Test::Chado->new( config => $config );
-    $chado->delete_config($profile);
+    $chado->delete_config( $self->action_profile );
     $chado->save_config;
 }
 
 sub ACTION_show_profile {
-    my ( $self, $name ) = @_;
-    die "no profile name given\n" if !$name;
+    my ($self) = @_;
+    $self->check_and_setup;
     my $config
-        = $self->args('config') ? $self->args('config') : $self->config;
+        = $self->args('config_file')
+        ? $self->args('config_file')
+        : $self->dbconfig;
     my $chado = Test::Chado->new( config => $config );
-    my $profile = $chado->get_value($name);
+    my $profile = $chado->get_value( $self->action_profile );
     if ( !$profile ) {
-        print "no profile with $name\n";
+        print "no profile with", $self->action_profile, "\n";
         return;
     }
     print "\tdsn: ",    $profile->{dsn},    "\n";
     print "\tloader: ", $profile->{loader}, "\n";
-    print "\tuser: ",   $profile->{user},   "\n" if defined $profile->{user};
+    print "\tuser: ",   $profile->{user},   "\n"
+        if defined $profile->{user};
     print "\tpassword ", $profile->{password}, "\n"
         if defined $profile->{password};
 }
 
 sub ACTION_create {
-    my ( $self, $profile ) = @_;
-    $self->action_profile($profile) if $profile;
-    my $handler = $self->db_handler;
-    $handler->create_db;
+    my ($self) = @_;
+    $self->common_setup;
+    $self->db_handler;
+    $self->handler->create_db;
 }
 
 sub ACTION_deploy {
-    my ( $self, $profile ) = @_;
-    $self->action_profile($profile) if $profile;
+    my ($self) = @_;
     $self->depends_on('create');
     $self->handler->deploy_schema;
 }
 
 sub ACTION_deploy_schema {
-    my ( $self, $profile ) = @_;
-    $self->action_profile($profile) if $profile;
-    my $handler = $self->db_handler;
-    $handler->deploy_schema;
+    my ($self) = @_;
+    $self->common_setup;
+    $self->db_handler;
+    $self->handler->deploy_schema;
 }
 
 sub ACTION_load_organism {
-    my ( $self, $profile ) = @_;
-    $self->action_profile($profile) if $profile;
-    my $handler = $self->db_handler;
-    $self->handler($handler);
-    $handler->load_organism;
+    my ($self) = @_;
+    $self->common_setup;
+    $self->db_handler;
+    $self->handler->load_organism;
 }
 
 sub ACTION_load_rel {
-    my ( $self, $profile ) = @_;
-    $self->action_profile($profile) if $profile;
-    my $handler = $self->db_handler;
-    $self->handler($handler);
-    $handler->load_rel;
+    my ($self) = @_;
+    $self->common_setup;
+    $self->db_handler;
+    $self->handler->load_rel;
 }
 
 sub ACTION_load_so {
-    my ( $self, $profile ) = @_;
-    $self->action_profile($profile) if $profile;
-    my $handler = $self->db_handler;
-    $self->handler($handler);
-    $handler->load_so;
+    my ($self) = @_;
+    $self->common_setup;
+    $self->db_handler;
+    $self->handler->load_so;
 }
 
 sub ACTION_load_pub {
-    my ( $self, $profile ) = @_;
-    $self->action_profile($profile) if $profile;
-    my $handler = $self->db_handler;
-    $self->handler($handler);
-    $handler->load_pub;
+    my ($self) = @_;
+    $self->common_setup;
+    $self->db_handler;
+    $self->handler->load_pub;
 }
 
 sub ACTION_load_fixture {
-    my ( $self, $profile ) = @_;
-    $self->action_profile($profile) if $profile;
-    my $handler = $self->db_handler;
-    $self->handler($handler);
-    $handler->load_organism;
-    $handler->load_rel;
-    $handler->load_so;
-    $handler->load_pub;
+    my ($self) = @_;
+    $self->common_setup;
+    $self->db_handler;
+    $self->handler->load_organism;
+    $self->handler->load_rel;
+    $self->handler->load_so;
+    $self->handler->load_pub;
 }
 
 sub ACTION_unload_rel {
-    my ( $self, $profile ) = @_;
-    $self->action_profile($profile) if $profile;
-    my $handler = $self->db_handler;
-    $self->handler($handler);
-    $handler->unload_rel;
+    my ($self) = @_;
+    $self->common_setup;
+    $self->db_handler;
+    $self->handler->unload_rel;
 }
 
 sub ACTION_unload_pub {
-    my ( $self, $profile ) = @_;
-    $self->action_profile($profile) if $profile;
-    my $handler = $self->db_handler;
-    $self->handler($handler);
-    $handler->unload_pub;
+    my ($self) = @_;
+    $self->common_setup;
+    $self->db_handler;
+    $self->handler->unload_pub;
 }
 
 sub ACTION_unload_so {
-    my ( $self, $profile ) = @_;
-    $self->action_profile($profile) if $profile;
-    my $handler = $self->db_handler;
-    $self->handler($handler);
-    $handler->unload_so;
+    my ($self) = @_;
+    $self->common_setup;
+    $self->db_handler;
+    $self->handler->unload_so;
 }
 
 sub ACTION_unload_fixture {
-    my ( $self, $profile ) = @_;
-    $self->action_profile($profile) if $profile;
-    my $handler = $self->db_handler;
-    $self->handler($handler);
-    $handler->unload_rel;
-    $handler->unload_so;
-    $handler->unload_pub;
-    $handler->unload_organism;
+    my ($self) = @_;
+    $self->common_setup;
+    $self->db_handler;
+    $self->handler->unload_rel;
+    $self->handler->unload_so;
+    $self->handler->unload_pub;
+    $self->handler->unload_organism;
 }
 
 sub ACTION_unload_organism {
-    my ( $self, $profile ) = @_;
-    $self->action_profile($profile) if $profile;
-    my $handler = $self->db_handler;
-    $self->handler($handler);
-    $handler->unload_organism;
+    my ($self) = @_;
+    $self->common_setup;
+    $self->db_handler;
+    $self->handler->unload_organism;
 }
 
 sub ACTION_drop {
-    my ( $self, $profile ) = @_;
-    $self->action_profile($profile) if $profile;
-    my $handler = $self->db_handler;
-    $handler->drop_db;
+    my ($self) = @_;
+    $self->common_setup;
+    $self->db_handler;
+    $self->handler->drop_db;
+}
+
+sub ACTION_drop {
+    my ($self) = @_;
+    $self->common_setup;
+    $self->db_handler;
+    $self->handler->drop_schema;
 }
 
 1;    # Magic true value required at end of module
@@ -268,8 +287,7 @@ $build->create_build_script;
 
 #Setup with a profile 
 
- perl Build.PL --profile myprofile --dsn "dbi:Oracle:sid=mysid" --user user --password
- mypass --default;
+ perl Build.PL --profile myprofile --dsn "dbi:Oracle:sid=mysid" --user user --password mypass --default;
 
  ./Build list_profiles;
 
@@ -281,13 +299,14 @@ $build->create_build_script;
 
  ./Build drop_schema;
 
- ./Build add_profile --name mymod --dsn "dbi:Pg:database=mygmod" --user myuser --password
- mypassword 
+ ./Build add_profile --name mymod --dsn "dbi:Pg:database=mygmod" --user myuser --password mypassword;
 
- ./Build deploy_schema mygmod
+ ./Build deploy_schema --name mygmod;
 
 
  #setup with custom config file and profiles
+ 
+ perl Build.PL --config_file "~/.myconfig.yaml" --profile myprofile --default;
 
 
 =for author to fill in:
