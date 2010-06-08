@@ -64,11 +64,11 @@ before '_build_from_profile' => sub {
 
 sub _build_from_profile {
     my ( $self, $name ) = @_;
-    $name ||= 'default';
+    $name ||= 'fallback';
 
-#There could be multiple databases configured in the default configuration file
-#so we load the yaml file first and then later pass the each section to the database
-#configuration handling class.
+  #There could be multiple databases configured in the default configuration file
+  #so we load the yaml file first and then later pass the each section to the database
+  #configuration handling class.
     my $db_str  = $self->config;
     my $db_conf = Test::Chado::Config::Database->new;
     $db_conf->config( $db_str->{$name} );
@@ -78,13 +78,15 @@ sub _build_from_profile {
     $fixture_conf->config( catfile( $Bin, 't', 'config', 'fixture.yaml' ) );
 
     my $handler = Test::Chado::Handler->new(
-        name    => 'default',
+        name    => 'fallback',
         section => $db_conf,
         fixture => $fixture_conf,
         loader  => $db_str->{$name}->{loader}
     );
     $handler;
 }
+
+no Moose::Role;
 
 1;    # Magic true value required at end of module
 
