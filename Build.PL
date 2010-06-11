@@ -25,19 +25,20 @@ my $build = ModwareX::Build->new(
         'MooseX::Params::Validate'  => '0.14',
         'MooseX::Aliases'           => '0.08',
         'MooseX::Types'             => '0.22',
-        'Path::Class'               => '0.18'
+        'Path::Class'               => '0.18',
+        'aliased'                   => '0.30'
     },
     add_to_cleanup => ['ModwareX-*'],
     create_readme  => 1,
     get_options    => {
-        dsn           => { type => ':s' },
-        user          => { type => ':s' },
-        password      => { type => ':s' },
+        dsn           => { type  => ':s' },
+        user          => { type  => ':s' },
+        password      => { type  => ':s' },
         config_file   => { store => \$config_file },
-        profile       => { type => ':s' },
-        superuser     => { type => ':s' },
-        superpassword => { type => ':s' },
-        default => {},
+        profile       => { type  => ':s' },
+        superuser     => { type  => ':s' },
+        superpassword => { type  => ':s' },
+        default       => {},
     }
 );
 

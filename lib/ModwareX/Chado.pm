@@ -1,128 +1,17 @@
-package ModwareX:::Chado;
+package ModwareX::Chado;
 
-use version; our $VERSION = qv('1.0.0');
+use version; 
+our $VERSION = qv('0.1');
 
 # Other modules:
-use MooseX::Singleton;
-use ModwareX::Types;
-use MooseX::Params::Validate;
-use Module::Load::Conditional qw/can_load/;
+use Moose::Exporter;
+use ModwareX::DataSource::Chado;
 
 # Module implementation
 #
 
-sub connect {
-    my ( $class, %params ) = validate_hash(
-        \@_,
-        dsn         => { isa => Str,  required => 1 },
-        user        => { isa => Str,  required => 1 },
-        password    => { isa => Str,  required => 1 },
-        attr        => { isa => Hash },
-        extra       => { isa => Hash },
-        datasource_tag  => { isa => Hash, default  => 'gmod' },
-        adapter_tag => { isa => Str,  default  => 'bcs' },
-    );
-
-    $class->datasource_tag( $params{datasource_tag} );
-    $class->adapter_tag( $params{adapter_tag} );
-
-    delete $params{$_} for qw/datasource_tag adapter_tag/;
-
-    my $datasource = $class->adapter( $class->adapter_tag )->(%params);
-    $class->datasource($datasource);
-}
-
-has 'datasource_tag' => (
-    is  => 'rw',
-    isa => Str,
-);
-
-has 'adapter_tag' => (
-    is  => 'rw',
-    isa => Str,
-);
-
-has 'adapter_stack' => (
-    is      => 'rw',
-    isa     => 'HashRef[Code]',
-    default => sub {
-        my $self = shift;
-        my $tag  = $self->adapter_tag;
-        return {
-            $tag => sub {
-                my %arg = @_;
-                can_load(modules =>  'Bio::Chado::Schema');
-                return Bio::Chado::Schema->connect(
-                    $arg{dsn},  $arg{user}, $arg{pass},
-                    $arg{attr}, $arg{extra}
-                );
-            };
-        };
-    },
-    handles => {
-        adapter          => 'get',
-        register_adapter => 'set',
-        delete_adapter   => 'delete'
-    }
-);
-
-has 'datasource' => (
-    is        => 'rw',
-    isa       => Object,
-    predicate => 'has_datasource',
-    lazy      => 1,
-);
-
-after 'datasource' => sub {
-    my ( $self, $datasource ) = @_;
-    $self->add_datasource( $self->datasource_tag, $datasource );
-    $self->reader_datasource($datasource);
-    $self->add_reader_datasource( $self->datasource_tag, $datasource );
-    $self->writer_datasource($datasource);
-    $self->add_writer_datasource( $self->datasource_tag, $datasource );
-};
-
-has [qw/reader_datasource writer_datasource/] => (
-    is   => 'rw',
-    isa  => Object,
-    lazy => 1
-);
-
-has 'reader_datasource_stack' => (
-    traits  => ['Hash'],
-    is      => 'rw',
-    isa     => 'HashRef[Str]',
-    default => sub { {} },
-    handles => {
-        add_reader_datasource    => 'set',
-        get_reader_datasource_by_tag => 'get',
-        delete_reader_datasource => 'delete'
-    }
-);
-
-has 'writer_datasource_stack' => (
-    traits  => ['Hash'],
-    is      => 'rw',
-    isa     => 'HashRef[Str]',
-    default => sub { {} },
-    handles => {
-        add_writer_datasource    => 'set',
-        get_writer_datasource_by_tag => 'get',
-        delete_writer_datasource => 'delete'
-    }
-);
-
-has 'datasource_stack' => (
-    traits  => ['Hash'],
-    is      => 'rw',
-    isa     => 'HashRef[Str]',
-    default => sub { {} },
-    handles => {
-        add_datasource    => 'set',
-        get_datasource_by_tag => 'get',
-        delete_datasource => 'delete'
-    }
-);
+my $reader = ModwareX::DataSource::Chado->reader_namespace;
+$reader .= '::'. uc ModwareX::DataSource::Chado->reader;
 
 1;    # Magic true value required at end of module
 

@@ -1,10 +1,12 @@
 package ModwareX::DataSource::Chado;
 
-use version; our $VERSION = qv('1.0.0');
+use version;
+our $VERSION = qv('0.1');
 
 # Other modules:
 use MooseX::Singleton;
-use ModwareX::Types;
+
+#use ModwareX::Types;
 use MooseX::Params::Validate;
 use Module::Load;
 
@@ -12,125 +14,185 @@ use Module::Load;
 #
 
 sub connect {
-    my ( $class, %params ) = validate_hash(
+    my $class  = shift;
+    my %params = validated_hash(
         \@_,
-        dsn         => { isa => Str,  required => 1 },
-        user        => { isa => Str,  required => 1 },
-        password    => { isa => Str,  required => 1 },
-        attr        => { isa => Hash },
-        extra       => { isa => Hash },
-        source_tag  => { isa => Hash, default  => 'gmod' },
-        adapter_tag => { isa => Str,  default  => 'bcs' },
+        dsn              => { isa => 'Str' },
+        user             => { isa => 'Str', optional => 1 },
+        password         => { isa => 'Str', optional => 1 },
+        attr             => { isa => 'Hash', optional => 1 },
+        extra            => { isa => 'Hash', optional => 1 },
+        source_name      => { isa => 'Str', optional => 1 },
+        adapter          => { isa => 'Str', optional => 1 },
+        reader           => { isa => 'Str', optional => 1 },
+        writer           => { isa => 'Str', optional => 1 },
+        reader_namespace => { isa => 'Str', optional => 1 },
+        writer_namespace => { isa => 'Str', optional => 1 },
+        default          => { isa => 'Bool', optional => 1 }
     );
 
-    $class->source_tag( $params{source_tag} );
-    $class->adapter_tag( $params{adapter_tag} );
+    for my $args (
+        qw/source_name adapter reader writer
+        reader_namespace writer_namspace dsn user password attr extra/
+        )
+    {
 
-    delete $params{$_} for qw/source_tag adapter_tag/;
+        $class->$args( $params{$args} )
+            if defined $params{$args};
+    }
 
-    my $source = $class->adapter( $class->adapter_tag )->(%params);
-    $class->source($source);
+    $class->default_source_name( $params{source_name} )
+        if defined $params{default};
 }
 
-has 'source_tag' => (
-    is  => 'rw',
-    isa => Str,
-);
+has [qw/dsn user password/] => ( is => 'rw', isa => 'Str' );
 
-has 'adapter_tag' => (
-    is  => 'rw',
-    isa => Str,
-);
-
-has 'adapter_stack' => (
+has [qw/attr extra/] => (
     is      => 'rw',
-    isa     => 'HashRef[Code]',
-    default => sub {
-        my $self = shift;
-        my $tag  = $self->adapter_tag;
-        return {
-            $tag => sub {
-                my %arg = @_;
-                load 'Bio::Chado::Schema';
-                return Bio::Chado::Schema->connect(
-                    $arg{dsn},  $arg{user}, $arg{pass},
-                    $arg{attr}, $arg{extra}
-                );
-            };
-        };
-    },
-    handles => {
-        adapter          => 'get',
-        register_adapter => 'set',
-        delete_adapter   => 'delete'
+    isa     => 'HashRef',
+    default => sub { {} },
+    lazy    => 1
+);
+
+has 'source_name' => (
+    is     => 'rw',
+    isa    => 'Str',
+);
+
+after 'source_name' => sub {
+    my ( $class, $source_name ) = @_;
+    $class->add_repository( $source_name, $class->adapter );
+    $class->add_reader_source_name( $source_name, $class->reader );
+    $class->add_writer_source_name( $source_name, $class->writer );
+    if ( !$class->has_source($source_name) ) {
+        $class->register_handler( $source_name,
+            $class->get_handler_by_source_name('fallback') );
     }
-);
-
-has 'source' => (
-    is        => 'rw',
-    isa       => Object,
-    predicate => 'has_source',
-    lazy      => 1,
-);
-
-after 'source' => sub {
-    my ( $self, $source ) = @_;
-    $self->add_source( $self->source_tag, $source );
-    $self->reader_source($source);
-    $self->add_reader_source( $self->source_tag, $source );
-    $self->writer_source($source);
-    $self->add_writer_source( $self->source_tag, $source );
 };
 
-has [qw/reader_source writer_source/] => (
-    is   => 'rw',
-    isa  => Object,
-    lazy => 1
+has 'default_source_name' => (
+    is      => 'rw',
+    isa     => 'Str',
+    default => 'gmod'
 );
 
-has 'reader_source_stack' => (
+has 'handler_stack' => (
+    is      => 'rw',
+    isa     => 'HashRef[CodeRef]',
+    traits  => ['Hash'],
+    handles => {
+        get_handler_by_source_name => 'get',
+        register_handler           => 'set',
+        delete_handler             => 'delete',
+        has_source                 => 'defined',
+        sources                    => 'keys'
+    },
+    lazy_build => 1
+);
+
+sub _build_handler_stack {
+    my $class  = shift;
+    my $source = $class->default_source_name;
+    return {
+        'fallback' => sub {
+            load 'Bio::Chado::Schema';
+            return Bio::Chado::Schema->connect(
+                $class->dsn,  $class->user, $class->password,
+                $class->attr, $class->extra
+            );
+        },
+        $source => sub {
+            load 'Bio::Chado::Schema';
+            return Bio::Chado::Schema->connect(
+                $class->dsn,  $class->user, $class->password,
+                $class->attr, $class->extra
+            );
+        }
+    };
+}
+
+has [qw/reader writer adapter/] => (
+    is      => 'rw',
+    isa     => 'Str',
+    default => 'bcs',
+    lazy    => 1
+);
+
+after 'adapter' => sub {
+    my ( $self, $name ) = @_;
+    return if !$name;
+    $self->reader($name);
+    $self->writer($name);
+};
+
+has 'reader_namespace' => (
+    is      => 'rw',
+    isa     => 'Str',
+    lazy    => 1,
+    default => 'ModwareX::Chado::Reader'
+);
+
+has 'writer_namespace' => (
+    is      => 'rw',
+    isa     => 'Str',
+    lazy    => 1,
+    default => 'ModwareX::Chado::Writer'
+);
+
+has 'reader_source_name_stack' => (
+    traits  => ['Hash'],
+    is      => 'rw',
+    isa     => 'HashRef[Str]',
+    lazy    => 1,
+    default => sub { {} },
+    handles => {
+        add_reader_source_name           => 'set',
+        reader_source_name_by_repository => 'get',
+        delete_reader_source_name        => 'delete'
+    }
+);
+
+has 'writer_source_name_stack' => (
     traits  => ['Hash'],
     is      => 'rw',
     isa     => 'HashRef[Str]',
     default => sub { {} },
+    lazy    => 1,
     handles => {
-        add_reader_source    => 'set',
-        reader_source_by_tag => 'get',
-        delete_reader_source => 'delete'
+        add_writer_source_name           => 'set',
+        writer_source_name_by_repository => 'get',
+        delete_writer_source_name        => 'delete'
     }
 );
 
-has 'writer_source_stack' => (
+has 'source_name_stack' => (
     traits  => ['Hash'],
     is      => 'rw',
     isa     => 'HashRef[Str]',
     default => sub { {} },
+    lazy    => 1,
     handles => {
-        add_writer_source    => 'set',
-        writer_source_by_tag => 'get',
-        delete_writer_source => 'delete'
+        add_repository          => 'set',
+        get_adapter_source_name => 'get',
+        delete_repository       => 'delete'
     }
 );
 
-has 'source_stack' => (
-    traits  => ['Hash'],
-    is      => 'rw',
-    isa     => 'HashRef[Str]',
-    default => sub { {} },
-    handles => {
-        add_source    => 'set',
-        source_by_tag => 'get',
-        delete_source => 'delete'
-    }
-);
+sub handler {
+    my ( $class, $source_name ) = @_;
+    $class->get_handler_by_source_name(
+        $source_name ? $source_name : $class->default_source_name )->();
+}
 
 1;    # Magic true value required at end of module
+
+
 
 __END__
 
 =head1 NAME
 
-<ModwareX::DataSource::Chado> - [Chado datasource handler]
+<ModwareX::DataSource::Chado> - [Chado datasource_name handler]
 
 
 =head1 VERSION
@@ -235,7 +297,7 @@ suggested remedies.
 
 =for author to fill in:
 A full explanation of any configuration system(s) used by the
-module, including the names and locations of any configuration
+module, including the source_names and locations of any configuration
 files, and the meaning of any environment variables or properties
 that can be set. These descriptions must also include details of any
 configuration language used.
@@ -258,9 +320,9 @@ A list of all the other modules that this module relies upon,
 
   =for author to fill in:
   A list of any modules that this module cannot be used in conjunction
-  with. This may be due to name conflicts in the interface, or
-  competition for system or program resources, or due to internal
-  limitations of Perl (for example, many modules that use source code
+  with. This may be due to source_name conflicts in the interface, or
+  competition for system or program resource_names, or due to internal
+  limitations of Perl (for example, many modules that use source_name code
 		  filters are mutually incompatible).
 
   None reported.
@@ -307,7 +369,7 @@ A list of all the other modules that this module relies upon,
   Copyright (c) B<2003>, Siddhartha Basu C<<siddhartha-basu@northwestern.edu>>. All rights reserved.
 
   This module is free software; you can redistribute it and/or
-  modify it under the same terms as Perl itself. See L<perlartistic>.
+  modify it under the same terms as Perl itclass. See L<perlartistic>.
 
 
   =head1 DISCLAIMER OF WARRANTY

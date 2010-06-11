@@ -1,0 +1,172 @@
+=head1 Connecting
+
+=over
+
+=item 
+
+ModwareX::DataSource::Chado->connect( 
+ dsn => '....',  
+ user => '....',  
+ password => '....'
+ );
+
+The above become default repository for fetching/storing the data.
+
+my $pub = Publication->find(....);
+ $pub->year(1984);
+ $pub->update;
+
+my $pub2 = Publication->new(authors => $authors);
+ $pub2->year(2009);
+ $pub2->title("best publication ever");
+ $pub2->create;
+
+
+=back
+
+=head2 Multiple datasources 
+
+B<Default>
+
+ModwareX::DataSource::Chado->connect( 
+ dsn => '....',  
+ user => '....',  
+ password => '....'
+ );
+
+B<Add another one> ...
+
+ModwareX::DataSource::Chado->connect( 
+  dsn => '....',  
+  user => '....',  
+  password => '....'
+  source_name => 'beermod'
+ );
+
+=head3 Take a bread with software testing
+
+=over
+
+=item Check if multiple datasource can be set
+
+=item Check if each datasource returns the expected adapter handler
+
+=item Check if you can switch the default datasource
+
+=back
+
+B<If you do this> at this point 
+
+ModwareX::DataSource::Chado->connect( 
+  dsn => '....',  
+  user => '....',  
+  password => '....'
+ );
+
+The above overwrites the first one and become the default datasource.
+
+B<Anyway> now ...
+ my $pub = Publication->find(.....);
+ will fetch from default and ....
+
+ my $pub = Publication->find(source => 'beermod',  .....);
+ will fetch from I<beermod> datasource. Any data retreival/storage from '$pub' object will
+ now be tied to I<beermod>.
+
+=head3 Have to do the same for new record also.
+
+ my $pub2 = Publication->new(source => 'beermod',  authors => $authors);
+ $pub2->year(2009);
+ $pub2->title("best publication ever");
+ $pub2->create;
+
+
+=head3 Omitting the source name goes to default
+
+ my $pub2 = Publication->new(authors => $authors);
+ $pub2->year(2009);
+ $pub2->title("best publication ever");
+ $pub2->create;
+
+This saves to the default resource
+
+
+=head2 Customize adapter
+
+=head3 Preamble
+
+ModwareX borrowed ideas from datamapper pattern. The adapter represents the datamapper
+layer which moves the data between chado and data objects. The data objetcs are decoupled,
+it does not have any knowledge of chado schema. The default adaptor layer is build on
+Bio::Chado::Schema. It is splitted into two groups,  reader and writer. Using Moose,
+these two layers are combined thereby providing a unified layer to end user. Yes,
+ModwareX allows developer to write their own adapter layer. 
+
+=head3 Using your own adapter layer
+
+=over
+
+=item 
+
+First figure out which data module you want to write adapter for. For example,  if you
+want it for Publication module.Do the following steps ...
+
+=over 
+
+=item 
+
+Figure out the interface you have to implement for the adaptor. The default reader and
+writer for Publication module is under ModwareX::Chado::Reader::BCS::Publiction and
+ModwareX::Chado::Writer::BCS::Publiction. BCS is the short name of the adaptor. It follows
+the format [Module base namespace]::[Reader|Writer]::[Short adaptor name]::[Data module name]
+
+=item 
+
+Implement the interface as Moose::Role for writer and regular perl class for reader. For
+reader the methods are class based.
+
+=item
+
+Pass the information to the connector. Now,  assuming you have a reader adapter under
+MyBest::Adapter namespace using DBI for publication data module. You would then keep it under ...
+MyBest::Adapter::Reader::DBI::Publiction. Then you could set it up like this....
+
+
+Chado->connect(
+  dsn => '.....', 
+  user => '....., '
+  password => '....'
+ );
+
+ Chado->reader_namespace('MyBest::Adapter');
+ Chado->adapter('dbi');
+
+#register the handler that the adapter will use
+ Chado->register_adapter(dbi => sub {
+	my $class = shift;
+	DBI->connect($class->dsn, $class->user,  $class->password);
+});
+
+
+=over
+
+=item Caveat
+
+The above setup is global,  so by default all the data module will try to load its reader adapter
+pair from that namespace. So,  make sure either that module exists or do not use that
+particular datamodule. The other option is to initiate the default adapters and use it
+where the custom one do not exist. 
+
+=back 
+
+=back 
+
+=back
+
+
+
+
+=back
+
+
+
