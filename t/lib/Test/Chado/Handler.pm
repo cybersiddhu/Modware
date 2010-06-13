@@ -18,7 +18,7 @@ use File::Spec::Functions;
 with 'MooseX::LogDispatch::Levels';
 
 has 'name' => ( is => 'rw', isa => 'Str' );
-has 'loader' => ( is => 'rw', isa => 'Str', default => 'bcs' );
+has 'loader' => ( is => 'rw', isa => 'Str',  default => 'bcs');
 has 'section' => (
     is        => 'rw',
     isa       => 'Test::Chado::Config::Database',
@@ -51,26 +51,20 @@ has 'fixture' => (
     predicate => 'has_fixture',
 );
 
-for my $attr (qw/dsn driver user password superuser superpass driver_dsn database/) {
-    has $attr => 
-    		( is => 'rw', isa => 'Str',  predicate => 'has_'.$attr );
+for my $attr (
+    qw/driver user password superuser superpass driver_dsn database/)
+{
+    has $attr => ( is => 'rw', isa => 'Str', predicate => 'has_' . $attr );
 }
 
-after 'user' => sub {
-	my ($self,  $user) = @_;
-	if (!$self->has_superuser) {
-		$self->superuser($user);
-	}
-};
+has 'dsn' => (
+    is        => 'rw',
+    isa       => 'Str',
+    predicate => 'has_dsn',
+    trigger   => \&_setup_dsn
+);
 
-after 'password' => sub {
-	my ($self,  $pass) = @_;
-	if (!$self->has_superpass) {
-		$self->superpass($pass);
-	}
-};
-
-after 'dsn' => sub {
+sub _setup_dsn {
     my ( $self, $value ) = @_;
     return if !$value;
     my ( $scheme, $driver, $attr_string, $attr_hash, $driver_dsn )
@@ -78,15 +72,16 @@ after 'dsn' => sub {
         or confess "cannot parse dsn:$DBI::errstr\n";
     $self->driver($driver);
     $self->driver_dsn($driver_dsn);
-    apply_all_roles($self,  'Test::Chado::Role::Loader::'. uc $self->loader );
-};
+        apply_all_roles( $self,
+            'Test::Chado::Role::Loader::' . uc $self->loader );
+}
 
 after 'driver' => sub {
     my ( $self, $driver ) = @_;
     return if !$driver;
     $driver = lc $driver;
     apply_all_roles( $self,
-        'Test::Chado::Role::Handler::' . ucfirst $driver);
+        'Test::Chado::Role::Handler::' . ucfirst $driver );
 };
 
 subtype 'FileClass' => as 'Object' => where { $_->isa('Path::Class::File') };
@@ -96,23 +91,38 @@ coerce 'FileClass' => from 'Str' =>
 has 'ddl' => (
     is      => 'rw',
     isa     => 'FileClass',
-    lazy => 1, 
+    lazy    => 1,
+    coerce  => 1,
     default => sub {
         my ($self) = @_;
         Path::Class::File->new(
-        	catfile( $Bin, 't', 'data', 'ddl', 'chado.' . lc $self->driver ));
+            catfile( $Bin, 't', 'data', 'ddl', 'chado.' . lc $self->driver )
+        );
     }
 );
 
 has 'attr_hash' => (
     is      => 'rw',
     isa     => 'HashRef',
-    traits => ['Hash'], 
-    default => sub { { AutoCommit => 0 } }, 
-    handles => {
-    	add_dbh_attribute => 'set'
-    }
+    traits  => ['Hash'],
+    default => sub { { AutoCommit => 0 } },
+    handles => { add_dbh_attribute => 'set' }
 );
+
+
+after 'user' => sub {
+    my ( $self, $user ) = @_;
+    if ( !$self->has_superuser ) {
+        $self->superuser($user);
+    }
+};
+
+after 'password' => sub {
+    my ( $self, $pass ) = @_;
+    if ( !$self->has_superpass ) {
+        $self->superpass($pass);
+    }
+};
 
 
 no Moose;

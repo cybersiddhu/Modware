@@ -13,6 +13,7 @@ use XML::Twig;
 use XML::Twig::XPath;
 use Graph;
 use Graph::Traversal::BFS;
+use MooseX::Aliases;
 
 # Module implementation
 #
@@ -21,7 +22,14 @@ requires 'dbh';
 has 'schema' => (
     is         => 'rw',
     isa        => 'Bio::Chado::Schema',
-    lazy_build => 1
+    lazy_build => 1,
+);
+
+has 'loader_instance' => (
+    is       => 'rw',
+    isa      => 'Bio::Chado::Schema',
+    lazy     => 1,
+    builder => '_build_schema'
 );
 
 has 'ontology_name' => (

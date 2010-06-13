@@ -5,10 +5,8 @@ our $VERSION = qv('0.1');
 
 # Other modules:
 use MooseX::Singleton;
-
-#use ModwareX::Types;
 use MooseX::Params::Validate;
-use Module::Load;
+use Bio::Chado::Schema;
 
 # Module implementation
 #
@@ -32,8 +30,8 @@ sub connect {
     );
 
     for my $args (
-        qw/source_name adapter reader writer
-        reader_namespace writer_namspace dsn user password attr extra/
+        qw/adapter reader writer
+        reader_namespace writer_namspace dsn user password attr extra source_name/
         )
     {
 
@@ -41,8 +39,11 @@ sub connect {
             if defined $params{$args};
     }
 
-    $class->default_source_name( $params{source_name} )
+    $class->default_source( $params{source_name} )
         if defined $params{default};
+
+	$class->handler_stack if !$class->has_handler_stack;
+
 }
 
 has [qw/dsn user password/] => ( is => 'rw', isa => 'Str' );
@@ -55,22 +56,27 @@ has [qw/attr extra/] => (
 );
 
 has 'source_name' => (
-    is     => 'rw',
-    isa    => 'Str',
+    is  => 'rw',
+    isa => 'Str',
 );
 
 after 'source_name' => sub {
     my ( $class, $source_name ) = @_;
     $class->add_repository( $source_name, $class->adapter );
-    $class->add_reader_source_name( $source_name, $class->reader );
-    $class->add_writer_source_name( $source_name, $class->writer );
+    $class->add_reader_source( $source_name, $class->reader );
+    $class->add_writer_source( $source_name, $class->writer );
     if ( !$class->has_source($source_name) ) {
-        $class->register_handler( $source_name,
-            $class->get_handler_by_source_name('fallback') );
+        $class->register_handler(
+            $source_name,
+            Bio::Chado::Schema->connect(
+                $class->dsn,  $class->user, $class->password,
+                $class->attr, $class->extra
+            )
+        );
     }
 };
 
-has 'default_source_name' => (
+has 'default_source' => (
     is      => 'rw',
     isa     => 'Str',
     default => 'gmod'
@@ -78,7 +84,7 @@ has 'default_source_name' => (
 
 has 'handler_stack' => (
     is      => 'rw',
-    isa     => 'HashRef[CodeRef]',
+    isa     => 'HashRef[Object]',
     traits  => ['Hash'],
     handles => {
         get_handler_by_source_name => 'get',
@@ -91,23 +97,15 @@ has 'handler_stack' => (
 );
 
 sub _build_handler_stack {
-    my $class  = shift;
-    my $source = $class->default_source_name;
+    my $class   = shift;
+    my $source  = $class->default_source;
+    my $handler = Bio::Chado::Schema->connect(
+        $class->dsn,  $class->user, $class->password,
+        $class->attr, $class->extra
+    );
     return {
-        'fallback' => sub {
-            load 'Bio::Chado::Schema';
-            return Bio::Chado::Schema->connect(
-                $class->dsn,  $class->user, $class->password,
-                $class->attr, $class->extra
-            );
-        },
-        $source => sub {
-            load 'Bio::Chado::Schema';
-            return Bio::Chado::Schema->connect(
-                $class->dsn,  $class->user, $class->password,
-                $class->attr, $class->extra
-            );
-        }
+        'fallback' => $handler,
+        $source    => $handler
     };
 }
 
@@ -146,7 +144,7 @@ has 'reader_source_name_stack' => (
     lazy    => 1,
     default => sub { {} },
     handles => {
-        add_reader_source_name           => 'set',
+        add_reader_source                => 'set',
         reader_source_name_by_repository => 'get',
         delete_reader_source_name        => 'delete'
     }
@@ -159,7 +157,7 @@ has 'writer_source_name_stack' => (
     default => sub { {} },
     lazy    => 1,
     handles => {
-        add_writer_source_name           => 'set',
+        add_writer_source                => 'set',
         writer_source_name_by_repository => 'get',
         delete_writer_source_name        => 'delete'
     }
@@ -181,12 +179,10 @@ has 'source_name_stack' => (
 sub handler {
     my ( $class, $source_name ) = @_;
     $class->get_handler_by_source_name(
-        $source_name ? $source_name : $class->default_source_name )->();
+        $source_name ? $source_name : $class->default_source );
 }
 
 1;    # Magic true value required at end of module
-
-
 
 __END__
 

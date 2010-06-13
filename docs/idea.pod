@@ -90,6 +90,7 @@ B<Anyway> now ...
 
 This saves to the default resource
 
+B<The following implementations will be left out from the first version>
 
 =head2 Customize adapter
 
