@@ -1,14 +1,22 @@
-package  ModwareX::Types ;
+package  ModwareX::Types;
 
 use version; our $VERSION = qv('0.1');
 
 # Other modules:
-use MooseX::Types;
-use MooseX::Types::Moose qw/Int Str Any Object/;
-
+use MooseX::Types -declare => [qw/CleanStr UnCleanStr/];
+use MooseX::Types::Moose qw/Int Str Any Object Bool/;
 
 # Module implementation
 #
+
+subtype CleanStr, as Str,  where { $_ !~ /^\s+|\s+$/ };
+subtype UnCleanStr, as Str, where { /\s+/ };
+
+coerce CleanStr, 
+from UnCleanStr, 
+via { $_ =~ s/^\s+//; $_ =~ s/\s+$//; $_ };
+
+no Moose;
 
 1;    # Magic true value required at end of module
 

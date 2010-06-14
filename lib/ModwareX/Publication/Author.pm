@@ -1,12 +1,72 @@
 package ModwareX::Publication::Author;
 
 
-use version; our $VERSION = qv('1.0.0');
+use version; our $VERSION = qv('0.0.1');
 
 # Other modules:
+use Moose;
+use ModwareX::Types qw/CleanStr/;
 
 # Module implementation
 #
+
+has 'first_name' => (
+	is => 'rw', 
+	isa => CleanStr, 
+	coerce => 1
+);
+
+has 'initials' => (
+	is => 'rw', 
+	isa => CleanStr, 
+	coerce => 1
+);
+
+has 'last_name' => (
+	is => 'rw', 
+	isa => 'Str', 
+);
+
+has 'suffix' => (
+	is => 'rw', 
+	isa => 'Str', 
+);
+
+has 'is_editor' => (
+	is => 'rw', 
+	isa => 'Bool', 
+	default =>  sub { 0 } 
+);
+
+has 'is_primary' => (
+	is => 'rw', 
+	isa => 'Bool', 
+	default =>  sub { 0 } 
+);
+
+after => 'is_primary' => sub {
+	my ($self,  $value) = @_;
+	$self->rank($value) if $value;
+};
+
+has 'is_corresponding' => (
+	is => 'rw', 
+	isa => 'Bool', 
+	default =>  sub { 0 } 
+);
+
+has 'rank' => (
+	is => 'rw', 
+	isa => 'Int', 
+	predicate => 'has_rank'
+);
+
+sub given_name {
+	my ($self) = @_;
+	sprintf "%s %s", $self->initials,  $self->first_name;
+}
+
+no Moose;
 
 1;    # Magic true value required at end of module
 
@@ -14,17 +74,16 @@ __END__
 
 =head1 NAME
 
-<MODULE NAME> - [One line description of module's purpose here]
+B<ModwareX::Publication::Author> - [Represents an author for a publication]
 
 
 =head1 VERSION
 
-This document describes <MODULE NAME> version 0.0.1
+This document describes B<ModwareX::Publication::Author> version 0.1
 
 
 =head1 SYNOPSIS
 
-use <MODULE NAME>;
 
 =for author to fill in:
 Brief code example(s) here showing commonest usage(s).
@@ -34,9 +93,6 @@ so make it as educational and exeplary as possible.
 
 =head1 DESCRIPTION
 
-=for author to fill in:
-Write a full description of the module and its features here.
-Use subsections (=head2, =head3) as appropriate.
 
 
 =head1 INTERFACE 
@@ -47,50 +103,22 @@ interface. These normally consist of either subroutines that may be
 exported, or methods that may be called on objects belonging to the
 classes provided by the module.
 
-=head2 <METHOD NAME>
+=head2 rank
 
 =over
 
-=item B<Use:> <Usage>
+=item B<Use:> $author->rank(4)
 
-[Detail text here]
+=item B<Functions:> The rank attribute designate order of authors
+in a publication which only receives a value after being added in the
+B<ModwareX::Publication::Authors> collection. Setting in the author does not carry any
+value. 
 
-=item B<Functions:> [What id does]
+=item B<Return:> Integer
 
-[Details if neccessary]
-
-=item B<Return:> [Return type of value]
-
-[Details]
-
-=item B<Args:> [Arguments passed]
-
-[Details]
+=item B<Args:> Integer
 
 =back
-
-=head2 <METHOD NAME>
-
-=over
-
-=item B<Use:> <Usage>
-
-[Detail text here]
-
-=item B<Functions:> [What id does]
-
-[Details if neccessary]
-
-=item B<Return:> [Return type of value]
-
-[Details]
-
-=item B<Args:> [Arguments passed]
-
-[Details]
-
-=back
-
 
 =head1 DIAGNOSTICS
 
@@ -124,7 +152,7 @@ files, and the meaning of any environment variables or properties
 that can be set. These descriptions must also include details of any
 configuration language used.
 
-<MODULE NAME> requires no configuration files or environment variables.
+B<ModwareX::Publication::Author> requires no configuration files or environment variables.
 
 
 =head1 DEPENDENCIES
@@ -138,21 +166,21 @@ A list of all the other modules that this module relies upon,
   None.
 
 
-  =head1 INCOMPATIBILITIES
+=head1 INCOMPATIBILITIES
 
-  =for author to fill in:
-  A list of any modules that this module cannot be used in conjunction
+=for author to fill in:
+ A list of any modules that this module cannot be used in conjunction
   with. This may be due to name conflicts in the interface, or
   competition for system or program resources, or due to internal
   limitations of Perl (for example, many modules that use source code
 		  filters are mutually incompatible).
 
-  None reported.
+None reported.
 
 
-  =head1 BUGS AND LIMITATIONS
+=head1 BUGS AND LIMITATIONS
 
-  =for author to fill in:
+=for author to fill in:
   A list of known problems with the module, together with some
   indication Whether they are likely to be fixed in an upcoming
   release. Also a list of restrictions on the features the module
@@ -166,27 +194,15 @@ A list of all the other modules that this module relies upon,
 
 
 
-  =head1 TODO
-
-  =over
-
-  =item *
-
-  [Write stuff here]
-
-  =item *
-
-  [Write stuff here]
-
-  =back
+=head1 TODO
 
 
-  =head1 AUTHOR
+=head1 AUTHOR
 
   I<Siddhartha Basu>  B<siddhartha-basu@northwestern.edu>
 
 
-  =head1 LICENCE AND COPYRIGHT
+=head1 LICENCE AND COPYRIGHT
 
   Copyright (c) B<2003>, Siddhartha Basu C<<siddhartha-basu@northwestern.edu>>. All rights reserved.
 

@@ -20,7 +20,6 @@ my $build = ModwareX::Build->new(
         'local::lib'                => '1.004008',
         'Bio::Root::Version'        => '1.0050021',
         'Module::Load::Conditional' => '',
-        'Moose'                     => '0.96',
         'MooseX::Singleton'         => '0.22',
         'MooseX::Params::Validate'  => '0.14',
         'MooseX::Aliases'           => '0.08',
