@@ -4,11 +4,11 @@ package ModwareX::Role::Publication;
 use version; our $VERSION = qv('0.1');
 
 # Other modules:
-use Moose::Role;
+use Moose;
 
 
-# Module implementation
-#
+
+
 
 1;    # Magic true value required at end of module
 

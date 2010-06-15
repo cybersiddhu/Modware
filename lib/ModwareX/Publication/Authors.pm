@@ -3,76 +3,57 @@ package ModwareX::Publication::Authors;
 use version; our $VERSION = qv('0.1');
 
 # Other modules:
-use Moose;
+use Moose::Role;
 use MooseX::Params::Validate;
+use MooseX::Aliases;
 use aliased 'ModwareX::Publication::Author';
+use ModwareX::Types::Publication qw/PubAuthor/ ];
+
+with 'ModwareX::Role::Iterable';
 
 # Module implementation
 #
 
-has 'collection' => (
-    is      => 'rw',
-    traits  => ['Array'],
-    isa     => 'ArrayRef[Author]',
-    default => sub { [] },
-    lazy    => 1,
-    handles => {
-        authors              => 'elements',
-        total                => 'count',
-        has_no_author        => 'is_empty',
-        add_to_collection    => 'push',
-        sort_by_rank         => 'sort_in_place',
-        get_from_collection  => 'get',
-        find_from_collection => 'first'
-    }
-);
+sub authors { $_[0]->all }
 
-has 'counter' => (
-    is      => 'rw',
-    traits  => ['Counter'],
-    isa     => 'Int',
-    default => 0,
-    lazy    => 1,
-    handles => {
-        inc_counter   => 'inc',
-        decr_counter  => 'dec',
-        reset_counter => 'reset'
-    }
-);
-
-before => 'add_author' => sub {
-    my ( $self, $author ) = @_;
-    if ( !$author->has_rank ) {
-        my $total = $self->total;
-        $author->rank( $total == 0 ? 1 : $count + 1 );
-    }
-    else {
-        my $element = $self->find_from_collection(
-            sub {
-                $_->rank == $author->rank;
-            }
-        );
-        if ($element) {
-        carp "Author with identical rank ** ", $element->rank,  " is already present in the collection\n";
-        carp "It is recomended not to add the rank to the authors before adding to collection\n";
-        croak "Look at the documentation of the authors collection module\n";
+before 'add_author' => sub {
+        my ( $self, $author ) = @_;
+        if ( !$author->has_rank ) {
+            my $total = $self->total;
+            $author->rank( $total == 0 ? 1 : $count + 1 );
         }
-        #do the splice
+        else {
+            my $element = $self->find_from_collection(
+                sub {
+                    $_->rank == $author->rank;
+                }
+            );
+            if ($element) {
+                carp "Author with identical rank ** ", $element->rank,
+                    " is already present in the collection\n";
+                carp
+                    "It is recomended not to add the rank to the authors before adding to collection\n";
+                croak
+                    "Look at the documentation of the authors collection module\n";
+            }
 
-    }
-};
+            #sort the collection by rank
+            $self->sort_collection( sub { $_[0]->rank <=> $_[1]->rank } );
+
+            #then add in according to the rank
+            $self->add_to_stack( $author->rank - 1, 0, $author );
+        }
+    };
 
 sub add_author {
-    my $self = shift;
-    my ($author) = validated_list( \@_, author => { isa => 'Author' } );
-    $self->add_to_collection($author);
+        my $self = shift;
+        my ($author)
+            = validated_list( \@_,
+            author => { isa => 'PubAuthor', coerce => 1 } );
+        $self->add_to_collection($author);
 }
 
-sub next {
-    my $self = shift;
-    return if $self->counter > $self->total;
-    return $self->get_from_collection( $self->counter );
-}
+alias next_author => 'next';
 
 1;    # Magic true value required at end of module
 
@@ -80,7 +61,7 @@ __END__
 
 =head1 NAME
 
-<ModwareX::Publication::Authors> - [One line description of module's purpose here]
+<ModwareX::Publication::Role::HasAuthors> - [Role for managing collection of authors]
 
 
 =head1 VERSION
@@ -90,169 +71,115 @@ This document describes <ModwareX::Publication::Authors> version 0.0.1
 
 =head1 SYNOPSIS
 
-use <ModwareX::Publication::Authors>;
+with 'ModwareX::Publication::Role::HasAuthors';
 
-=for author to fill in:
-Brief code example(s) here showing commonest usage(s).
-This section will be as far as many users bother reading
-so make it as educational and exeplary as possible.
+# -- then check for methods it install in your class
 
 
 =head1 DESCRIPTION
 
-=for author to fill in:
-Write a full description of the module and its features here.
-Use subsections (=head2, =head3) as appropriate.
+Consuming this Moose role allows your class to maintain a collection of authors(in terms
+of ModwareX::Publication::Author). For details look at the methods that get installed in
+the class.
+
+The author collections are sorted according to author's rank. By default,  the authors are
+ranked according to the order they are added in the collection. If the author is ranked,
+the collection is resorted accordingly.
 
 
 =head1 INTERFACE 
 
-=for author to fill in:
-Write a separate section listing the public components of the modules
-interface. These normally consist of either subroutines that may be
-exported, or methods that may be called on objects belonging to the
-classes provided by the module.
+=head2 next_author
 
-=head2 <METHOD NAME>
+=head2 authors
 
 =over
 
-=item B<Use:> <Usage>
+=item B<Use:> $collection->authors;
 
-[Detail text here]
+=item B<Functions:> List of authors
 
-=item B<Functions:> [What id does]
+=item B<Return:> Array of ModwareX::Publication::Author objects
 
-[Details if neccessary]
-
-=item B<Return:> [Return type of value]
-
-[Details]
-
-=item B<Args:> [Arguments passed]
-
-[Details]
+=item B<Args:> None
 
 =back
 
-=head2 <METHOD NAME>
+=head2 add_author
 
 =over
 
-=item B<Use:> <Usage>
+=item B<Use:> 
 
-[Detail text here]
+=over
 
-=item B<Functions:> [What id does]
+=item  $collection->add_author($author);
 
-[Details if neccessary]
+=item $collection->add_author( first_name => 'pluto',  last_name => 'marshall',
+initials => 'Jr.');
 
-=item B<Return:> [Return type of value]
+=back
 
-[Details]
+=item B<Functions:> Add an author to the collection
 
-=item B<Args:> [Arguments passed]
+=item B<Return:> None.
 
-[Details]
+=item B<Args:> ModwareX::Publication::Author object or hash with author properties
 
 =back
 
 
 =head1 DIAGNOSTICS
 
-=for author to fill in:
-List every single error and warning message that the module can
-generate (even the ones that will "never happen"), with a full
-explanation of each problem, one or more likely causes, and any
-suggested remedies.
-
 =over
 
-=item C<< Error message here, perhaps with %s placeholders >>
+=item C<< Author with identical rank is already present in the collection >>
 
-[Description of error here]
-
-=item C<< Another error message here >>
-
-[Description of error here]
-
-[Et cetera, et cetera]
+Two authors with identical rank is not allowed in the collection.
 
 =back
 
 
 =head1 CONFIGURATION AND ENVIRONMENT
 
-=for author to fill in:
-A full explanation of any configuration system(s) used by the
-module, including the names and locations of any configuration
-files, and the meaning of any environment variables or properties
-that can be set. These descriptions must also include details of any
-configuration language used.
-
-<ModwareX::Publication::Authors> requires no configuration files or environment variables.
+B<ModwareX::Publication::Authors> requires no configuration files or environment variables.
 
 
 =head1 DEPENDENCIES
 
-=for author to fill in:
-A list of all the other modules that this module relies upon,
-  including any restrictions on versions, and an indication whether
-  the module is part of the standard Perl distribution, part of the
-  module's distribution, or must be installed separately. ]
+Look at Build.PL
 
-  None.
-
-
-  =head1 INCOMPATIBILITIES
-
-  =for author to fill in:
-  A list of any modules that this module cannot be used in conjunction
-  with. This may be due to name conflicts in the interface, or
-  competition for system or program resources, or due to internal
-  limitations of Perl (for example, many modules that use source code
-		  filters are mutually incompatible).
+=head1 INCOMPATIBILITIES
 
   None reported.
 
 
-  =head1 BUGS AND LIMITATIONS
+=head1 BUGS AND LIMITATIONS
 
-  =for author to fill in:
-  A list of known problems with the module, together with some
-  indication Whether they are likely to be fixed in an upcoming
-  release. Also a list of restrictions on the features the module
-  does provide: data types that cannot be handled, performance issues
-  and the circumstances in which they may arise, practical
-  limitations on the size of data sets, special cases that are not
-  (yet) handled, etc.
+No bugs have been reported.Please report any bugs or feature requests to
+dictybase@northwestern.edu
 
-  No bugs have been reported.Please report any bugs or feature requests to
-  dictybase@northwestern.edu
+Does not allow to remove item from the collection
 
 
 
-  =head1 TODO
+=head1 TODO
 
-  =over
+=over
 
-  =item *
+=item *
 
-  [Write stuff here]
+API to remove item from collection
 
-  =item *
-
-  [Write stuff here]
-
-  =back
+=back
 
 
-  =head1 AUTHOR
+=head1 AUTHOR
 
   I<Siddhartha Basu>  B<siddhartha-basu@northwestern.edu>
 
 
-  =head1 LICENCE AND COPYRIGHT
+=head1 LICENCE AND COPYRIGHT
 
   Copyright (c) B<2003>, Siddhartha Basu C<<siddhartha-basu@northwestern.edu>>. All rights reserved.
 
@@ -260,7 +187,7 @@ A list of all the other modules that this module relies upon,
   modify it under the same terms as Perl itself. See L<perlartistic>.
 
 
-  =head1 DISCLAIMER OF WARRANTY
+=head1 DISCLAIMER OF WARRANTY
 
   BECAUSE THIS SOFTWARE IS LICENSED FREE OF CHARGE, THERE IS NO WARRANTY
   FOR THE SOFTWARE, TO THE EXTENT PERMITTED BY APPLICABLE LAW. EXCEPT WHEN

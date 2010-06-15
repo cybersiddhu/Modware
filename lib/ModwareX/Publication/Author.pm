@@ -44,16 +44,10 @@ has 'is_primary' => (
 	default =>  sub { 0 } 
 );
 
-after => 'is_primary' => sub {
+after 'is_primary' => sub {
 	my ($self,  $value) = @_;
 	$self->rank($value) if $value;
 };
-
-has 'is_corresponding' => (
-	is => 'rw', 
-	isa => 'Bool', 
-	default =>  sub { 0 } 
-);
 
 has 'rank' => (
 	is => 'rw', 

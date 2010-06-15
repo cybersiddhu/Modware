@@ -7,7 +7,7 @@ my $author = ModwareX::Publication::Author->new;
 isa_ok( $author, 'ModwareX::Publication::Author' );
 can_ok( 'ModwareX::Publication::Author', $_ )
     for
-    qw/first_name initials last_name suffix rank given_name is_editor is_primary is_corresponding/;
+    qw/first_name initials last_name suffix rank given_name is_editor is_primary/;
 
 $author->first_name('James Brown');
 $author->initials('Mr.');
