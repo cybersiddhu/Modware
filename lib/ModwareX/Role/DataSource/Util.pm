@@ -1,80 +1,19 @@
-package ModwareX::Chado::Das;
+package ModwareX::Role::DataSource::Util;
+
 
 use version; our $VERSION = qv('1.0.0');
 
 # Other modules:
-use Moose;
-use Bio::Chado::Schema;
-use Carp::Clan;
-use ModwareX::Chado::Das::FeatureType;
+use Moose::Role;
 
 # Module implementation
 #
 
-has 'dsn' => (
-    isa       => 'Str',
-    is        => 'rw',
-    predicate => 'has_dsn',
+has 'source' => (
+	 is => 'rw', 
+	 isa => 'Str', 
+	 predicate => 'has_source'
 );
-
-has 'user' => (
-    isa       => 'Str',
-    is        => 'rw',
-    predicate => 'has_user',
-);
-
-has 'pass' => (
-    isa       => 'Str',
-    is        => 'rw',
-    predicate => 'has_pass',
-);
-
-has 'option' => (
-    isa       => 'HashRef',
-    is        => 'rw',
-    predicate => 'has_option',
-    default   => {
-        sub { }
-    }
-);
-
-has 'schema' => (
-    isa          => 'Bio::Chado::Schema',
-    is           => 'rw',
-    lazy_builder => 1,
-);
-
-sub _build_schema {
-    my ($self) = @_;
-    my $schema
-        = Bio::Chado::Schema->connect( $self->dsn, $self->user, $self->pass,
-        $self->option );
-    $schema;
-}
-
-has 'so_name' => (
-    is      => 'rw',
-    isa     => 'Str',
-    lazy    => 1,
-    default => 'SO',
-);
-
-sub types {
-    my ($self) = @_;
-    my $rs
-        = $self->schema->resultset('Cvterm::Cvterm')
-        ->search( { 'cv.name' => $self->so_name },
-        { join => [qw/cv dbxref/], prefetch => 'dbxref' } );
-
-    my @types;
-    while ( my $cvrow = $rs->next ) {
-        push @types,
-            ModwareX::Chado::Das::FeatureType->new(
-            datasource => $cvrow
-            );
-    }
-    @types;
-}
 
 1;    # Magic true value required at end of module
 

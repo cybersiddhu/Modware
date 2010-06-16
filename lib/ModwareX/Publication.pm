@@ -9,31 +9,61 @@ use Moose;
 # Module implementation
 #
 with 'ModwareX::Role::Publication::HasAuthors';
-with 'ModwareX::Chado::Writer::BCS::Publication';
+with 'ModwareX::Role::Chado::Writer::BCS::Publication';
 
 # Module implementation
 #
 
 has 'abstract' => (
 	is => 'rw', 
-	isa => 'Str'
+	isa => 'Maybe[Str]'
+	lazy_build => 1
 );
 
 has 'title' => (
 	is => 'rw', 
-	isa => 'Str', 
+	isa => 'Maybe[Str]', 
+	lazy_build => 1
 );
 
 has 'year' => (
 	is => 'rw', 
-	isa => 'Int'
-);
-
-has 'cross_references' => (
-	is => 'rw', 
-	is => 'ArrayRef[ModwareX::Publication]', 
+	isa => 'Maybe[Str]', 
 	lazy_build => 1
 );
+
+has 'keywords_stack' => (
+	is => 'rw', 
+	isa => 'Maybe[ArrayRef[Str]]'
+	traits => [qw/Array/], 
+	lazy_build => 1,
+	handles => {
+		add_keyword => 'push', 
+		keywords => 'elements'
+	}
+);
+
+has 'source' => (
+	is => 'rw', 
+	isa => 'Maybe[Str]', 
+	lazy_build => 1
+);
+
+has 'status' => (
+	is => 'rw', 
+	isa => 'Maybe[Str]', 
+	lazy_build => 1
+);
+
+has 'type' => (
+	is => 'rw', 
+	isa => 'Str', 
+	lazy => 1, 
+	default => 'paper'
+);
+
+
+no Moose;
 
 1;    # Magic true value required at end of module
 
@@ -73,7 +103,7 @@ Use subsections (=head2, =head3) as appropriate.
 still not saved in the database. It can also be used as *set* method,  however it is
 recommended for internal use only. 
 
-=item B<Return:> Integer
+=item B<Return:> Maybe[Str]eger
 
 =item B<Args:> None
 

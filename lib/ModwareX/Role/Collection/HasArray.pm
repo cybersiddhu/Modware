@@ -1,199 +1,60 @@
-package ModwareX::Chado::Das::FeatureType;
+package ModwareX::Role::Collection::HasArray;
 
-use version; our $VERSION = qv('1.0.0');
+use version; our $VERSION = qv('0.1');
 
 # Other modules:
-use Moose;
-use Moose::Util::TypeConstraints;
-use Scalar::Util qw/blessed/;
-use Params::Validate qw/:all/;
+use Moose::Role;
 
 # Module implementation
 #
 
-has 'accession' => (
+has 'collection' => (
     is      => 'rw',
-    isa     => 'Str',
+    traits  => ['Array'],
+    isa     => 'ArrayRef[Object]',
+    default => sub { [] },
     lazy    => 1,
-    default => sub {
-        $_[0]->datasource->dbxref->accession;
+    handles => {
+        all                  => 'elements',
+        total                => 'count',
+        has_no_element       => 'is_empty',
+        add_to_collection    => 'push',
+        sort_collection      => 'sort_in_place',
+        get_from_collection  => 'get',
+        find_from_collection => 'first',
+        delete_all           => 'clear',
+        add_to_stack         => 'splice'
     }
 );
 
-has 'name' => (
+has 'counter' => (
     is      => 'rw',
-    isa     => 'Str',
+    traits  => ['Counter'],
+    isa     => 'Int',
+    default => 0,
     lazy    => 1,
-    default => sub {
-        $_[0]->datasource->name;
+    handles => {
+        inc_counter  => 'inc',
+        decr_counter => 'dec',
+        rewind       => 'reset'
     }
 );
 
-has 'definition' => (
-    is      => 'rw',
-    isa     => 'Str',
-    lazy    => 1,
-    default => sub {
-        $_[0]->datasource->definition;
-    }
-);
-
-has 'parents' => (
-    isa        => 'Arrayref[ModwareX::Chado::Das::FeatureType]|Undef',
-    is         => 'rw',
-    lazy_build => 1,
-);
-
-sub _build_parents {
-    my ( $self, $value ) = @_;
-    my $rel_rs
-        = $value
-        ? $self->datasource->cvterm_relationship_subject_ids
-        : $self->datasource->search_related(
-        'cvterm_relationship_subject_ids',
-        { 'type.name' => $value },
-        { join        => 'type' }
-        );
-
-    return if $rel_rs->count == 0;
-
-    my $parents;
-    while ( my $rel = $rel_rs->next ) {
-        my $parent_row = $rel->object;
-        push @$parents,
-            ModwareX::Chado::Das::FeatureType->new( datasource => $parent_row,
-            );
-    }
-    $parents;
+sub has_next {
+	my ($self) = @_;
+    return if $self->counter > $self->total;
+    return 1;
 }
 
-has 'children' => (
-    isa        => 'Arrayref[ModwareX::Chado::Das::FeatureType]|Undef',
-    is         => 'rw',
-    lazy_build => 1,
-);
-
-sub _build_children {
-    my ( $self, $value ) = @_;
-    my $rel_rs
-        = $value
-        ? $self->datasource->cvterm_relationship_object_ids
-        : $self->datasource->search_related(
-        'cvterm_relationship_object_ids',
-        { 'type.name' => $value },
-        { join        => 'type' }
-        );
-
-    return if $rel_rs->count == 0;
-
-    my $children;
-    while ( my $rel = $rel_rs->next ) {
-        my $child_row = $rel->subject;
-        push @$children,
-            ModwareX::Chado::Das::FeatureType->new( datasource => $child_row,
-            );
-    }
-    $children;
-}
-
-has 'relationship' => (
-    isa     => 'Str',
-    is      => 'ro',
-    default => sub {
-        my $self = shift;
-        my $rel_row
-            = $self->datasource->cvterm_relationships_object_ids->single;
-        $rel_row->type->name;
-    }
-);
-
-sub equal {
+sub next {
     my $self = shift;
-    my @params = validate_pos( @_, { type => SCALAR | OBJECT } );
-
-    if ( blessed $params[0] eq blessed $self ) {
-        my $retval = $params[0]->accession eq $self->accession ? 1 : 0;
-        return $retval;
-    }
-    $params[0] eq $self->name ? 1 : 0;
+    return if !$self->has_next;
+    my $element = $self->get_from_collection( $self->counter );
+    $self->inc_counter;
+    $element;
 }
 
-sub is_descendant {
-    my $self   = shift;
-    my @params = validate_pos(
-        @_,
-        { type => SCALAR | OBJECT },
-        {   type     => SCALAR,
-            optional => 1
-        }
-    );
-
-    my $rel_rs
-        = $params[1]
-        ? $self->datasource->cvterm_relationship_object_ids
-        : $self->datasource->search_related(
-        'cvterm_relationship_object_ids',
-        { 'type.name' => $params[1] },
-        { join        => 'type' }
-        );
-
-    return if $rel_rs->count == 0;
-
-    if ( blessed $params[0] eq blessed $self) {
-        if ( any { $params[0]->accession eq $_->subject->dbxref->accession }
-            $rel_rs->all )
-        {
-            return 1;
-        }
-        return;
-    }
-    if ( any { $params[0] eq $_->subject->name } $rel_rs->all ) {
-        return 1;
-    }
-}
-
-sub is_parent {
-    my $self   = shift;
-    my @params = validate_pos(
-        @_,
-        { type => SCALAR | OBJECT },
-        {   type     => SCALAR,
-            optional => 1
-        }
-    );
-
-    my $rel_rs
-        = $params[1]
-        ? $self->datasource->cvterm_relationship_subject_ids
-        : $self->datasource->search_related(
-        'cvterm_relationship_subject_ids',
-        { 'type.name' => $params[1] },
-        { join        => 'type' }
-        );
-
-    return if $rel_rs->count == 0;
-
-    if ( blessed $params[0] eq blessed $self) {
-        if ( any { $params[0]->accession eq $_->object->dbxref->accession }
-            $rel_rs->all )
-        {
-            return 1;
-        }
-        return;
-    }
-    if ( any { $params[0] eq $_->object->name } $rel_rs->all ) {
-        return 1;
-    }
-}
-
-has 'is_parent' => ();
-
-has 'match' => ();
-
-has 'datasource' => (
-    isa => 'DBIx::Class::Row',
-    is  => 'rw',
-);
+no Moose::Role;
 
 1;    # Magic true value required at end of module
 

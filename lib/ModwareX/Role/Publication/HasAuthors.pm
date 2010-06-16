@@ -8,7 +8,7 @@ use MooseX::Aliases;
 use aliased 'ModwareX::Publication::Author';
 use ModwareX::Types::Publication qw/PubAuthor/;
 
-with 'ModwareX::Role::Iterable';
+with 'ModwareX::Role::Collection::HasArray';
 
 # Module implementation
 #

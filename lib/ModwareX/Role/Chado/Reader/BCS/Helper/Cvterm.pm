@@ -1,11 +1,39 @@
-package ModwareX::Chado::Reader::BCS::Publication;
+package ModwareX::Chado::Reader::BCS::Helper::Cvterm;
 
-use version; our $VERSION = qv('0.1');
+use version; our $VERSION = qv('1.0.0');
 
 # Other modules:
+use Moose::Role;
+use Bio::Chado::Schema;
 
 # Module implementation
 #
+
+has 'cvterm_row' => (
+    is         => 'rw',
+    isa        => 'HashRef[Bio::Chado::Schema::Cv::Cvterm]',
+    traits     => ['Hash'],
+    lazy_build => 1,
+    handles    => {
+        get_cvrow => 'get',
+        set_cv_id => 'set',
+        has_cv_id => 'defined'
+    }
+);
+
+
+sub get_cvterm_id {
+    $_[0]->get_cvrow( $_[1] )->cv_id;
+}
+
+sub _build_cvterm_row {
+    my ($self)    = @_;
+    my $cvrow     = $self->schema->resultset('Cv::Cv')
+        ->find_or_create( { name => $name } );
+    $cvrow->definition('Ontology namespace for modwareX module');
+    $cvrow->update;
+    return { $namespace => $cvrow, default => $cvrow };
+}
 
 1;    # Magic true value required at end of module
 
@@ -13,18 +41,22 @@ __END__
 
 =head1 NAME
 
-B<ModwareX::Chado::Reader::BCS::Publication> - [Module for retrieiving publication from
-chado database]
+<MODULE NAME> - [One line description of module's purpose here]
 
 
 =head1 VERSION
 
-This document describes <ModwareX::Chado::Reader::BCS::Publication> version 0.1
+This document describes <MODULE NAME> version 0.0.1
 
 
 =head1 SYNOPSIS
 
-use ModwareX::Chado::Reader::BCS::Publication;
+use <MODULE NAME>;
+
+=for author to fill in:
+Brief code example(s) here showing commonest usage(s).
+This section will be as far as many users bother reading
+so make it as educational and exeplary as possible.
 
 
 =head1 DESCRIPTION
@@ -36,113 +68,55 @@ Use subsections (=head2, =head3) as appropriate.
 
 =head1 INTERFACE 
 
-=head2 where
+=for author to fill in:
+Write a separate section listing the public components of the modules
+interface. These normally consist of either subroutines that may be
+exported, or methods that may be called on objects belonging to the
+classes provided by the module.
+
+=head2 <METHOD NAME>
 
 =over
 
-=item B<Use:> $obj->where(%conditions)
+=item B<Use:> <Usage>
 
-=item B<Functions:> Returns either a list/iterator with the given conditions. By default,
-the conditions are expected to be joined together with 'AND' clause. However,  it could be
-changed using the I<clause> options.
+[Detail text here]
 
-=item B<Return:> Depending on the context either an array of B<ModwareX::Publication>
-object or an iteartor.
+=item B<Functions:> [What id does]
 
-=item B<Args:> The following parameters could be passed as key value pairs.
+[Details if neccessary]
+
+=item B<Return:> [Return type of value]
+
+[Details]
+
+=item B<Args:> [Arguments passed]
+
+[Details]
+
+=back
+
+=head2 <METHOD NAME>
 
 =over
 
-=item id : Database primary key of the reference
+=item B<Use:> <Usage>
 
-=item first_name
+[Detail text here]
 
-=item last_name
+=item B<Functions:> [What id does]
 
-=item pubmed_id
+[Details if neccessary]
 
-=item doi
+=item B<Return:> [Return type of value]
 
-=item medline_id
+[Details]
 
-=item title
+=item B<Args:> [Arguments passed]
 
-=item journal
-
-=item issue
-
-=item publisher
-
-=item mesh_terms : List of words
+[Details]
 
 =back
-
-=head3 Modifiers for the conditions search
-
-=over
-
-=item clause: B<AND> or B<OR>,  default is AND
-
-=item partial: If set to true(1),  all the conditions matches will be partial. 
-
-=back
-
-=back
-
-
-=head2 count
-
-=over
-
-=item B<Use:> count(%conditions)
-
-=item B<Functions:> Fetches number of records with the given conditions.
-
-=item B<Return:> Integer
-
-=item B<Args:> Identical to L<where> method.
-
-=back
-
-
-=head2 first
-
-=over
-
-=item B<Use:> first(%conditions)
-
-=item B<Functions:> Returns the first matching publiction.
-
-=item B<Return:> ModwareX::Publication object.
-
-=item B<Args:> Identical to L<where> method.
-
-=back
-
-
-=head2 last
-
-=over
-
-=item B<Use:> last(%conditions)
-
-=item B<Functions:> Returns the last matching publiction.
-
-=item B<Return:> ModwareX::Publication object.
-
-=item B<Args:> Identical to L<where> method.
-
-=back
-
-
-=head2 exclude
-
-Inverse of B<where> method.
-
-=head2 find
-
-Alias to B<where> method.
-
 
 
 =head1 DIAGNOSTICS
@@ -177,10 +151,21 @@ files, and the meaning of any environment variables or properties
 that can be set. These descriptions must also include details of any
 configuration language used.
 
-B<ModwareX::Chado::Reader::BCS::Publication> requires no configuration files or environment variables.
+<MODULE NAME> requires no configuration files or environment variables.
 
 
-=head1 INCOMPATIBILITIES
+=head1 DEPENDENCIES
+
+=for author to fill in:
+A list of all the other modules that this module relies upon,
+  including any restrictions on versions, and an indication whether
+  the module is part of the standard Perl distribution, part of the
+  module's distribution, or must be installed separately. ]
+
+  None.
+
+
+  =head1 INCOMPATIBILITIES
 
   =for author to fill in:
   A list of any modules that this module cannot be used in conjunction
@@ -192,7 +177,7 @@ B<ModwareX::Chado::Reader::BCS::Publication> requires no configuration files or 
   None reported.
 
 
-=head1 BUGS AND LIMITATIONS
+  =head1 BUGS AND LIMITATIONS
 
   =for author to fill in:
   A list of known problems with the module, together with some
@@ -208,7 +193,7 @@ B<ModwareX::Chado::Reader::BCS::Publication> requires no configuration files or 
 
 
 
-=head1 TODO
+  =head1 TODO
 
   =over
 
@@ -223,12 +208,12 @@ B<ModwareX::Chado::Reader::BCS::Publication> requires no configuration files or 
   =back
 
 
-=head1 AUTHOR
+  =head1 AUTHOR
 
   I<Siddhartha Basu>  B<siddhartha-basu@northwestern.edu>
 
 
-=head1 LICENCE AND COPYRIGHT
+  =head1 LICENCE AND COPYRIGHT
 
   Copyright (c) B<2003>, Siddhartha Basu C<<siddhartha-basu@northwestern.edu>>. All rights reserved.
 
@@ -236,7 +221,7 @@ B<ModwareX::Chado::Reader::BCS::Publication> requires no configuration files or 
   modify it under the same terms as Perl itself. See L<perlartistic>.
 
 
-=head1 DISCLAIMER OF WARRANTY
+  =head1 DISCLAIMER OF WARRANTY
 
   BECAUSE THIS SOFTWARE IS LICENSED FREE OF CHARGE, THERE IS NO WARRANTY
   FOR THE SOFTWARE, TO THE EXTENT PERMITTED BY APPLICABLE LAW. EXCEPT WHEN
