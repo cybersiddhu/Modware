@@ -6,88 +6,197 @@ use version; our $VERSION = qv('0.1');
 use Moose::Role;
 use aliased 'ModwareX::DataSource::Chado';
 
-with 'ModwareX::Role::DataSource::Util';
-with 'ModwareX::Role::Chado::Reader::BCS::Helper::Cvterm';
-with 'ModwareX::Role::Chado::Reader::BCS::Helper::Db';
-
 # Module implementation
 #
 
 has 'chado' => (
-	is => 'rw', 
-	isa => 'Bio::Chado::Schema', 
-	lazy_build => 1 
+    is         => 'rw',
+    isa        => 'Bio::Chado::Schema',
+    lazy_build => 1
 );
 
 sub _build_chado {
-	my ($self) = @_;
-	my $chado = $self->has_source ? Chado->handler($self->source) : Chado->handler;
-	$chado;
+    my ($self) = @_;
+    my $chado
+        = $self->has_source
+        ? Chado->handler( $self->source )
+        : Chado->handler;
+    $chado;
 }
 
-after 'chado' => sub {
-	my ($self, $chado) = @_;
-	$self->pub($chado->resultset('Pub::Pub'));
-	$self->pubauthor($chado->resultset('Pub::PubAuthor'));
-};
-
-has 'pub' => (
-	is => 'rw', 
-	isa => 'Bio::Chado::Schema::Pub::Pub'
-);
-
-has 'pubauthor' => (
-	is => 'rw', 
-	isa => 'Bio::Chado::Schema::Pub::PubAuthor'
-);
-
 has 'dbrow' => (
-	is => 'rw', 
-	isa => 'DBIx::Class::Row'
-	predicate => 'has_dbrow'
+    is        => 'rw',
+    isa       => 'DBIx::Class::Row',
+    predicate => 'has_dbrow'
 );
 
 has 'cv' => (
-	is => 'rw', 
-	isa => 'Str', 
-	lazy => 1, 
-	default => 'pub_type'
+    is      => 'rw',
+    isa     => 'Str',
+    lazy    => 1,
+    default => 'pub_type'
 );
 
-has 'cvterm' => ( is => 'rw',  isa => 'Str',  lazy => 1,  default => 'paper');
-has 'db' => (is => 'rw',  isa => 'Str',  lazy => 1,  default => 'pubmed');
-
+has 'cvterm' => ( is => 'rw', isa => 'Str', lazy => 1, default => 'paper' );
+has 'db'     => ( is => 'rw', isa => 'Str', lazy => 1, default => 'pubmed' );
 
 sub _build_status {
+    return if !$self->has_dbrow;
+    my $rs = $self->dbrow->search_related(
+        'pubprops',
+        {   'type_id' => $self->cvterm_id_by_name('status');
+        }
+    );
+    $rs->first->value if $rs;
 }
 
 sub _build_abstract {
-	my ($self) = @_;
-	$self->dbrow->volumetitle if $self->has_dbrow;
+    my ($self) = @_;
+    return if !$self->has_dbrow;
+    my $rs = $self->dbrow->search_related(
+        'pubprops',
+        {   'type_id' => $self->cvterm_id_by_name('abstract');
+        }
+    );
+    $rs->first->value if $rs;
 }
 
 sub _build_title {
-	my ($self) = @_;
-	$self->dbrow->title if $self->has_dbrow;
+    my ($self) = @_;
+    $self->dbrow->title if $self->has_dbrow;
 }
 
 sub _build_year {
-	my ($self) = @_;
-	$self->dbrow->pyear if $self->has_dbrow;
+    my ($self) = @_;
+    $self->dbrow->pyear if $self->has_dbrow;
 }
 
 sub _build_source {
-	my ($self) = @_;
-	$self->dbrow->pubplace if $self->has_dbrow;
+    my ($self) = @_;
+    $self->dbrow->pubplace if $self->has_dbrow;
 }
 
 sub _build_keywords_stack {
+    my ($self) = @_;
+    return if !$self->has_dbrow;
+    my $rs = $self->dbrow->search_related(
+        'pubprops',
+        {   'type_id' => {
+                -in => $self->cvterm_ids_by_namespace(
+                    'dictyBase_literature_topic'
+                )
+            }
+        }
+    );
+    if ($rs) {
+        my $terms = [ map { $_->value } $rs->all ];
+        return $terms;
+    }
 }
+
+has 'pub' => (
+    is         => 'rw',
+    isa        => 'Bio::Chado::Schema::Pub::Pub',
+    lazy_build => 1,
+);
+
+sub _build_pub {
+    my $self = shift;
+    $self->chado->resultset('Pub::Pub')->new( {} );
+}
+
+before 'create' => sub {
+    my $self = shift;
+    my $pub  = $self->pub;
+    $pub->uniquename( 'PUB' . int( rand(9999999) ) );
+    $pub->type_id( $self->cvterm_id_by_name( $self->type ) );
+    $pub->title( $self->title )
+        if $self->has_title;
+    $pub->pyear( $self->year )      if $self->has_year;
+    $pub->pubplace( $self->source ) if $self->has_source;
+
+    my $pubprops;
+    push @$pubprops,
+        {
+        type_id => $self->cvterm_id_by_name('status'),
+        value   => $self->status
+        };
+    push @$pubprops,
+        {
+        type_id => $self->cvterm_id_by_name('abstract'),
+        value   => $self->abstract
+        };
+
+    for my $word ( $self->keywords ) {
+        push @$pubprops,
+            {
+            type_id => $self->cvterm_id_by_name($word),
+            value   => 'true'
+            };
+    }
+    $pub->pubprops($pubprops) if $pubprops;
+
+    if ( $self->has_authors ) {
+        my $authors;
+        while ( my $pubauthor = $self->next_author ) {
+            push @$authors,
+                {
+                rank       => $pubauthor->rank,
+                editor     => $pubauthor->is_editor,
+                surname    => $pubauthor->last_name,
+                givennames => $pubauthor->given_name,
+                suffix     => $pubauthor->suffix
+                };
+        }
+        $pub->pubauthors($authors);
+    }
+};
 
 sub create {
+    my ($self) = @_;
+    try {
+        $self->chado->txn_do( sub { $self->pub->insert } );
+    }
+    catch {
+        confess "Issue in inserting publication record: $_";
+    };
 }
 
+before 'delete' => sub {
+    confess "No data being fetched from storage: nothing to delete\n"
+        if !$self->has_dbrow;
+};
+
 sub delete {
+    my ( $self, $cascade ) = @_;
+    if ( !$cascade ) {
+        try {
+            $self->chado->txn_do(
+                sub {
+                    $self->chado->resultset('Pub::Pub')
+                        ->search( { pub_id => $self->dbrow->pub_id } )
+                        ->delete_all;
+                }
+            );
+        }
+        catch { confess "Unable to delete $_" };
+    }
+    else {
+        try {
+            $self->chado->txn_do(
+                sub {
+                    my $pub = $self->dbrow;
+                    $dbrow->pubprops->delete_all;
+                    $dbrow->authors->delete_all;
+                    $dbrow->pub_dbxrefs->delete_all;
+                    $dbrow->pub_relationship_objects->delete_all;
+                    $dbrow->pub_relationship_subjects->delete_all;
+                    $dbrow->delete;
+                }
+            );
+        }
+        catch { confess "Unable to delete $_" };
+    }
 }
 
 sub update {
@@ -129,7 +238,8 @@ Use subsections (=head2, =head3) as appropriate.
 =item B<Use:> $obj->where(%conditions)
 
 =item B<Functions:> Returns either a list/iterator with the given conditions. By default,
-the conditions are expected to be joined together with 'AND' clause. However,  it could be
+the conditions are expected to be joined together with ' AND
+                        ' clause. However,  it could be
 changed using the I<clause> options.
 
 =item B<Return:> Depending on the context either an array of B<ModwareX::Publication>

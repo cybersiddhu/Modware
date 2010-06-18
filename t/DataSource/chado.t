@@ -66,6 +66,8 @@ $datasource->connect(
 my $handler  = $datasource->handler;
 my $handler2 = $datasource->handler('beermod');
 
+
+
 die_on_fail;
 isa_ok( $handler,  'Bio::Chado::Schema' );
 isa_ok( $handler2, 'Bio::Chado::Schema' );

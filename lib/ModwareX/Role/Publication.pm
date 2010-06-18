@@ -4,8 +4,65 @@ package ModwareX::Role::Publication;
 use version; our $VERSION = qv('0.1');
 
 # Other modules:
-use Moose;
+use Moose::Role;
 
+
+#module implementation
+
+requires '_build_abstract';
+requires '_build_title';
+requires '_build_year';
+requires '_build_source';
+requires '_build_status';
+
+
+has 'abstract' => (
+	is => 'rw', 
+	isa => 'Maybe[Str]'
+	lazy_build => 1
+);
+
+has 'title' => (
+	is => 'rw', 
+	isa => 'Maybe[Str]', 
+	lazy_build => 1
+);
+
+has 'year' => (
+	is => 'rw', 
+	isa => 'Maybe[Str]', 
+	lazy_build => 1
+);
+
+has 'keywords_stack' => (
+	is => 'rw', 
+	isa => 'Maybe[ArrayRef[Str]]'
+	traits => [qw/Array/], 
+	lazy_build => 1,
+	handles => {
+		add_keyword => 'push', 
+		keywords => 'elements'
+	}
+);
+
+has 'source' => (
+	is => 'rw', 
+	isa => 'Maybe[Str]', 
+	lazy_build => 1
+);
+
+has 'status' => (
+	is => 'rw', 
+	isa => 'Maybe[Str]', 
+	lazy_build => 1
+);
+
+has 'type' => (
+	is => 'rw', 
+	isa => 'Str', 
+	lazy => 1, 
+	default => 'paper'
+);
 
 
 

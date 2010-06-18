@@ -7,6 +7,7 @@ our $VERSION = qv('0.1');
 use MooseX::Singleton;
 use MooseX::Params::Validate;
 use Bio::Chado::Schema;
+use Module::Load;
 
 # Module implementation
 #
@@ -42,7 +43,7 @@ sub connect {
     $class->default_source( $params{source_name} )
         if defined $params{default};
 
-	$class->handler_stack if !$class->has_handler_stack;
+    $class->handler_stack if !$class->has_handler_stack;
 
 }
 
@@ -66,13 +67,13 @@ after 'source_name' => sub {
     $class->add_reader_source( $source_name, $class->reader );
     $class->add_writer_source( $source_name, $class->writer );
     if ( !$class->has_source($source_name) ) {
-        $class->register_handler(
-            $source_name,
-            Bio::Chado::Schema->connect(
-                $class->dsn,  $class->user, $class->password,
-                $class->attr, $class->extra
-            )
+
+        my $handler = Bio::Chado::Schema->connect(
+            $class->dsn,  $class->user, $class->password,
+            $class->attr, $class->extra
         );
+
+        $class->register_handler( $source_name, $handler );
     }
 };
 
@@ -103,6 +104,7 @@ sub _build_handler_stack {
         $class->dsn,  $class->user, $class->password,
         $class->attr, $class->extra
     );
+
     return {
         'fallback' => $handler,
         $source    => $handler

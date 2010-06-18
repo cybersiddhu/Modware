@@ -13,6 +13,7 @@ has 'collection' => (
     traits  => ['Array'],
     isa     => 'ArrayRef[Object]',
     default => sub { [] },
+    predicate => 'has_collection', 
     lazy    => 1,
     handles => {
         all                  => 'elements',

@@ -46,6 +46,7 @@ sub add_author {
 }
 
 alias next_author => 'next';
+alias has_authors => 'has_collection';
 
 1;    # Magic true value required at end of module
 
