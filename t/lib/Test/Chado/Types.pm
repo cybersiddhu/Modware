@@ -15,10 +15,7 @@ as Str,
 where { -e $_ and -f $_ }, 
 message { "$_ must be a file or File $_ must exist" };
 
-subtype FileClass, 
-as Object, 
-where { $_->isa('Path::Class::File') };
-
+class_type FileClass,  { class => 'Path::Class::File' };
 
 coerce FileClass, 
 from Str, 

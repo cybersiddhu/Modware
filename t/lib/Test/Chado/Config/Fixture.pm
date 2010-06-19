@@ -23,7 +23,7 @@ has 'organism' => (
     lazy    => 1,
     default => sub {
         my $self = shift;
-        LoadFile( catfile( $Bin, $self->get_value('organism') ) );
+        LoadFile( catfile( $self->base_path, $self->get_value('organism') ) );
     },
     handles => {
         'organism_record' => 'count',

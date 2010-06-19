@@ -105,6 +105,27 @@ sub run_fixture_hooks {
     $self->dbh->do("PRAGMA foreign_keys = ON");
 }
 
+sub prune_fixture {
+	my ($self) = @_;
+	my $dbh = $self->dbh;
+
+	my $sth = $dbh->prepare(qq{SELECT name FROM sqlite_master where type = 'table' });
+	$sth->execute() or croak $sth->errstr;
+	while (my ($table) = $sth->fetchrow_array()) {
+		try { 
+			$dbh->do( qq{ DELETE FROM $table });
+		}
+		catch {
+			$dbh->rollback;
+			croak "Unable to clean table $table: $_\n";
+		};
+	}
+	$dbh->commit;
+}
+
+sub drop_schema {
+}
+
 no Moose::Role;
 
 1;    # Magic true value required at end of module

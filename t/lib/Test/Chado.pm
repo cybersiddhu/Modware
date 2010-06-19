@@ -16,17 +16,29 @@ use Test::Chado::Config::Fixture;
 #
 with 'Test::Chado::Role::Config';
 
+has 'fixture' => (
+    is        => 'rw',
+    isa       => 'Str',
+    predicate => 'has_fixture'
+);
+
 has 'handler' => (
     is         => 'rw',
     isa        => 'Test::Chado::Handler',
     lazy_build => 1
 );
 
+before '_build_handler' => sub {
+	my $self = shift;
+	confess "fixture config file is not set\n" if !$self->has_fixture;
+};
+
 sub _build_handler {
-    my ($self)       = @_;
-    my $fixture_conf = Test::Chado::Config::Fixture->new;
-    $fixture_conf->config( catfile( $Bin, 't', 'config', 'fixture.yaml' ) );
-    my $handler = Test::Chado::Handler->new(fixture => $fixture_conf);
+    my ($self) = @_;
+    my $fixture_conf
+        = Test::Chado::Config::Fixture->new( base_path => $self->base_path );
+    $fixture_conf->config( $self->fixture );
+    my $handler = Test::Chado::Handler->new( fixture => $fixture_conf );
     $handler;
 }
 
@@ -56,8 +68,11 @@ has 'default_handler' => (
 
 before '_build_from_profile' => sub {
     my $self = shift;
-    if ( !$self->has_config ) {
-        $self->config( catfile( $Bin, 't', 'config', 'database.yaml' ) );
+    for my $conf (qw/config fixture/) {
+        my $method = 'has_' . $conf;
+        if ( !$self->$method ) {
+            confess "config file location is not set\n";
+        }
     }
 };
 
@@ -68,13 +83,15 @@ sub _build_from_profile {
 #There could be multiple databases configured in the default configuration file
 #so we load the yaml file first and then later pass the each section to the database
 #configuration handling class.
-    my $db_str  = $self->config;
-    my $db_conf = Test::Chado::Config::Database->new;
+    my $db_str = $self->config;
+    my $db_conf
+        = Test::Chado::Config::Database->new( base_path => $self->base_path );
     $db_conf->config( $db_str->{$name} );
 
     #Here we directly pass the yaml configuration file to the class
-    my $fixture_conf = Test::Chado::Config::Fixture->new;
-    $fixture_conf->config( catfile( $Bin, 't', 'config', 'fixture.yaml' ) );
+    my $fixture_conf
+        = Test::Chado::Config::Fixture->new( base_path => $self->base_path );
+    $fixture_conf->config( $self->fixture );
 
     my $handler = Test::Chado::Handler->new(
         name    => 'fallback',

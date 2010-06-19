@@ -41,6 +41,22 @@ sub drop_db {
 
 }
 
+sub prune_fixture {
+    my ($self) = @_;
+    my $dbh = $self->super_dbh;
+
+    my $tsth = $dbh->prepare(qq{ select table_name FROM user_tables });
+    $tsth->execute() or croak $tsth->errstr();
+    while ( my ($table) = $tsth->fetchrow_array() ) {
+        try { $dbh->do(qq{ TRUNCATE TABLE $table }) }
+        catch {
+            $dbh->rollback();
+            croak "$_\n";
+        };
+    }
+    $dbh->commit;
+}
+
 sub drop_schema {
     my ($self) = @_;
     my $dbh = $self->super_dbh;
@@ -54,7 +70,7 @@ sub drop_schema {
     my $isth = $dbh->prepare(qq{ select sequence_name FROM user_sequences });
     my $tsth = $dbh->prepare(qq{ select table_name FROM user_tables });
 
-    $tsth->execute() or croak $tsth->execute();
+    $tsth->execute() or croak $tsth->errstr();
 TABLE:
     while ( my ($table) = $tsth->fetchrow_array() ) {
         try { $dbh->do(qq{ drop table $table cascade constraints purge }) }

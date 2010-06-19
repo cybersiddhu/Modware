@@ -10,6 +10,11 @@ use Test::Chado::Types qw/ModConfig/;
 # Module implementation
 #
 
+has 'base_path' => (
+	is => 'rw', 
+	isa => 'Str'
+);
+
 has 'config' => (
     is        => 'rw',
     isa       => ModConfig,

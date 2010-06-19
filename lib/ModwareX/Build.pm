@@ -8,6 +8,9 @@ __PACKAGE__->add_property('handler');
 __PACKAGE__->add_property('chado');
 __PACKAGE__->add_property( 'default_profile' => 'fallback' );
 __PACKAGE__->add_property('action_profile');
+__PACKAGE__->add_property( 'is_fixture_loaded'   => 0 );
+__PACKAGE__->add_property( 'is_fixture_unloaded' => 1 );
+__PACKAGE__->add_property( 'is_schema_loaded'    => 0 );
 __PACKAGE__->add_property(
     'dbconfig',
     default => sub {
@@ -24,6 +27,8 @@ sub db_handler {
     my $handler;
     my $chado = Test::Chado->new( config => $self->args('config_file')
             || $self->dbconfig );
+    $chado->fixture( $self->args('fixture_config') );
+    $chado->base_path($self->args('base_path'));
     if ( $self->action_profile ) {
         $handler = $chado->handler_from_profile( $self->action_profile );
     }
@@ -151,6 +156,7 @@ sub ACTION_deploy_schema {
     $self->common_setup;
     $self->db_handler;
     $self->handler->deploy_schema;
+    $self->is_schema->loaded(1);
 }
 
 sub ACTION_load_organism {
@@ -189,6 +195,7 @@ sub ACTION_load_fixture {
     $self->handler->load_rel;
     $self->handler->load_so;
     $self->handler->load_pub;
+    $self->is_fixture_loaded(1);
 }
 
 sub ACTION_unload_rel {
@@ -220,6 +227,18 @@ sub ACTION_unload_fixture {
     $self->handler->unload_so;
     $self->handler->unload_pub;
     $self->handler->unload_organism;
+    $self->is_fixture_loaded(0);
+    $self->is_fixture_unloaded(1);
+}
+
+sub ACTION_prune_fixture {
+    my ($self) = @_;
+    $self->common_setup;
+    $self->db_handler;
+	$self->handler->prune_fixture;
+    $self->is_fixture_loaded(0);
+    $self->is_fixture_unloaded(1);
+
 }
 
 sub ACTION_unload_organism {

@@ -2,11 +2,14 @@
 use strict;
 use inc::latest 'Module::Build';
 use File::Spec::Functions;
+use FindBin qw/$Bin/;
 use lib ( 'lib', 't/lib' );
 use ModwareX::Build;
 
-my $config_file = catfile( 't', 'config', 'database.yaml' );
-my $build = ModwareX::Build->new(
+my $base_path      = $Bin;
+my $db_config      = catfile( $base_path, 't', 'config', 'database.yaml' );
+my $fixture_config = catfile( $base_path, 't', 'config', 'fixture.yaml' );
+my $build          = ModwareX::Build->new(
     module_name   => 'ModwareX',
     license       => 'perl',
     dist_author   => 'Siddhartha Basu <siddhartha-basu@northwestern.edu>',
@@ -30,14 +33,16 @@ my $build = ModwareX::Build->new(
     add_to_cleanup => ['ModwareX-*'],
     create_readme  => 1,
     get_options    => {
-        dsn           => { type  => ':s' },
-        user          => { type  => ':s' },
-        password      => { type  => ':s' },
-        config_file   => { store => \$config_file },
-        profile       => { type  => ':s' },
-        superuser     => { type  => ':s' },
-        superpassword => { type  => ':s' },
-        default       => {},
+        dsn            => { type    => ':s' },
+        user           => { type    => ':s' },
+        password       => { type    => ':s' },
+        config_file    => { default => $db_config, type => ':s' },
+        fixture_config => { default => $fixture_config, type => ':s' },
+        base_path      => { default => $base_path, type => ':s' },
+        profile        => { type    => ':s' },
+        superuser      => { type    => ':s' },
+        superpassword  => { type    => ':s' },
+        default => {},
     }
 );
 
