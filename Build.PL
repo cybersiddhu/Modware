@@ -4,12 +4,12 @@ use inc::latest 'Module::Build';
 use File::Spec::Functions;
 use FindBin qw/$Bin/;
 use lib ( 'lib', 't/lib' );
-use ModwareX::Build;
+use Modware::Build;
 
 my $db_config      = catfile( $Bin, 't', 'config', 'database.yaml' );
 my $fixture_config = catfile( $Bin, 't', 'config', 'fixture.yaml' );
-my $build          = ModwareX::Build->new(
-    module_name   => 'ModwareX',
+my $build          = Modware::Build->new(
+    module_name   => 'Modware',
     license       => 'perl',
     dist_author   => 'Siddhartha Basu <siddhartha-basu@northwestern.edu>',
     dist_version  => '0.01',
@@ -29,7 +29,7 @@ my $build          = ModwareX::Build->new(
         'Path::Class'               => '0.18',
         'aliased'                   => '0.30'
     },
-    add_to_cleanup => ['ModwareX-*'],
+    add_to_cleanup => ['Modware-*'],
     create_readme  => 1,
     get_options    => {
         dsn            => { type    => ':s' },
