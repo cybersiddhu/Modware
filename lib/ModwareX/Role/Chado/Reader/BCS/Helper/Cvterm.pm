@@ -101,7 +101,7 @@ __END__
 
 =head1 NAME
 
-<MODULE NAME> - [One line description of module's purpose here]
+B<ModwareX::Role::Chado::Reader::BCS::Helper::Cvterm> - [One line description of module's purpose here]
 
 
 =head1 VERSION
