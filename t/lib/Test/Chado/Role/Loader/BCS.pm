@@ -162,7 +162,7 @@ sub _build_ontology_namespace {
 sub _build_cvrow {
     my ($self)    = @_;
     my $namespace = $self->ontology_namespace;
-    my $name      = 'ModwareX-' . $self->loader_tag . '-' . $namespace;
+    my $name      = 'Modware-' . $self->loader_tag . '-' . $namespace;
     my $cvrow     = $self->schema->resultset('Cv::Cv')
         ->find_or_create( { name => $name } );
     $cvrow->definition('Ontology namespace for modwareX module');
@@ -174,7 +174,7 @@ sub _build_dbrow {
     my ($self) = @_;
     my $name   = $self->ontology_namespace;
     my $row    = $self->schema->resultset('General::Db')->find_or_create(
-        {         name => 'GMOD:ModwareX-'
+        {         name => 'GMOD:Modware-'
                 . $self->loader_tag . '-'
                 . $self->ontology_namespace,
         }
@@ -329,7 +329,7 @@ sub unload_ontology {
     try {
         $schema->txn_do(
             sub {
-                my $name = '%ModwareX-' . $self->loader_tag . '%';
+                my $name = '%Modware-' . $self->loader_tag . '%';
                 $schema->resultset('General::Db')
                     ->search( { name => { -like => $name } } )->delete_all;
                 $schema->resultset('Cv::Cv')
@@ -595,7 +595,7 @@ sub lookup_cv_id {
     try {
         $cvrow = $schema->txn_do(
             sub {
-                my $name = 'ModwareX-' . $self->loader_tag . '-' . $namespace;
+                my $name = 'Modware-' . $self->loader_tag . '-' . $namespace;
                 my $cvrow = $schema->resultset('Cv::Cv')->create(
                     {   name       => $name,
                         definition => "Ontology namespace for modwarex module"
@@ -623,7 +623,7 @@ sub lookup_db_id {
     try {
         $dbrow = $schema->txn_do(
             sub {
-                my $name  = 'ModwareX-' . $self->loader_tag . '-' . $dbname;
+                my $name  = 'Modware-' . $self->loader_tag . '-' . $dbname;
                 my $dbrow = $schema->resultset('General::Db')->create(
                     {   name        => $name,
                         description => "Ontology dbname for modwarex module"
