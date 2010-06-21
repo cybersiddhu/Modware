@@ -6,9 +6,8 @@ use FindBin qw/$Bin/;
 use lib ( 'lib', 't/lib' );
 use ModwareX::Build;
 
-my $base_path      = $Bin;
-my $db_config      = catfile( $base_path, 't', 'config', 'database.yaml' );
-my $fixture_config = catfile( $base_path, 't', 'config', 'fixture.yaml' );
+my $db_config      = catfile( $Bin, 't', 'config', 'database.yaml' );
+my $fixture_config = catfile( $Bin, 't', 'config', 'fixture.yaml' );
 my $build          = ModwareX::Build->new(
     module_name   => 'ModwareX',
     license       => 'perl',
@@ -38,14 +37,17 @@ my $build          = ModwareX::Build->new(
         password       => { type    => ':s' },
         config_file    => { default => $db_config, type => ':s' },
         fixture_config => { default => $fixture_config, type => ':s' },
-        base_path      => { default => $base_path, type => ':s' },
         profile        => { type    => ':s' },
         superuser      => { type    => ':s' },
         superpassword  => { type    => ':s' },
+        'load-fixture' => { type    => '!', default => 1 },
+        create         => { type    => '!', default => 1 },
+        drop           => { type    => '!', default => 1 },
         default => {},
     }
 );
 
+$build->config_data('base_dir' => $build->base_dir);
 $build->create_build_script;
 
 1;

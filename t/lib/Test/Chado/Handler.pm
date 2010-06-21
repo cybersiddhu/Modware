@@ -18,7 +18,7 @@ use File::Spec::Functions;
 with 'MooseX::LogDispatch::Levels';
 
 has 'name' => ( is => 'rw', isa => 'Str' );
-has 'loader' => ( is => 'rw', isa => 'Str',  default => 'bcs');
+has 'loader' => ( is => 'rw', isa => 'Str', default => 'bcs' );
 has 'section' => (
     is        => 'rw',
     isa       => 'Test::Chado::Config::Database',
@@ -51,10 +51,13 @@ has 'fixture' => (
     predicate => 'has_fixture',
 );
 
-for my $attr (
-    qw/driver user password superuser superpass driver_dsn database/)
-{
+for my $attr (qw/driver driver_dsn database/) {
     has $attr => ( is => 'rw', isa => 'Str', predicate => 'has_' . $attr );
+}
+
+for my $attr (qw/user password superuser superpass/) {
+    has $attr =>
+        ( is => 'rw', isa => 'Maybe[Str]', predicate => 'has_' . $attr );
 }
 
 has 'dsn' => (
@@ -72,8 +75,8 @@ sub _setup_dsn {
         or confess "cannot parse dsn:$DBI::errstr\n";
     $self->driver($driver);
     $self->driver_dsn($driver_dsn);
-        apply_all_roles( $self,
-            'Test::Chado::Role::Loader::' . uc $self->loader );
+    apply_all_roles( $self,
+        'Test::Chado::Role::Loader::' . uc $self->loader );
 }
 
 after 'driver' => sub {
@@ -109,7 +112,6 @@ has 'attr_hash' => (
     handles => { add_dbh_attribute => 'set' }
 );
 
-
 after 'user' => sub {
     my ( $self, $user ) = @_;
     if ( !$self->has_superuser ) {
@@ -123,7 +125,6 @@ after 'password' => sub {
         $self->superpass($pass);
     }
 };
-
 
 no Moose;
 

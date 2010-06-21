@@ -8,6 +8,7 @@ use Carp;
 use File::Basename;
 use File::Path;
 use Try::Tiny;
+use IPC::Cmd qw/can_run run/;
 
 # Module implementation
 #
@@ -15,6 +16,16 @@ requires 'driver';
 requires 'dsn';
 requires 'database';
 requires 'attr_hash';
+
+has 'client' => (
+    is        => 'rw',
+    isa       => 'Maybe[Str]',
+    lazy      => 1,
+    predicate => 'has_client',
+    default   => sub {
+        can_run 'sqlite3';
+    }
+);
 
 after 'driver_dsn' => sub {
     my ( $self, $value ) = @_;
@@ -36,9 +47,11 @@ sub create_db {
             confess $_;
         };
     }
-    if ( !$self->has_db ) {
-        $self->dbh;
-    }
+
+	#nothing to do if the client exist
+	#the database will be created in the deployment call
+    return if $self->has_client ;
+    $self->dbh;
 }
 
 sub drop_db {
@@ -54,12 +67,12 @@ has 'dbh' => (
     lazy      => 1,
     default   => sub {
         my ($self) = @_;
-        my $dbh = DBI->connect( $self->connection_info ) or confess $DBI::errstr;
-    	$dbh->do("PRAGMA foreign_keys = ON");
-    	$dbh;
+        my $dbh = DBI->connect( $self->connection_info )
+            or confess $DBI::errstr;
+        $dbh->do("PRAGMA foreign_keys = ON");
+        $dbh;
     }
 );
-
 
 has 'connection_info' => (
     is         => 'ro',
@@ -73,6 +86,25 @@ has 'connection_info' => (
 );
 
 sub deploy_schema {
+    my $self = shift;
+    $self->deploy_by_dbi if !$self->deploy_by_client;
+}
+
+sub deploy_by_client {
+    my $self = shift;
+    return if !$self->has_client;
+    my $cmd = [
+        $self->client,   '-noheader',
+        $self->database, '<',
+        $self->ddl->stringify
+    ];
+    my ( $success, $error_code, $full_buf,, $stdout_buf, $stderr_buf )
+        = run( command => $cmd, verbose => 1 );
+    return $success if $success;
+    carp "unable to run command : ", $error_code, " ", $stderr_buf;
+}
+
+sub deploy_by_dbi {
     my ($self) = @_;
     my $dbh    = $self->dbh;
     my $fh     = $self->ddl->openr;
@@ -101,26 +133,27 @@ LINE:
 }
 
 sub run_fixture_hooks {
-	my ($self) = @_;
+    my ($self) = @_;
     $self->dbh->do("PRAGMA foreign_keys = ON");
 }
 
 sub prune_fixture {
-	my ($self) = @_;
-	my $dbh = $self->dbh;
+    my ($self) = @_;
+    my $dbh = $self->dbh;
 
-	my $sth = $dbh->prepare(qq{SELECT name FROM sqlite_master where type = 'table' });
-	$sth->execute() or croak $sth->errstr;
-	while (my ($table) = $sth->fetchrow_array()) {
-		try { 
-			$dbh->do( qq{ DELETE FROM $table });
-		}
-		catch {
-			$dbh->rollback;
-			croak "Unable to clean table $table: $_\n";
-		};
-	}
-	$dbh->commit;
+    my $sth = $dbh->prepare(
+        qq{SELECT name FROM sqlite_master where type = 'table' });
+    $sth->execute() or croak $sth->errstr;
+    while ( my ($table) = $sth->fetchrow_array() ) {
+        try {
+            $dbh->do(qq{ DELETE FROM $table });
+        }
+        catch {
+            $dbh->rollback;
+            croak "Unable to clean table $table: $_\n";
+        };
+    }
+    $dbh->commit;
 }
 
 sub drop_schema {
