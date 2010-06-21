@@ -1,8 +1,0 @@
-database:
-  dsn: "dbi:Oracle:host=192.168.60.10;sid=dictybase"
-  user: CGM_CHADO
-  pass: CGM_CHADO
-
-output: "/home/ubuntu/dictyBase/Libs/modwarex/data/fasta/sequence.fa"
-
-
