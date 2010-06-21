@@ -1,38 +1,31 @@
-package ModwareX::Chado::Reader::BCS::Helper::Cvterm;
+package ModwareX::Role::Chado::Reader::BCS::Helper::Cvterm;
 
 use version; our $VERSION = qv('1.0.0');
 
 # Other modules:
 use Moose::Role;
 use MooseX::Params::Validate;
+use Carp;
 
 # Module implementation
 #
 
-requires 'cv';
-requires 'cvterm';
 requires 'chado';
+requires 'cv';
 requires 'db';
 
 has 'cvterm_row' => (
-    is         => 'rw',
-    isa        => 'HashRef[Bio::Chado::Schema::Cv::Cvterm]',
-    traits     => ['Hash'],
-    lazy_build => 1,
-    handles    => {
-        get_cvterm_row => 'get',
-        set_cvterm_row => 'set',
-        has_cvterm_row => 'defined'
+    is        => 'rw',
+    isa       => 'HashRef[Bio::Chado::Schema::Cv::Cvterm]',
+    traits    => ['Hash'],
+    predicate => 'has_cvterm_row',
+    default   => sub { {} },
+    handles   => {
+        get_cvterm_row   => 'get',
+        set_cvterm_row   => 'set',
+        exist_cvterm_row => 'defined'
     }
 );
-
-sub _build_cvterm_row {
-    my ($self)     = @_;
-    my $name       = $self->cvterm;
-    my $cvterm_row = $self->chado->resultset('Cv::Cvterm')
-        ->find_or_create( { name => $name } );
-    return { $name => $cvterm_row };
-}
 
 has 'cvrow' => (
     is         => 'rw',
@@ -40,13 +33,13 @@ has 'cvrow' => (
     traits     => ['Hash'],
     lazy_build => 1,
     handles    => {
-        get_cvrow => 'get',
-        set_cvrow => 'set',
-        has_cvrow => 'defined'
+        get_cvrow   => 'get',
+        set_cvrow   => 'set',
+        exist_cvrow => 'defined'
     }
 );
 
-sub _build_cv_row {
+sub _build_cvrow {
     my ($self) = @_;
     my $name   = $self->cv;
     my $cvrow  = $self->chado->resultset('Cv::Cv')
@@ -59,28 +52,27 @@ sub cvterm_id_by_name {
     my ($name) = pos_validated_list( \@_, { isa => 'Str' } );
 
     #check if it is already been cached
-    if ( $self->has_cvterm_row($name) ) {
+    if ( $self->exist_cvterm_row($name) ) {
         return $self->get_cvterm_row($name)->cvterm_id;
     }
 
     #otherwise try to retrieve from database
     my $rs
         = $self->chado->resultset('Cv::Cvterm')->search( { name => $name } );
-    if ($rs) {
+    if ( $rs->count > 0 ) {
         $self->set_cvterm_row( $name => $rs->first );
         return $rs->first->cvterm_id;
     }
 
     #otherwise create one using the default cv namespace
     my $row = $self->chado->resultset('Cv::Cvterm')->create_with(
-    	{
-    		name => $name, 
-    		cv => $self->cv, 
-    		db => $self->db, 
-    		dbxref => $self->cv.':'.ord($name)
-    	}
+        {   name   => $name,
+            cv     => $self->cv,
+            db     => $self->db,
+            dbxref => $self->cv . ':' . ord($name)
+        }
     );
-    $self->set_cvterm_row($name,  $row);
+    $self->set_cvterm_row( $name, $row );
     $row->cvterm_id;
 }
 
@@ -88,17 +80,19 @@ sub cvterm_ids_by_namespace {
     my $self = shift;
     my ($name) = pos_validated_list( \@_, { isa => 'Str' } );
 
-    if ($self->has_cvrow($name)) {
-    	my $ids = [ map { $_->cvterm_id } $self->get_cvrow($name)->cvterms ];
-    	return $ids;
-    } 
-
-    my $rs = $self->chado->resultset('Cv::Cv')->search( { name => $name });
-    if ($rs) {
-    	my $ids = [ map { $_->cvterm_id } $rs->cvterms ];
-    	return $ids;
+    if ( $self->exist_cvrow($name) ) {
+        my $ids = [ map { $_->cvterm_id } $self->get_cvrow($name)->cvterms ];
+        return $ids;
     }
-    croak "the given cv namespace $namespace does not exist : create one \n";
+
+    my $rs = $self->chado->resultset('Cv::Cv')->search( { name => $name } );
+    if ( $rs->count > 0 ) {
+        my $row = $rs->first;
+        $self->set_cvrow( $name, $row );
+        my $ids = [ map { $_->cvterm_id } $row->cvterms ];
+        return $ids;
+    }
+    croak "the given cv namespace $name does not exist : create one \n";
 }
 
 1;    # Magic true value required at end of module
