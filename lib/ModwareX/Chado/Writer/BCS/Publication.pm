@@ -1,4 +1,4 @@
-package ModwareX::Chado::Writer::BCS::Publication;
+package Modware::Chado::Writer::BCS::Publication;
 
 use strict;
 use Carp;

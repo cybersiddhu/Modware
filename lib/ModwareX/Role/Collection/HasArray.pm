@@ -1,4 +1,4 @@
-package ModwareX::Role::Collection::HasArray;
+package Modware::Role::Collection::HasArray;
 
 use version; our $VERSION = qv('0.1');
 

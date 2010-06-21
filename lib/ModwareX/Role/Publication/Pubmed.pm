@@ -1,4 +1,4 @@
-package ModwareX::Role::Publication::Pubmed;
+package Modware::Role::Publication::Pubmed;
 
 use version; our $VERSION = qv('0.1');
 
@@ -16,18 +16,18 @@ __END__
 
 =head1 NAME
 
-B<ModwareX::Role::Publication::Pubmed> - [Moose role for handling pubmed metadata
+B<Modware::Role::Publication::Pubmed> - [Moose role for handling pubmed metadata
 associated that is with publication]
 
 
 =head1 VERSION
 
-This document describes B<ModwareX::Role::Publication::Pubmed> version 0.1
+This document describes B<Modware::Role::Publication::Pubmed> version 0.1
 
 
 =head1 SYNOPSIS
 
-use ModwareX::Role::Publication::Pubmed;
+use Modware::Role::Publication::Pubmed;
 
 =for author to fill in:
 Brief code example(s) here showing commonest usage(s).
@@ -87,7 +87,7 @@ files, and the meaning of any environment variables or properties
 that can be set. These descriptions must also include details of any
 configuration language used.
 
-B<ModwareX::Role::Publication::Pubmed> requires no configuration files or environment variables.
+B<Modware::Role::Publication::Pubmed> requires no configuration files or environment variables.
 
 
 =head1 INCOMPATIBILITIES

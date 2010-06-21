@@ -1,4 +1,4 @@
-package ModwareX::Build;
+package Modware::Build;
 use base qw/Module::Build/;
 use Test::Chado;
 use FindBin qw/$Bin/;
@@ -61,8 +61,8 @@ sub common_setup {
 
 sub ACTION_setup {
     my $self = shift;
-    load 'ModwareX::ConfigData';
-    return if ModwareX::ConfigData->feature('setup_done');
+    load 'Modware::ConfigData';
+    return if Modware::ConfigData->feature('setup_done');
     $self->common_setup;
     $self->db_handler;
     $self->feature( 'setup_done' => 1 );
@@ -141,7 +141,7 @@ sub ACTION_show_profile {
 sub ACTION_create {
     my ($self) = @_;
     $self->depends_on('setup');
-    if ( !ModwareX::ConfigData->feature('is_db_created') ) {
+    if ( !Modware::ConfigData->feature('is_db_created') ) {
         $self->handler->create_db;
         $self->feature( 'is_db_created' => 1 );
     }
@@ -150,7 +150,7 @@ sub ACTION_create {
 sub ACTION_deploy {
     my ($self) = @_;
     $self->depends_on('create');
-    if ( !ModwareX::ConfigData->feature('is_schema_loaded') ) {
+    if ( !Modware::ConfigData->feature('is_schema_loaded') ) {
         $self->handler->deploy_schema;
         $self->feature( 'is_schema_loaded' => 1 );
     }
@@ -160,7 +160,7 @@ sub ACTION_deploy_schema {
     my ($self) = @_;
     $self->depends_on('setup');
     $self->feature( 'is_db_created' => 1 );
-    if ( !ModwareX::ConfigData->feature('is_schema_loaded') ) {
+    if ( !Modware::ConfigData->feature('is_schema_loaded') ) {
         $self->handler->deploy_schema;
         $self->feature( 'is_schema_loaded' => 1 );
     }
@@ -224,7 +224,7 @@ sub ACTION_unload_so {
 sub ACTION_unload_fixture {
     my ($self) = @_;
     $self->depends_on('setup');
-    if ( ModwareX::ConfigData->feature('is_fixture_loaded') ) {
+    if ( Modware::ConfigData->feature('is_fixture_loaded') ) {
         $self->handler->unload_rel;
         $self->handler->unload_so;
         $self->handler->unload_pub;
@@ -280,7 +280,7 @@ __END__
 
 =head1 NAME
 
-B<ModwareX::Build> - [Module::Build actions for loading test fixtures in chado database]
+B<Modware::Build> - [Module::Build actions for loading test fixtures in chado database]
 
 
 =head1 VERSION
@@ -292,9 +292,9 @@ This document describes <MODULE NAME> version 0.1
 
 #In your Build.PL
 
-use ModwareX::Build;
+use Modware::Build;
 
-my $build = ModwareX::Build->new(....);
+my $build = Modware::Build->new(....);
 
 $build->create_build_script;
 

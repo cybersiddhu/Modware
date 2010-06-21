@@ -1,10 +1,10 @@
-package ModwareX::Role::Chado::Reader::BCS::Publication;
+package Modware::Role::Chado::Reader::BCS::Publication;
 
 use version; our $VERSION = qv('0.1');
 
 # Other modules:
 use Moose::Role;
-use aliased 'ModwareX::DataSource::Chado';
+use aliased 'Modware::DataSource::Chado';
 
 # Module implementation
 #
@@ -208,18 +208,18 @@ __END__
 
 =head1 NAME
 
-B<ModwareX::Chado::Reader::BCS::Publication> - [Module for retrieiving publication from
+B<Modware::Chado::Reader::BCS::Publication> - [Module for retrieiving publication from
 chado database]
 
 
 =head1 VERSION
 
-This document describes <ModwareX::Chado::Reader::BCS::Publication> version 0.1
+This document describes <Modware::Chado::Reader::BCS::Publication> version 0.1
 
 
 =head1 SYNOPSIS
 
-use ModwareX::Chado::Reader::BCS::Publication;
+use Modware::Chado::Reader::BCS::Publication;
 
 
 =head1 DESCRIPTION
@@ -242,7 +242,7 @@ the conditions are expected to be joined together with ' AND
                         ' clause. However,  it could be
 changed using the I<clause> options.
 
-=item B<Return:> Depending on the context either an array of B<ModwareX::Publication>
+=item B<Return:> Depending on the context either an array of B<Modware::Publication>
 object or an iteartor.
 
 =item B<Args:> The following parameters could be passed as key value pairs.
@@ -309,7 +309,7 @@ object or an iteartor.
 
 =item B<Functions:> Returns the first matching publiction.
 
-=item B<Return:> ModwareX::Publication object.
+=item B<Return:> Modware::Publication object.
 
 =item B<Args:> Identical to L<where> method.
 
@@ -324,7 +324,7 @@ object or an iteartor.
 
 =item B<Functions:> Returns the last matching publiction.
 
-=item B<Return:> ModwareX::Publication object.
+=item B<Return:> Modware::Publication object.
 
 =item B<Args:> Identical to L<where> method.
 
@@ -373,7 +373,7 @@ files, and the meaning of any environment variables or properties
 that can be set. These descriptions must also include details of any
 configuration language used.
 
-B<ModwareX::Chado::Reader::BCS::Publication> requires no configuration files or environment variables.
+B<Modware::Chado::Reader::BCS::Publication> requires no configuration files or environment variables.
 
 
 =head1 INCOMPATIBILITIES

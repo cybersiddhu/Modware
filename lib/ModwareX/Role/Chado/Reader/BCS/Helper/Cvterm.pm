@@ -1,4 +1,4 @@
-package ModwareX::Role::Chado::Reader::BCS::Helper::Cvterm;
+package Modware::Role::Chado::Reader::BCS::Helper::Cvterm;
 
 use version; our $VERSION = qv('1.0.0');
 
@@ -101,7 +101,7 @@ __END__
 
 =head1 NAME
 
-B<ModwareX::Role::Chado::Reader::BCS::Helper::Cvterm> - [One line description of module's purpose here]
+B<Modware::Role::Chado::Reader::BCS::Helper::Cvterm> - [One line description of module's purpose here]
 
 
 =head1 VERSION

@@ -1,11 +1,11 @@
 
 =head1 NAME
 
-ModwareX::DB::Adaptor::GBrowse::Chado::Segment - ModwareXBase specific adaptor for DAS-style access to a chado database
+Modware::DB::Adaptor::GBrowse::Chado::Segment - ModwareBase specific adaptor for DAS-style access to a chado database
 
 =head1 SYNOPSIS
 
-  # Get a Bio::Das::SegmentI object from a ModwareX::DB::Adaptor::GBrowse::Chado database...
+  # Get a Bio::Das::SegmentI object from a Modware::DB::Adaptor::GBrowse::Chado database...
 
   $segment = $das->segment(-name => 'Landmark',
                            -start=> $start,
@@ -29,7 +29,7 @@ ModwareX::DB::Adaptor::GBrowse::Chado::Segment - ModwareXBase specific adaptor f
 
 =head1 DESCRIPTION
 
-ModwareX::DB::Adaptor::GBrowse::Segment iprovides ModwareXBase customisation for
+Modware::DB::Adaptor::GBrowse::Segment iprovides ModwareBase customisation for
 Bio::DB::Das::Chado::Segment object ("segment").
 
 =head1 AUTHOR
@@ -43,15 +43,15 @@ methods. Internal methods are usually preceded with a _
 
 =cut
 
-package ModwareX::DB::Adaptor::GBrowse::Segment;
+package Modware::DB::Adaptor::GBrowse::Segment;
 
 use strict;
 use Carp qw(carp croak cluck confess);
 use Bio::Root::Root;
 use Bio::SeqI;
 use Bio::Das::SegmentI;
-use ModwareX::DB::Adaptor::GBrowse::Chado;
-use ModwareX::DB::Adaptor::GBrowse::Segment::Feature;
+use Modware::DB::Adaptor::GBrowse::Chado;
+use Modware::DB::Adaptor::GBrowse::Segment::Feature;
 use Bio::DB::Das::Chado::Segment;
 use Bio::DB::GFF::Typename;
 use Data::Dumper;
@@ -61,7 +61,7 @@ use constant DEBUG => 0;
 
 use vars '@ISA';
 @ISA
-    = qw( Bio::Root::Root Bio::SeqI Bio::Das::SegmentI ModwareX::DB::Adaptor::GBrowse::Chado );
+    = qw( Bio::Root::Root Bio::SeqI Bio::Das::SegmentI Modware::DB::Adaptor::GBrowse::Chado );
 
 # construct a virtual segment that works in a lazy way
 sub new {
@@ -702,7 +702,7 @@ sub features {
     warn "@$types\n" if ( defined $types and DEBUG );
 
     $factory ||= $self->factory();
-    my $feat = ModwareX::DB::Adaptor::GBrowse::Segment::Feature->new();
+    my $feat = Modware::DB::Adaptor::GBrowse::Segment::Feature->new();
     my @features;
 
     my ( $interbase_start, $rend, $srcfeature_id, $sql_types );
@@ -927,7 +927,7 @@ sub features {
         my $type = Bio::DB::GFF::Typename->new(
             $factory->term2name( $$hashref{type_id} ), $source );
 
-        $feat = ModwareX::DB::Adaptor::GBrowse::Segment::Feature->new(
+        $feat = Modware::DB::Adaptor::GBrowse::Segment::Feature->new(
             $factory,
             $feature_id ? undef : $self,    #only give the segment as the
                                             # parent if the feature_id wasn't
@@ -1024,7 +1024,7 @@ sub _features2level() {
     warn "@$types\n" if ( defined $types and DEBUG );
 
     $factory ||= $self->factory();
-    my $feat = ModwareX::DB::Adaptor::GBrowse::Segment::Feature->new();
+    my $feat = Modware::DB::Adaptor::GBrowse::Segment::Feature->new();
     my @features;
 
     my ( $interbase_start, $rend, $srcfeature_id, $sql_types );
@@ -1240,7 +1240,7 @@ sub _features2level() {
             my $type = Bio::DB::GFF::Typename->new(
                 $factory->term2name( $$hashref{type_id} ), $source );
 
-            $feat = ModwareX::DB::Adaptor::GBrowse::Segment::Feature->new(
+            $feat = Modware::DB::Adaptor::GBrowse::Segment::Feature->new(
                 $factory,
                 $feature_id ? undef : $self, #only give the segment as the
                                              # parent if the feature_id wasn't
@@ -1292,7 +1292,7 @@ sub _features2level() {
             my $type = Bio::DB::GFF::Typename->new(
                 $factory->term2name( $$hashref{stype_id} ), $source );
 
-            my $subFeat = ModwareX::DB::Adaptor::GBrowse::Feature->new(
+            my $subFeat = Modware::DB::Adaptor::GBrowse::Feature->new(
                 $factory,
                 $feat,
                 $feature_id

@@ -1,12 +1,12 @@
 
 =head1 NAME
 
-ModwareX::DB::Adaptor::GBrowse::Chado - ModwareXBase specific adaptor for DAS-style access to a chado database
+Modware::DB::Adaptor::GBrowse::Chado - ModwareBase specific adaptor for DAS-style access to a chado database
 
 =head1 SYNOPSIS
 
 # Open up a feature database
- $db    = ModwareX::DB::Adaptor::GBrowse::Chado->new();
+ $db    = Modware::DB::Adaptor::GBrowse::Chado->new();
 
   @segments = $db->segment(-name  => '2L',
                            -start => 1,
@@ -38,7 +38,7 @@ ModwareX::DB::Adaptor::GBrowse::Chado - ModwareXBase specific adaptor for DAS-st
 
 =head1 DESCRIPTION
 
-ModwareX::Adaptor::GBrowse::Chado provides ModwareXBase customisation for
+Modware::Adaptor::GBrowse::Chado provides ModwareBase customisation for
 Bio::DB::Das::Chado object.
 
 =head1 AUTHOR - Yulia Bushmanova
@@ -52,10 +52,10 @@ methods. Internal methods are usually preceded with a _
 
 =cut
 
-package ModwareX::DB::Adaptor::GBrowse::Chado;
+package Modware::DB::Adaptor::GBrowse::Chado;
 use strict;
 
-use ModwareX::DB::Adaptor::GBrowse::Segment;
+use Modware::DB::Adaptor::GBrowse::Segment;
 use Bio::Root::Root;
 use Bio::DasI;
 use Bio::PrimarySeq;
@@ -69,17 +69,17 @@ use Carp qw(croak confess longmess);
 use base qw(Bio::Root::Root Bio::DasI);
 use vars qw($VERSION @ISA);
 
-use constant SEGCLASS => 'ModwareX::DB::Adaptor::GBrowse::Segment';
+use constant SEGCLASS => 'Modware::DB::Adaptor::GBrowse::Segment';
 use constant MAP_REFERENCE_TYPE => 'MapReferenceType';    #dgg
 use constant DEBUG              => 0;
 
 =head2 new
 
  Title   : new
- Usage   : $db = ModwareX::DB::Adaptor::GBrowse::Chado();
+ Usage   : $db = Modware::DB::Adaptor::GBrowse::Chado();
 
  Function: Open up a Bio::DB::DasI interface to a Chado database. 
- Returns : a new ModwareX::DB::Adaptor::GBrowse::Chado object
+ Returns : a new Modware::DB::Adaptor::GBrowse::Chado object
  Args    : none
 
 =cut
@@ -951,7 +951,7 @@ sub _by_alias_by_name {
                         or die("getting assembly info failed");
                     my $src_name = $jsth->fetchrow_hashref("NAME_lc");
                     $parent_segment
-                        = ModwareX::DB::Adaptor::GBrowse::Segment->new(
+                        = Modware::DB::Adaptor::GBrowse::Segment->new(
                         $$src_name{'name'}, $self );
                     $old_srcfeature_id = $$hashref{'srcfeature_id'};
                 }
@@ -994,7 +994,7 @@ sub _by_alias_by_name {
                     }
                     $base_start = $interbase_start + 1;
                     my $feat
-                        = ModwareX::DB::Adaptor::GBrowse::Segment::Feature
+                        = Modware::DB::Adaptor::GBrowse::Segment::Feature
                         ->new(
                         $self,
                         $parent_segment,
@@ -1107,7 +1107,7 @@ sub _by_alias_by_name {
                             }
 
                             my $feat
-                                = ModwareX::DB::Adaptor::GBrowse::Segment::Feature
+                                = Modware::DB::Adaptor::GBrowse::Segment::Feature
                                 ->new(
                                 $self,
                                 $parent_segment,
@@ -1132,7 +1132,7 @@ sub _by_alias_by_name {
                         my $interbase_start = $$hashref{'fmin'};
                         $base_start = $interbase_start + 1;
                         my $feat
-                            = ModwareX::DB::Adaptor::GBrowse::Segment::Feature
+                            = Modware::DB::Adaptor::GBrowse::Segment::Feature
                             ->new(
                             $self,
                             $parent_segment,

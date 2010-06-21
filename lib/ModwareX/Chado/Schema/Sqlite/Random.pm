@@ -1,4 +1,4 @@
-package ModwareX::Chado::Schema::Sqlite::Random;
+package Modware::Chado::Schema::Sqlite::Random;
 
 use warnings;
 use strict;

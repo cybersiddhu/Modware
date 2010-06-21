@@ -1,4 +1,4 @@
-package ModwareX::Legacy::Writer::Reference;
+package Modware::Legacy::Writer::Reference;
 
 use Moose::Role;
 use version; our $VERSION = qv('1.0.0');
@@ -6,7 +6,7 @@ use version; our $VERSION = qv('1.0.0');
 # Other modules:
 use Carp;
 use Try::Tiny;
-use ModwareX::Legacy::Dbtable::Reference;
+use Modware::Legacy::Dbtable::Reference;
 use ModwaerX::Legacy::Dbtable::Search::Author_editor;
 
 # Module implementation
@@ -53,7 +53,7 @@ after 'insert_reference_table' => sub {
 
 sub relink_authors {
 	my ($self) = @_;
-   my @database_links = ModwareX::Legacy::Dbtable::Search::Author_editor->Search_by_reference( $self->reference_no );
+   my @database_links = Modware::Legacy::Dbtable::Search::Author_editor->Search_by_reference( $self->reference_no );
 
   # delete all database links
    foreach my $author_link (@database_links) {
@@ -72,7 +72,7 @@ sub relink_authors {
   # re add all authors to reference
    foreach my $author (@{$self->{authors}}) {
       my $author_no = $self->_get_author_no ( $author );
-      ModwareX::Legacy::Dbtable::Author_editor->Insert(binds=>{
+      Modware::Legacy::Dbtable::Author_editor->Insert(binds=>{
                                    author_no    => $author_no,
                                    reference_no => $self->reference_no,
                                    author_type  => 'Author',

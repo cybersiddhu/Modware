@@ -1,4 +1,4 @@
-package ModwareX::Role::DoesAnalysis;
+package Modware::Role::DoesAnalysis;
 
 use version; our $VERSION = qv('1.0.0');
 

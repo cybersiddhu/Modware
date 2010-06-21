@@ -1,4 +1,4 @@
-package ModwareX::Role::DataSource::Util;
+package Modware::Role::DataSource::Util;
 
 
 use version; our $VERSION = qv('1.0.0');

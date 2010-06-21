@@ -1,17 +1,17 @@
-package ModwareX::Chado;
+package Modware::Chado;
 
 use version; 
 our $VERSION = qv('0.1');
 
 # Other modules:
 use Moose::Exporter;
-use ModwareX::DataSource::Chado;
+use Modware::DataSource::Chado;
 
 # Module implementation
 #
 
-my $reader = ModwareX::DataSource::Chado->reader_namespace;
-$reader .= '::'. uc ModwareX::DataSource::Chado->reader;
+my $reader = Modware::DataSource::Chado->reader_namespace;
+$reader .= '::'. uc Modware::DataSource::Chado->reader;
 
 1;    # Magic true value required at end of module
 
@@ -19,19 +19,19 @@ __END__
 
 =head1 NAME
 
-<ModwareX::Chado> - [Chado datasource connection handler]
+<Modware::Chado> - [Chado datasource connection handler]
 
 
 =head1 VERSION
 
-This document describes <ModwareX::Chado> version 0.0.1
+This document describes <Modware::Chado> version 0.0.1
 
 
 =head1 SYNOPSIS
 
-use ModwareX::Chado;
+use Modware::Chado;
 
-ModwareX::Chado->connect( 
+Modware::Chado->connect( 
   dsn => 'dbi:Pg:database=gmod', 
   user => 'moduser', 
   password => 'modpass'

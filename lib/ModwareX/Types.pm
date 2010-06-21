@@ -1,4 +1,4 @@
-package  ModwareX::Types;
+package  Modware::Types;
 
 use version; our $VERSION = qv('0.1');
 

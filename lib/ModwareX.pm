@@ -1,4 +1,4 @@
-package ModwareX;
+package Modware;
 
 use strict;
 use warnings;
@@ -10,15 +10,15 @@ __END__
 
 =head1 NAME
 
-ModwareX -
+Modware -
 
 =head1 SYNOPSIS
 
-  use ModwareX;
+  use Modware;
 
 =head1 DESCRIPTION
 
-ModwareX is
+Modware is
 
 =head1 AUTHOR
 

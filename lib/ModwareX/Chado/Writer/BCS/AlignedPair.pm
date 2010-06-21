@@ -1,12 +1,12 @@
-package ModwareX::Chado::Writer::BCS::AlignedPair;
+package Modware::Chado::Writer::BCS::AlignedPair;
 
 use version; our $VERSION = qv('1.0.0');
 
 # Other modules:
 use Moose::Role;
 use MooseX::Aliases;
-use ModwareX::DataSource::Chado;
-use ModwareX::Chado::Reader::RelationShip;
+use Modware::DataSource::Chado;
+use Modware::Chado::Reader::RelationShip;
 use Carp qw/confess/;
 
 # Module implementation
@@ -18,14 +18,14 @@ requires 'create_analysis';
 
 has 'chadowriter' => (
     is      => 'ro',
-    isa     => 'ModwareX::DataSource::Chado',
+    isa     => 'Modware::DataSource::Chado',
     lazy    => 1,
     handles => [qw/handler/],
 );
 
 has 'relationship' => (
     is      => 'ro',
-    isa     => 'ModwareX::Chado::Reader::RelationShip',
+    isa     => 'Modware::Chado::Reader::RelationShip',
     lazy    => 1,
     handles => qr/^\S+/,
 );
@@ -322,7 +322,7 @@ __END__
 
 =head1 NAME
 
-<ModwareX::Chado::Writer::SimilarityPair> - [Moose role for writing SimilarityPair object
+<Modware::Chado::Writer::SimilarityPair> - [Moose role for writing SimilarityPair object
 to chado source]
 
 

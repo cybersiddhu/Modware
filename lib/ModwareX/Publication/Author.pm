@@ -1,11 +1,11 @@
-package ModwareX::Publication::Author;
+package Modware::Publication::Author;
 
 
 use version; our $VERSION = qv('0.0.1');
 
 # Other modules:
 use Moose;
-use ModwareX::Types qw/CleanStr/;
+use Modware::Types qw/CleanStr/;
 
 # Module implementation
 #
@@ -68,12 +68,12 @@ __END__
 
 =head1 NAME
 
-B<ModwareX::Publication::Author> - [Represents an author for a publication]
+B<Modware::Publication::Author> - [Represents an author for a publication]
 
 
 =head1 VERSION
 
-This document describes B<ModwareX::Publication::Author> version 0.1
+This document describes B<Modware::Publication::Author> version 0.1
 
 
 =head1 SYNOPSIS
@@ -105,7 +105,7 @@ classes provided by the module.
 
 =item B<Functions:> The rank attribute designate order of authors
 in a publication which only receives a value after being added in the
-B<ModwareX::Publication::Authors> collection. Setting in the author does not carry any
+B<Modware::Publication::Authors> collection. Setting in the author does not carry any
 value. 
 
 =item B<Return:> Integer
@@ -146,7 +146,7 @@ files, and the meaning of any environment variables or properties
 that can be set. These descriptions must also include details of any
 configuration language used.
 
-B<ModwareX::Publication::Author> requires no configuration files or environment variables.
+B<Modware::Publication::Author> requires no configuration files or environment variables.
 
 
 =head1 DEPENDENCIES

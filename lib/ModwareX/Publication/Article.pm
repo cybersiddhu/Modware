@@ -1,4 +1,4 @@
-package ModwareX::Publication::Article;
+package Modware::Publication::Article;
 
 use version; our $VERSION = qv('0.1.0');
 
@@ -13,17 +13,17 @@ __END__
 
 =head1 NAME
 
-B<ModwareX::Publication::Article> - [Module for handling published article]
+B<Modware::Publication::Article> - [Module for handling published article]
 
 
 =head1 VERSION
 
-This document describes B<ModwareX::Publication::Article> version 0.1.0
+This document describes B<Modware::Publication::Article> version 0.1.0
 
 
 =head1 SYNOPSIS
 
-use ModwareX::Publication::Article;
+use Modware::Publication::Article;
 
 
 =head1 DESCRIPTION
@@ -40,7 +40,7 @@ Use subsections (=head2, =head3) as appropriate.
 
 =head2 last_page
 
-For more docs,  look at B<ModwareX::Publication>
+For more docs,  look at B<Modware::Publication>
 
 
 =head1 DIAGNOSTICS
@@ -75,7 +75,7 @@ files, and the meaning of any environment variables or properties
 that can be set. These descriptions must also include details of any
 configuration language used.
 
-<ModwareX::Publication::Article> requires no configuration files or environment variables.
+<Modware::Publication::Article> requires no configuration files or environment variables.
 
 
 =head1 DEPENDENCIES

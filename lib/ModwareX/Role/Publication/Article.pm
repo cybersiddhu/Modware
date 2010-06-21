@@ -1,4 +1,4 @@
-package ModwareX::Role::Publication::Article;
+package Modware::Role::Publication::Article;
 
 use warnings;
 use strict;

@@ -1,4 +1,4 @@
-package ModwareX::Publication::Journal;
+package Modware::Publication::Journal;
 
 use version; our $VERSION = qv('0.1');
 
@@ -13,17 +13,17 @@ __END__
 
 =head1 NAME
 
-B<ModwareX::Publication::Journal> - [Module for handling journal]
+B<Modware::Publication::Journal> - [Module for handling journal]
 
 
 =head1 VERSION
 
-This document describes <ModwareX::Publication::Journal> version 0.1
+This document describes <Modware::Publication::Journal> version 0.1
 
 
 =head1 SYNOPSIS
 
-use ModwareX::Publication::Journal;
+use Modware::Publication::Journal;
 
 
 =head1 DESCRIPTION
@@ -42,7 +42,7 @@ use ModwareX::Publication::Journal;
 
 
 
-Also look at L<ModwareX::Publication::Role::Journal>
+Also look at L<Modware::Publication::Role::Journal>
 
 
 =head1 DIAGNOSTICS
@@ -77,7 +77,7 @@ files, and the meaning of any environment variables or properties
 that can be set. These descriptions must also include details of any
 configuration language used.
 
-<ModwareX::Publication::Journal> requires no configuration files or environment variables.
+<Modware::Publication::Journal> requires no configuration files or environment variables.
 
 
 =head1 INCOMPATIBILITIES

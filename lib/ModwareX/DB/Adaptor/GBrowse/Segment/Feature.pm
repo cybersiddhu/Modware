@@ -1,7 +1,7 @@
 
 =head1 NAME
 
-Bio::DB::Das::Chado::Segment::Feature - ModwareXBase specific adaptor for DAS-style access to a chado database
+Bio::DB::Das::Chado::Segment::Feature - ModwareBase specific adaptor for DAS-style access to a chado database
 
 =head1 SYNOPSIS
 
@@ -14,11 +14,11 @@ Not yet written
 
 =cut
 
-package ModwareX::DB::Adaptor::GBrowse::Segment::Feature;
+package Modware::DB::Adaptor::GBrowse::Segment::Feature;
 
 use strict;
 
-use ModwareX::DB::Adaptor::GBrowse::Segment;
+use Modware::DB::Adaptor::GBrowse::Segment;
 use Bio::SeqFeatureI;
 use Bio::Root::Root;
 use Bio::LocationI;
@@ -30,7 +30,7 @@ use constant DEBUG => 0;
 
 use vars qw( @ISA $AUTOLOAD %CONSTANT_TAGS);
 @ISA
-    = qw( ModwareX::DB::Adaptor::GBrowse::Segment Bio::SeqFeatureI Bio::Root::Root );
+    = qw( Modware::DB::Adaptor::GBrowse::Segment Bio::SeqFeatureI Bio::Root::Root );
 
 %CONSTANT_TAGS = ();
 
@@ -279,7 +279,7 @@ sub uniquename {
 
 =head1 SeqFeatureI methods
 
-ModwareX::DB::Adaptor::GBrowse::Segment::Feature implements the Bio::SeqFeatureI
+Modware::DB::Adaptor::GBrowse::Segment::Feature implements the Bio::SeqFeatureI
 interface.  Methods described below, see Bio:SeqFeatureI for more
 details.
 
@@ -582,7 +582,7 @@ sub target {
 
     my $feat_row = $row->feature->first;
     if ( $feat_row->name ) {
-        my $segment = ModwareX::DB::Adaptor::GBrowse::Segment->new(
+        my $segment = Modware::DB::Adaptor::GBrowse::Segment->new(
             $feat_row->name,
             $self->factory,
             $row->ffmin + 1,
@@ -905,7 +905,7 @@ sub sub_SeqFeature {
             "creating new subfeat, $$hashref{name}, $base_start, $stop, $$hashref{phase}"
             if DEBUG;
 
-        my $feat = ModwareX::DB::Adaptor::GBrowse::Segment::Feature->new(
+        my $feat = Modware::DB::Adaptor::GBrowse::Segment::Feature->new(
             $self->factory,        $self,
             $self->ref,            $base_start,
             $stop,                 $type_obj,
@@ -1180,7 +1180,7 @@ sub add_subfeature {
     return undef unless ref($subfeature);
     return undef
         unless $subfeature->isa(
-        'ModwareX::DB::Adaptor::GBrowse::Segment::Feature');
+        'Modware::DB::Adaptor::GBrowse::Segment::Feature');
 
     push @{ $self->{subfeatures} }, $subfeature;
     return $subfeature;

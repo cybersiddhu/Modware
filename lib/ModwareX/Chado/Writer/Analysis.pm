@@ -1,4 +1,4 @@
-package ModwareX::Chado::Writer::Analysis;
+package Modware::Chado::Writer::Analysis;
 
 use version; our $VERSION = qv('1.0.0');
 

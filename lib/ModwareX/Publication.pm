@@ -1,4 +1,4 @@
-package ModwareX::Publication;
+package Modware::Publication;
 
 
 use version; our $VERSION = qv('0.1');
@@ -8,11 +8,11 @@ use Moose;
 
 # Module implementation
 #
-with 'ModwareX::Role::DataSource::Util';
-with 'ModwareX::Role::Chado::Writer::BCS::Publication';
-with 'ModwareX::Role::Chado::Reader::BCS::Helper::Cvterm';
-with 'ModwareX::Role::Publication::HasAuthors';
-with 'ModwareX::Role::Publication';
+with 'Modware::Role::DataSource::Util';
+with 'Modware::Role::Chado::Writer::BCS::Publication';
+with 'Modware::Role::Chado::Reader::BCS::Helper::Cvterm';
+with 'Modware::Role::Publication::HasAuthors';
+with 'Modware::Role::Publication';
 
 # Module implementation
 #
@@ -26,12 +26,12 @@ __END__
 
 =head1 NAME
 
-<ModwareX::Publication> - [Module for dealing with publication/bibliographic references]
+<Modware::Publication> - [Module for dealing with publication/bibliographic references]
 
 
 =head1 VERSION
 
-This document describes <ModwareX::Publication> version 0.1
+This document describes <Modware::Publication> version 0.1
 
 
 =head1 SYNOPSIS
@@ -73,9 +73,9 @@ recommended for internal use only.
 
 =item B<Functions:> Get/Set list of authors
 
-=item B<Return:> Arrayref containing ModwareX::Publication::Author objects
+=item B<Return:> Arrayref containing Modware::Publication::Author objects
 
-=item B<Args:> Arrayref containing ModwareX::Publication::Author objects
+=item B<Args:> Arrayref containing Modware::Publication::Author objects
 
 =back
 
@@ -90,7 +90,7 @@ recommended for internal use only.
 
 =item B<Return:> None.
 
-=item B<Args:> ModwareX::Publication::Author or an hashref(doc later)
+=item B<Args:> Modware::Publication::Author or an hashref(doc later)
 
 =back
 
@@ -103,12 +103,12 @@ recommended for internal use only.
 
 =item B<Functions:> Get/Set list of cross_references
 
- The ModwareX::Publication object is expected to be already present in the database,  i.e,.
+ The Modware::Publication object is expected to be already present in the database,  i.e,.
  the object should have a database id. 
 
-=item B<Return:> Arrayref containing ModwareX::Publication
+=item B<Return:> Arrayref containing Modware::Publication
 
-=item B<Args:> Arrayref containing ModwareX::Publication
+=item B<Args:> Arrayref containing Modware::Publication
 
 =back
 
@@ -121,10 +121,10 @@ recommended for internal use only.
 
 =item B<Functions:> Add a cross_reference to the list
 
- The ModwareX::Publication object is expected to be already present in the database,  i.e,.
+ The Modware::Publication object is expected to be already present in the database,  i.e,.
  the object should have a database id. 
 
-=item B<Return:> ModwareX::Publication
+=item B<Return:> Modware::Publication
 
 =item B<Args:> None.
 
@@ -139,10 +139,10 @@ recommended for internal use only.
 
 =item B<Functions:> Add a cross_reference to the list
 
- The ModwareX::Publication object is expected to be already present in the database,  i.e,.
+ The Modware::Publication object is expected to be already present in the database,  i.e,.
  the object should have a database id. 
 
-=item B<Return:> ModwareX::Publication
+=item B<Return:> Modware::Publication
 
 =item B<Args:> None.
 
@@ -211,7 +211,7 @@ files, and the meaning of any environment variables or properties
 that can be set. These descriptions must also include details of any
 configuration language used.
 
-B<ModwareX::Publication> requires no configuration files or environment variables.
+B<Modware::Publication> requires no configuration files or environment variables.
 
 
 =head1 INCOMPATIBILITIES

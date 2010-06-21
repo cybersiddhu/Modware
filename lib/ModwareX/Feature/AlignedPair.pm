@@ -1,4 +1,4 @@
-package ModwareX::Feature::AlignedPair;
+package Modware::Feature::AlignedPair;
 
 use version; our $VERSION = qv('1.0.0');
 
@@ -14,7 +14,7 @@ use MooseX::ClassAttribute;
 
 class_has 'reader' => (
     is      => 'rw',
-    isa     => 'ModwareX::Chado::Reader::AlignedPair',
+    isa     => 'Modware::Chado::Reader::AlignedPair',
     handles => [qw/find/],
 );
 
@@ -67,8 +67,8 @@ has 'alignedpair' => (
     isa => 'Bio::SeqFeature::SimilarityPair',
 );
 
-with 'ModwareX::Chado::Writer::AlignedPair',
-    'ModwareX::Chado::Writer::Analysis';
+with 'Modware::Chado::Writer::AlignedPair',
+    'Modware::Chado::Writer::Analysis';
 
 no Moose;
 __PACKAGE__->meta->make_immutable;
@@ -79,7 +79,7 @@ __END__
 
 =head1 NAME
 
-<ModwareX::Feature::AlignedPair> - [Handles feature pairs based on sequence similarity
+<Modware::Feature::AlignedPair> - [Handles feature pairs based on sequence similarity
 ]
 
 
@@ -106,9 +106,9 @@ so make it as educational and exeplary as possible.
 
 # B<Need to pass an organism name to which the feature will be assocaited>
 
-ModwareX::DataSource::Chado->connect('dsn', 'user',  'pass');
+Modware::DataSource::Chado->connect('dsn', 'user',  'pass');
 
-my $feat = ModwareX::Feature::AlignedPair->new(organism => 'human');
+my $feat = Modware::Feature::AlignedPair->new(organism => 'human');
 
 =head3 Get an bioperl Hit object and save it in chado database
 
@@ -123,7 +123,7 @@ my $searchio = Bio::SearchIO->new(-format => 'blast',  file => 'blast.out');
 
 =head2 Deleting pairs
 
- my $feat = ModwareX::Feature::AlignedPair->find(id => $id);
+ my $feat = Modware::Feature::AlignedPair->find(id => $id);
  $feat->remove;
 
 

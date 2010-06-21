@@ -1,10 +1,10 @@
-package ModwareX::Chado::Reader::BCS::RelationShip;
+package Modware::Chado::Reader::BCS::RelationShip;
 
 use version; our $VERSION = qv('1.0.0');
 
 # Other modules:
 use MooseX::Singleton;
-use ModwareX::DataSource::Chado;
+use Modware::DataSource::Chado;
 use Carp qw/confess/;
 
 # Module implementation
@@ -12,7 +12,7 @@ use Carp qw/confess/;
 
 has 'chadoreader' => (
     is      => 'ro',
-    isa     => 'ModwareX::DataSource::Chado',
+    isa     => 'Modware::DataSource::Chado',
     lazy    => 1,
     handles => [qw/handler/],
 );

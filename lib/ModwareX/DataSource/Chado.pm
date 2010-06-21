@@ -1,4 +1,4 @@
-package ModwareX::DataSource::Chado;
+package Modware::DataSource::Chado;
 
 use version;
 our $VERSION = qv('0.1');
@@ -129,14 +129,14 @@ has 'reader_namespace' => (
     is      => 'rw',
     isa     => 'Str',
     lazy    => 1,
-    default => 'ModwareX::Chado::Reader'
+    default => 'Modware::Chado::Reader'
 );
 
 has 'writer_namespace' => (
     is      => 'rw',
     isa     => 'Str',
     lazy    => 1,
-    default => 'ModwareX::Chado::Writer'
+    default => 'Modware::Chado::Writer'
 );
 
 has 'reader_source_name_stack' => (
@@ -190,12 +190,12 @@ __END__
 
 =head1 NAME
 
-<ModwareX::DataSource::Chado> - [Chado datasource_name handler]
+<Modware::DataSource::Chado> - [Chado datasource_name handler]
 
 
 =head1 VERSION
 
-This document describes <ModwareX::DataSource::Chado> version 0.0.1
+This document describes <Modware::DataSource::Chado> version 0.0.1
 
 
 =head1 SYNOPSIS

@@ -1,4 +1,4 @@
-package ModwareX::Chado::Schema::Oracle::Random;
+package Modware::Chado::Schema::Oracle::Random;
 
 use warnings;
 use strict;

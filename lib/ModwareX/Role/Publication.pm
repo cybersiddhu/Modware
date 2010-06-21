@@ -1,4 +1,4 @@
-package ModwareX::Role::Publication;
+package Modware::Role::Publication;
 
 use version; our $VERSION = qv('0.1');
 
@@ -68,23 +68,23 @@ __END__
 
 =head1 NAME
 
-<ModwareX::Role::Publication> - [Moose role for publication module]
+<Modware::Role::Publication> - [Moose role for publication module]
 
 
 =head1 VERSION
 
-This document describes B<ModwareX::Role::Publication> version 0.1.0
+This document describes B<Modware::Role::Publication> version 0.1.0
 
 
 =head1 SYNOPSIS
 
 use Moose;
-with ModwareX::Role::Publication;
+with Modware::Role::Publication;
 
 
 =head1 DESCRIPTION
 
-The role in intended to be consumed by B<ModwareX::Publication> class. 
+The role in intended to be consumed by B<Modware::Publication> class. 
 
 =head1 INTERFACE 
 

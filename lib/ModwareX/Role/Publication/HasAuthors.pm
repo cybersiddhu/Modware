@@ -1,14 +1,14 @@
-package ModwareX::Role::Publication::HasAuthors;
+package Modware::Role::Publication::HasAuthors;
 
 # Other modules:
 use Carp;
 use Moose::Role;
 use MooseX::Params::Validate;
 use MooseX::Aliases;
-use aliased 'ModwareX::Publication::Author';
-use ModwareX::Types::Publication qw/PubAuthor/;
+use aliased 'Modware::Publication::Author';
+use Modware::Types::Publication qw/PubAuthor/;
 
-with 'ModwareX::Role::Collection::HasArray';
+with 'Modware::Role::Collection::HasArray';
 
 # Module implementation
 #
@@ -54,17 +54,17 @@ __END__
 
 =head1 NAME
 
-<ModwareX::Publication::Role::HasAuthors> - [Role for managing collection of authors]
+<Modware::Publication::Role::HasAuthors> - [Role for managing collection of authors]
 
 
 =head1 VERSION
 
-This document describes <ModwareX::Publication::Authors> version 0.0.1
+This document describes <Modware::Publication::Authors> version 0.0.1
 
 
 =head1 SYNOPSIS
 
-with 'ModwareX::Publication::Role::HasAuthors';
+with 'Modware::Publication::Role::HasAuthors';
 
 # -- then check for methods it install in your class
 
@@ -72,7 +72,7 @@ with 'ModwareX::Publication::Role::HasAuthors';
 =head1 DESCRIPTION
 
 Consuming this Moose role allows your class to maintain a collection of authors(in terms
-of ModwareX::Publication::Author). For details look at the methods that get installed in
+of Modware::Publication::Author). For details look at the methods that get installed in
 the class.
 
 The author collections are sorted according to author's rank. By default,  the authors are
@@ -92,7 +92,7 @@ the collection is resorted accordingly.
 
 =item B<Functions:> List of authors
 
-=item B<Return:> Array of ModwareX::Publication::Author objects
+=item B<Return:> Array of Modware::Publication::Author objects
 
 =item B<Args:> None
 
@@ -117,7 +117,7 @@ initials => 'Jr.');
 
 =item B<Return:> None.
 
-=item B<Args:> ModwareX::Publication::Author object or hash with author properties
+=item B<Args:> Modware::Publication::Author object or hash with author properties
 
 =back
 
@@ -135,7 +135,7 @@ Two authors with identical rank is not allowed in the collection.
 
 =head1 CONFIGURATION AND ENVIRONMENT
 
-B<ModwareX::Publication::Authors> requires no configuration files or environment variables.
+B<Modware::Publication::Authors> requires no configuration files or environment variables.
 
 
 =head1 DEPENDENCIES

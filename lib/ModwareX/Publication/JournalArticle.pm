@@ -1,4 +1,4 @@
-package ModwareX::Publication::JournalArticle;
+package Modware::Publication::JournalArticle;
 
 use version; our $VERSION = qv('0.1');
 
@@ -13,17 +13,17 @@ __END__
 
 =head1 NAME
 
-B<ModwareX::Publication::JournalArticle> - [Module for handling published article in the journal]
+B<Modware::Publication::JournalArticle> - [Module for handling published article in the journal]
 
 
 =head1 VERSION
 
-This document describes <ModwareX::Publication::JournalArticle> version 0.1
+This document describes <Modware::Publication::JournalArticle> version 0.1
 
 
 =head1 SYNOPSIS
 
-use ModwareX::Publication::JournalArticle;
+use Modware::Publication::JournalArticle;
 
 
 =head1 DESCRIPTION
@@ -41,8 +41,8 @@ Use subsections (=head2, =head3) as appropriate.
 
 =head2 volume
 
-For more docs,  look at B<ModwareX::Publication>,  B<ModwareX::Publication::Journal> and
-B<ModwareX::Publication::Article>
+For more docs,  look at B<Modware::Publication>,  B<Modware::Publication::Journal> and
+B<Modware::Publication::Article>
 
 
 =head1 DIAGNOSTICS
@@ -77,7 +77,7 @@ files, and the meaning of any environment variables or properties
 that can be set. These descriptions must also include details of any
 configuration language used.
 
-B<ModwareX::Publication::JournalArticle> requires no configuration files or environment variables.
+B<Modware::Publication::JournalArticle> requires no configuration files or environment variables.
 
 
 =head1 INCOMPATIBILITIES
