@@ -45,8 +45,12 @@ sub add_author {
     $self->sort_collection( sub { $_[0]->rank <=> $_[1]->rank } );
 }
 
+sub has_authors {
+	my ($self) = @_;
+	$self->total;
+}
+
 alias next_author => 'next';
-alias has_authors => 'has_collection';
 
 1;    # Magic true value required at end of module
 

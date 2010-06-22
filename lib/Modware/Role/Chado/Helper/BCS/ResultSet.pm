@@ -1,182 +1,97 @@
-package Test::Chado::Role::Handler::Sqlite;
+package Modware::Role::Chado::Helper::BCS::ResultSet;
 
-use version; our $VERSION = qv('0.1');
+use version; our $VERSION = qv('1.0.0');
 
 # Other modules:
-use Moose::Role;
-use Carp;
-use File::Basename;
-use File::Path;
-use Try::Tiny;
-use IPC::Cmd qw/can_run run/;
+use MooseX::Role::Parameterized;
+use Modware::Types qw/ColumnMap/;
 
 # Module implementation
 #
-requires 'driver';
-requires 'dsn';
-requires 'database';
-requires 'attr_hash';
 
-has 'client' => (
-    is        => 'rw',
-    isa       => 'Maybe[Str]',
-    lazy      => 1,
-    predicate => 'has_client',
-    default   => sub {
-        can_run 'sqlite3';
-    }
+parameter resultset => (
+    isa      => 'DBIx::Class',
+    required => 1
 );
 
-after 'driver_dsn' => sub {
-    my ( $self, $value ) = @_;
-    if ( $value =~ /(dbname|(.+)?)=(\S+)/ ) {
-        $self->database( Path::Class::File->new($3)->absolute->stringify );
+parameter relationships => (
+    isa       => ColumnMap,
+    coerce    => 1,
+    predicate => 'has_relationships',
+);
+
+parameter 'columns' => (
+    isa       => ColumnMap,
+    coerce    => 1,
+    predicate => 'has_columns',
+);
+
+role {
+    my $p = shift;
+
+    my $source  = $p->resultset->result_source;
+    my $primary = { map { $_ => 1 } $source->primary_columns };
+    my $rels    = { map { $_ => 1 } $source->relationships };
+    my $cols    = { map { $_ => 1 } $source->columns };
+
+    my ( @relations, @columns );
+    if ( $p->has_relationships ) {
+        push @relations,
+            grep { defined $rels->{$_} } keys %{ $p->relationships };
     }
+    else {
+        push @relations, keys %$rels;
+    }
+
+    if ( $p->has_columns ) {
+        push @columns, grep { defined $cols->{$_} }
+            grep { not defined $primary->{$_} } keys %{ $p->columns };
+    }
+    else {
+        push @columns, grep { not defined $primary->{$_} } keys %$cols;
+    }
+
+    has $_ => ( is => 'rw', isa => 'Str', predicate => 'has_' . $_ )
+        for @columns;
+
+    for my $name (@relations) {
+        my $info     = $source->relationship_info($name);
+        my $rel_type = $info->{attrs}->{accessor};
+        if ( $rel_type eq 'single' ) {
+            has $name => (
+                is        => 'rw',
+                isa       => 'HashRef',
+                predicate => 'has_' . $name
+            );
+        }
+        else {
+            has $name => (
+                is      => 'rw',
+                isa     => 'ArrayRef',
+                traits  => [qw/Array/],
+                handles => {
+                    'add_to_' . $name => 'push',
+                    'has_' . $name    => 'count'
+                },
+                default => sub { [] }
+            );
+        }
+    }
+
+    method 'to_hashref' => sub {
+        my $self = shift;
+        my $hash;
+        for my $name (@columns) {
+            my $method = 'has_' . $name;
+            $hash->{$name} = $self->$name if $self->$method;
+        }
+        for my $name (@relations) {
+            my $method = 'has_' . $name;
+            $hash->{$name} = $self->$name if $self->$method;
+        }
+        $hash;
+    };
 };
-
-sub create_db {
-    my ($self) = @_;
-
-    #create the parent folder if it does not exist
-    my $folder = dirname $self->database;
-    if ( !-e $folder ) {
-        try {
-            mkpath $folder;
-        }
-        catch {
-            confess $_;
-        };
-    }
-
-	#nothing to do if the client exist
-	#the database will be created in the deployment call
-    return if $self->has_client ;
-    $self->dbh;
-}
-
-sub drop_db {
-    my ($self) = @_;
-    $self->dbh->disconnect if $self->has_db;
-    unlink $self->database if -e $self->database;
-}
-
-has 'dbh' => (
-    is        => 'ro',
-    isa       => 'DBI::db',
-    predicate => 'has_db',
-    lazy      => 1,
-    default   => sub {
-        my ($self) = @_;
-        my $dbh = DBI->connect( $self->connection_info )
-            or confess $DBI::errstr;
-        $dbh->do("PRAGMA foreign_keys = ON");
-        $dbh;
-    }
-);
-
-has 'connection_info' => (
-    is         => 'ro',
-    isa        => 'ArrayRef',
-    lazy       => 1,
-    auto_deref => 1,
-    default    => sub {
-        my ($self) = @_;
-        [ $self->dsn, '', '', $self->attr_hash ];
-    }
-);
-
-sub deploy_schema {
-    my $self = shift;
-    $self->deploy_by_dbi if !$self->deploy_by_client;
-}
-
-sub deploy_by_client {
-    my $self = shift;
-    return if !$self->has_client;
-    my $cmd = [
-        $self->client,   '-noheader',
-        $self->database, '<',
-        $self->ddl->stringify
-    ];
-    my ( $success, $error_code, $full_buf,, $stdout_buf, $stderr_buf )
-        = run( command => $cmd, verbose => 1 );
-    return $success if $success;
-    carp "unable to run command : ", $error_code, " ", $stderr_buf;
-}
-
-sub deploy_by_dbi {
-    my ($self) = @_;
-    my $dbh    = $self->dbh;
-    my $fh     = $self->ddl->openr;
-    my $data = do { local ($/); <$fh> };
-    $fh->close();
-LINE:
-    foreach my $line ( split( /\n{2,}/, $data ) ) {
-
-        #next LINE if $line =~ /^\-\-/;
-        if ( $line =~ /^\-\-/ ) {
-            my @separated = grep { !/^\-\-/ } split( /\n/, $line );
-            $line = join( "\n", @separated );
-        }
-        next LINE if $line !~ /\S+/;
-        $line =~ s{;$}{};
-        $line =~ s{/}{};
-        try {
-            $dbh->do($line);
-            $dbh->commit;
-        }
-        catch {
-            $dbh->rollback;
-            confess $_, "\n";
-        };
-    }
-}
-
-sub run_fixture_hooks {
-    my ($self) = @_;
-    $self->dbh->do("PRAGMA foreign_keys = ON");
-}
-
-sub prune_fixture {
-    my ($self) = @_;
-    my $dbh = $self->dbh;
-
-    my $sth = $dbh->prepare(
-        qq{SELECT name FROM sqlite_master where type = 'table' });
-    $sth->execute() or croak $sth->errstr;
-    while ( my ($table) = $sth->fetchrow_array() ) {
-        try {
-            $dbh->do(qq{ DELETE FROM $table });
-        }
-        catch {
-            $dbh->rollback;
-            croak "Unable to clean table $table: $_\n";
-        };
-    }
-    $dbh->commit;
-}
-
-sub drop_schema {
-	my ($self) = @_;
-    my $dbh = $self->dbh;
-
-    my $sth = $dbh->prepare(
-        qq{SELECT name FROM sqlite_master where type = 'table' });
-    $sth->execute() or croak $sth->errstr;
-    while ( my ($table) = $sth->fetchrow_array() ) {
-        try {
-            $dbh->do(qq{ DROP TABLE $table });
-        }
-        catch {
-            $dbh->rollback;
-            croak "Unable to clean table $table: $_\n";
-        };
-    }
-    $dbh->commit;
-
-}
-
-no Moose::Role;
 
 1;    # Magic true value required at end of module
 

@@ -12,7 +12,7 @@ use Moose::Util;
 {
 	package MyPub;
 	use Moose;
-	with 'ModwareX::Role::Publication';
+	with 'Modware::Role::Publication';
 
 	sub _build_abstract {
 		'abstract';
@@ -40,11 +40,11 @@ use Moose::Util;
 	no Moose;
 }
 
-dies_ok { Moose::Util::apply_all_roles(MyBadPub->meta, ('ModwareX::Role::Publication')) }  'throws without unimplemented methods';
+dies_ok { Moose::Util::apply_all_roles(MyBadPub->meta, ('Modware::Role::Publication')) }  'throws without unimplemented methods';
 
 my $pub = MyPub->new;
 
-does_ok($pub, 'ModwareX::Role::Publication', 'it does the Publiction role');
+does_ok($pub, 'Modware::Role::Publication', 'it does the Publiction role');
 has_attribute_ok($pub, $_,  "it has the attribute $_") for qw/abstract title year source
 status keywords_stack/;
 is($pub->status,  'status',  'it has the default status value');

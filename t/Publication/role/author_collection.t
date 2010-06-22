@@ -1,28 +1,28 @@
 use Test::More qw/no_plan/;
 use Test::Exception;
-use ModwareX::Publication::Author;
+use Modware::Publication::Author;
 
 {
 
     package MyAuthors;
     use Moose;
-    with 'ModwareX::Role::Publication::HasAuthors';
+    with 'Modware::Role::Publication::HasAuthors';
 
 }
 
-my $author1 = ModwareX::Publication::Author->new(
+my $author1 = Modware::Publication::Author->new(
     first_name => 'Harry',
     last_name  => 'Jones',
     suffix     => 'Jr.'
 );
 
-my $author2 = ModwareX::Publication::Author->new(
+my $author2 = Modware::Publication::Author->new(
     first_name => 'Harry',
     last_name  => 'Jones',
     suffix     => 'Sr.'
 );
 
-my $author3 = ModwareX::Publication::Author->new(
+my $author3 = Modware::Publication::Author->new(
     first_name => 'Pierce',
     last_name  => 'Marshall',
     initials   => 'Mr.'
@@ -61,10 +61,10 @@ is( $authors[-1]->last_name,
     'Hanks', 'has author added with direct attributes' );
 
 while ( my $obj = $collection->next_author ) {
-    isa_ok( $obj, 'ModwareX::Publication::Author' );
+    isa_ok( $obj, 'Modware::Publication::Author' );
 }
 
-my $author4 = ModwareX::Publication::Author->new(
+my $author4 = Modware::Publication::Author->new(
     first_name => 'Pierce',
     last_name  => 'Johnson',
     initials   => 'Mr.',

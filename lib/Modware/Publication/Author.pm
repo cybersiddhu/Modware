@@ -1,6 +1,5 @@
 package Modware::Publication::Author;
 
-
 use version; our $VERSION = qv('0.0.1');
 
 # Other modules:
@@ -11,53 +10,61 @@ use Modware::Types qw/CleanStr/;
 #
 
 has 'first_name' => (
-	is => 'rw', 
-	isa => CleanStr, 
-	coerce => 1
+    is        => 'rw',
+    isa       => CleanStr,
+    predicate => 'has_first_name',
+    coerce    => 1
 );
 
 has 'initials' => (
-	is => 'rw', 
-	isa => CleanStr, 
-	coerce => 1
+    is        => 'rw',
+    isa       => CleanStr,
+    predicate => 'has_initials',
+    coerce    => 1
 );
 
 has 'last_name' => (
-	is => 'rw', 
-	isa => 'Str', 
+    is        => 'rw',
+    isa       => 'Str',
+    predicate => 'has_last_name'
 );
 
 has 'suffix' => (
-	is => 'rw', 
-	isa => 'Str', 
+    is  => 'rw',
+    isa => 'Str',
 );
 
 has 'is_editor' => (
-	is => 'rw', 
-	isa => 'Bool', 
-	default =>  sub { 0 } 
+    is      => 'rw',
+    isa     => 'Bool',
+    default => sub {0}
 );
 
 has 'is_primary' => (
-	is => 'rw', 
-	isa => 'Bool', 
-	default =>  sub { 0 } 
+    is      => 'rw',
+    isa     => 'Bool',
+    default => sub {0}
 );
 
 after 'is_primary' => sub {
-	my ($self,  $value) = @_;
-	$self->rank($value) if $value;
+    my ( $self, $value ) = @_;
+    $self->rank($value) if $value;
 };
 
 has 'rank' => (
-	is => 'rw', 
-	isa => 'Int', 
-	predicate => 'has_rank'
+    is        => 'rw',
+    isa       => 'Int',
+    predicate => 'has_rank'
 );
 
 sub given_name {
-	my ($self) = @_;
-	sprintf "%s %s", $self->initials,  $self->first_name;
+    my ($self) = @_;
+    if ( $self->has_first_name ) {
+        if ( $self->has_initials ) {
+            return sprintf "%s %s", $self->initials, $self->first_name;
+        }
+        $self->first_name;
+    }
 }
 
 no Moose;

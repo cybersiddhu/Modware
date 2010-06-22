@@ -1,9 +1,10 @@
-package Modware::Role::Chado::Reader::BCS::Publication;
+package Modware::Role::Chado::Writer::BCS::Publication;
 
 use version; our $VERSION = qv('0.1');
 
 # Other modules:
 use Moose::Role;
+use Try::Tiny;
 use aliased 'Modware::DataSource::Chado';
 
 # Module implementation
@@ -21,6 +22,17 @@ sub _build_chado {
         = $self->has_source
         ? Chado->handler( $self->source )
         : Chado->handler;
+    $self->meta->add_attribute(
+        'pub' => (
+            is     => 'ro',
+            traits => [
+                'Modware::Role::Chado::Helper::BCS::ResultSet' => {
+                    resultset     => $chado->resultset('Pub::Pub')->new( {} ),
+                    relationships => [qw/pubprops pubauthors/]
+                }
+            ]
+        )
+    );
     $chado;
 }
 
@@ -41,23 +53,18 @@ has 'cvterm' => ( is => 'rw', isa => 'Str', lazy => 1, default => 'paper' );
 has 'db'     => ( is => 'rw', isa => 'Str', lazy => 1, default => 'pubmed' );
 
 sub _build_status {
+    my $self = shift;
     return if !$self->has_dbrow;
-    my $rs = $self->dbrow->search_related(
-        'pubprops',
-        {   'type_id' => $self->cvterm_id_by_name('status');
-        }
-    );
+    my $rs = $self->dbrow->search_related( 'pubprops',
+        { 'type_id' => $self->cvterm_id_by_name('status') } );
     $rs->first->value if $rs;
 }
 
 sub _build_abstract {
     my ($self) = @_;
     return if !$self->has_dbrow;
-    my $rs = $self->dbrow->search_related(
-        'pubprops',
-        {   'type_id' => $self->cvterm_id_by_name('abstract');
-        }
-    );
+    my $rs = $self->dbrow->search_related( 'pubprops',
+        { 'type_id' => $self->cvterm_id_by_name('abstract') } );
     $rs->first->value if $rs;
 }
 
@@ -78,7 +85,7 @@ sub _build_source {
 
 sub _build_keywords_stack {
     my ($self) = @_;
-    return if !$self->has_dbrow;
+    return [] if !$self->has_dbrow;
     my $rs = $self->dbrow->search_related(
         'pubprops',
         {   'type_id' => {
@@ -92,22 +99,16 @@ sub _build_keywords_stack {
         my $terms = [ map { $_->value } $rs->all ];
         return $terms;
     }
-}
-
-has 'pub' => (
-    is         => 'rw',
-    isa        => 'Bio::Chado::Schema::Pub::Pub',
-    lazy_build => 1,
-);
-
-sub _build_pub {
-    my $self = shift;
-    $self->chado->resultset('Pub::Pub')->new( {} );
+    return [];
 }
 
 before 'create' => sub {
     my $self = shift;
-    my $pub  = $self->pub;
+
+    #initialize chado handler first
+    $self->chado if !$self->has_chado;
+
+    my $pub = $self->meta->get_attribute('pub');
     $pub->uniquename( 'PUB' . int( rand(9999999) ) );
     $pub->type_id( $self->cvterm_id_by_name( $self->type ) );
     $pub->title( $self->title )
@@ -116,53 +117,64 @@ before 'create' => sub {
     $pub->pubplace( $self->source ) if $self->has_source;
 
     my $pubprops;
-    push @$pubprops,
-        {
-        type_id => $self->cvterm_id_by_name('status'),
-        value   => $self->status
-        };
-    push @$pubprops,
-        {
-        type_id => $self->cvterm_id_by_name('abstract'),
-        value   => $self->abstract
-        };
+    $pub->add_to_pubprops(
+        {   type_id => $self->cvterm_id_by_name('status'),
+            value   => $self->status
+        }
+    );
+    $pub->add_to_pubprops(
+        {   type_id => $self->cvterm_id_by_name('abstract'),
+            value   => $self->abstract
+        }
+    );
 
-    for my $word ( $self->keywords ) {
-        push @$pubprops,
-            {
-            type_id => $self->cvterm_id_by_name($word),
-            value   => 'true'
-            };
+    if ( $self->has_keywords_stack ) {
+        for my $word ( $self->keywords ) {
+            $pub->add_to_pubprops(
+                {   type_id => $self->cvterm_id_by_name($word),
+                    value   => 'true'
+                }
+            );
+        }
     }
-    $pub->pubprops($pubprops) if $pubprops;
 
     if ( $self->has_authors ) {
         my $authors;
         while ( my $pubauthor = $self->next_author ) {
-            push @$authors,
-                {
-                rank       => $pubauthor->rank,
-                editor     => $pubauthor->is_editor,
-                surname    => $pubauthor->last_name,
-                givennames => $pubauthor->given_name,
-                suffix     => $pubauthor->suffix
-                };
+            $pub->add_to_pubauthors(
+                {   rank       => $pubauthor->rank,
+                    editor     => $pubauthor->is_editor,
+                    surname    => $pubauthor->last_name,
+                    givennames => $pubauthor->given_name,
+                    suffix     => $pubauthor->suffix
+                }
+            );
         }
-        $pub->pubauthors($authors);
     }
 };
 
 sub create {
     my ($self) = @_;
+    my $chado  = $self->chado;
+    my $pub    = $self->meta->get_attribute('pub');
+    my $new_value;
     try {
-        $self->chado->txn_do( sub { $self->pub->insert } );
+        $new_value = $chado->txn_do(
+            sub {
+                my $value = $chado->resultset('Pub::Pub')
+                    ->create( $pub->to_hashref );
+				$value;
+            }
+        );
     }
     catch {
         confess "Issue in inserting publication record: $_";
     };
+    $new_value;
 }
 
 before 'delete' => sub {
+    my $self = shift;
     confess "No data being fetched from storage: nothing to delete\n"
         if !$self->has_dbrow;
 };
@@ -186,12 +198,12 @@ sub delete {
             $self->chado->txn_do(
                 sub {
                     my $pub = $self->dbrow;
-                    $dbrow->pubprops->delete_all;
-                    $dbrow->authors->delete_all;
-                    $dbrow->pub_dbxrefs->delete_all;
-                    $dbrow->pub_relationship_objects->delete_all;
-                    $dbrow->pub_relationship_subjects->delete_all;
-                    $dbrow->delete;
+                    $pub->pubprops->delete_all;
+                    $pub->authors->delete_all;
+                    $pub->pub_dbxrefs->delete_all;
+                    $pub->pub_relationship_objects->delete_all;
+                    $pub->pub_relationship_subjects->delete_all;
+                    $self->dbrow->delete;
                 }
             );
         }

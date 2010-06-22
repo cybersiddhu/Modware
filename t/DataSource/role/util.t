@@ -6,12 +6,12 @@ use Test::Moose;
 	package MyUtil;
 	use Moose;
 
-	with 'ModwareX::Role::DataSource::Util';
+	with 'Modware::Role::DataSource::Util';
 
 	no Moose;
 }
 
 
 my $util = MyUtil->new;
-does_ok($util,  'ModwareX::Role::DataSource::Util');
+does_ok($util,  'Modware::Role::DataSource::Util');
 has_attribute_ok($util, 'source',  'it has source attribute');

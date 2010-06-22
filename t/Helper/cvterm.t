@@ -1,13 +1,13 @@
 use strict;
 use Test::Most qw/no_plan die/;
-use aliased 'ModwareX::DataSource::Chado';
-use aliased 'ModwareX::ConfigData';
+use aliased 'Modware::DataSource::Chado';
+use aliased 'Modware::ConfigData';
 
 {
 
     package My::Helper::Cv;
     use Moose;
-    use aliased 'ModwareX::DataSource::Chado';
+    use aliased 'Modware::DataSource::Chado';
 
     has 'cv' => ( is => 'rw', isa => 'Str', default => 'pub_type' );
     has 'db' => ( is => 'rw', isa => 'Str', default => 'modwarex' );
@@ -19,7 +19,7 @@ use aliased 'ModwareX::ConfigData';
         }
     );
 
-    with 'ModwareX::Role::Chado::Reader::BCS::Helper::Cvterm';
+    with 'Modware::Role::Chado::Helper:BCS::Cvterm';
 
     __PACKAGE__->meta->make_immutable;
     no Moose;
@@ -49,5 +49,5 @@ dies_ok { $helper->cvterm_ids_by_namespace('blind') }
 'it throws with a non-existing namespace';
 
 my $rel_ids
-    = $helper->cvterm_ids_by_namespace('ModwareX-relation-relationship');
+    = $helper->cvterm_ids_by_namespace('Modware-relation-relationship');
 like( scalar @$rel_ids, qr/\d{2}/, 'it return relationship cvterm ids' );

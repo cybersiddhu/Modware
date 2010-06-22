@@ -2,14 +2,16 @@ package Modware::Build;
 use base qw/Module::Build/;
 use Test::Chado;
 use FindBin qw/$Bin/;
+use Data::Dumper;
 use File::Spec::Functions;
 use Module::Load;
+use File::Path qw/make_path/;
 use lib 'blib/lib';
 
-__PACKAGE__->add_property('handler');
 __PACKAGE__->add_property('chado');
 __PACKAGE__->add_property( 'default_profile' => 'fallback' );
 __PACKAGE__->add_property('action_profile');
+__PACKAGE__->add_property('handler');
 
 sub db_handler {
     my ($self) = @_;
@@ -43,8 +45,8 @@ sub db_handler {
     $self->config_data( dsn      => $handler->dsn );
     $self->config_data( user     => $handler->user );
     $self->config_data( password => $handler->password );
-    $self->handler($handler);
     $self->chado($chado);
+    $self->handler($handler);
 }
 
 sub check_and_setup {
@@ -57,15 +59,164 @@ sub check_and_setup {
 sub common_setup {
     my ($self) = @_;
     $self->action_profile( $self->args('name') ) if $self->args('name');
+    my $path = catfile($self->base_dir, 't', 'tmp');
+    make_path($path) if !-e $path;
 }
 
 sub ACTION_setup {
     my $self = shift;
+    $self->depends_on('build');
     load 'Modware::ConfigData';
-    return if Modware::ConfigData->feature('setup_done');
+    if ( $self->handler ) {
+        return;
+    }
     $self->common_setup;
     $self->db_handler;
     $self->feature( 'setup_done' => 1 );
+}
+
+sub ACTION_create {
+    my ($self) = @_;
+    $self->depends_on('setup');
+    if ( !Modware::ConfigData->feature('is_db_created') ) {
+        $self->handler->create_db;
+        $self->feature( 'is_db_created' => 1 );
+    }
+}
+
+sub ACTION_deploy {
+    my ($self) = @_;
+    $self->depends_on('create');
+    if ( !Modware::ConfigData->feature('is_schema_loaded') ) {
+        $self->handler->deploy_schema;
+        $self->feature( 'is_schema_loaded' => 1 );
+    }
+}
+
+sub ACTION_deploy_schema {
+    my ($self) = @_;
+    $self->depends_on('setup');
+    $self->feature( 'is_db_created' => 1 );
+    if ( !Modware::ConfigData->feature('is_schema_loaded') ) {
+        $self->handler->deploy_schema;
+        $self->feature( 'is_schema_loaded' => 1 );
+    }
+}
+
+sub ACTION_load_organism {
+    my ($self) = @_;
+    $self->depends_on('deploy');
+    $self->handler->load_organism;
+}
+
+sub ACTION_load_rel {
+    my ($self) = @_;
+    $self->depends_on('deploy');
+    $self->handler->load_rel;
+}
+
+sub ACTION_load_so {
+    my ($self) = @_;
+    $self->depends_on('rel');
+    $self->handler->load_so;
+}
+
+sub ACTION_load_pub {
+    my ($self) = @_;
+    $self->depends_on('rel');
+    $self->handler->load_pub;
+}
+
+sub ACTION_load_fixture {
+    my ($self) = @_;
+    $self->depends_on('deploy');
+    if ( !Modware::ConfigData->feature('is_fixture_loaded') ) {
+        $self->handler->load_organism;
+        $self->handler->load_rel;
+        $self->handler->load_so;
+        $self->handler->load_pub;
+        $self->feature( 'is_fixture_loaded' => 1 );
+    }
+}
+
+sub ACTION_unload_rel {
+    my ($self) = @_;
+    $self->common_setup;
+    $self->db_handler;
+    $self->handler->unload_rel;
+}
+
+sub ACTION_unload_pub {
+    my ($self) = @_;
+    $self->common_setup;
+    $self->db_handler;
+    $self->handler->unload_pub;
+}
+
+sub ACTION_unload_so {
+    my ($self) = @_;
+    $self->common_setup;
+    $self->db_handler;
+    $self->handler->unload_so;
+}
+
+sub ACTION_unload_fixture {
+    my ($self) = @_;
+    $self->depends_on('setup');
+    if ( Modware::ConfigData->feature('is_fixture_loaded') ) {
+        $self->handler->unload_rel;
+        $self->handler->unload_so;
+        $self->handler->unload_pub;
+        $self->handler->unload_organism;
+        $self->feature( 'is_fixture_loaded'   => 0 );
+        $self->feature( 'is_fixture_unloaded' => 1 );
+    }
+}
+
+sub ACTION_prune_fixture {
+    my ($self) = @_;
+    $self->depends_on('setup');
+    $self->handler->prune_fixture;
+    $self->feature( 'is_fixture_loaded'   => 0 );
+    $self->feature( 'is_fixture_unloaded' => 1 );
+
+}
+
+sub ACTION_test {
+    my ($self) = @_;
+
+    #if ( $self->args('load-fixture') ) {
+    #    if ( $self->args('create') ) {    #just load the schema
+    #        $self->depends_on('deploy_schema');
+    #    }
+    $self->depends_on('load_fixture');
+    $self->recursive_test_files(1);
+
+    #}
+    $self->SUPER::ACTION_test(@_);
+    $self->depends_on('drop') if $self->args('drop');
+}
+
+sub ACTION_unload_organism {
+    my ($self) = @_;
+    $self->common_setup;
+    $self->db_handler;
+    $self->handler->unload_organism;
+}
+
+sub ACTION_drop {
+    my ($self) = @_;
+    $self->depends_on('setup');
+    $self->handler->drop_db;
+    $self->feature( 'is_schema_loaded' => 0 );
+    $self->feature( 'is_db_created' => 0 );
+}
+
+sub ACTION_drop_schema {
+    my ($self) = @_;
+    $self->depends_on('setup');
+    $self->handler->drop_schema;
+    $self->feature( 'is_schema_loaded' => 0 );
 }
 
 sub ACTION_list_profiles {
@@ -136,142 +287,6 @@ sub ACTION_show_profile {
         if defined $profile->{user};
     print "\tpassword ", $profile->{password}, "\n"
         if defined $profile->{password};
-}
-
-sub ACTION_create {
-    my ($self) = @_;
-    $self->depends_on('setup');
-    if ( !Modware::ConfigData->feature('is_db_created') ) {
-        $self->handler->create_db;
-        $self->feature( 'is_db_created' => 1 );
-    }
-}
-
-sub ACTION_deploy {
-    my ($self) = @_;
-    $self->depends_on('create');
-    if ( !Modware::ConfigData->feature('is_schema_loaded') ) {
-        $self->handler->deploy_schema;
-        $self->feature( 'is_schema_loaded' => 1 );
-    }
-}
-
-sub ACTION_deploy_schema {
-    my ($self) = @_;
-    $self->depends_on('setup');
-    $self->feature( 'is_db_created' => 1 );
-    if ( !Modware::ConfigData->feature('is_schema_loaded') ) {
-        $self->handler->deploy_schema;
-        $self->feature( 'is_schema_loaded' => 1 );
-    }
-}
-
-sub ACTION_load_organism {
-    my ($self) = @_;
-    $self->depends_on('deploy');
-    $self->handler->load_organism;
-}
-
-sub ACTION_load_rel {
-    my ($self) = @_;
-    $self->depends_on('deploy');
-    $self->handler->load_rel;
-}
-
-sub ACTION_load_so {
-    my ($self) = @_;
-    $self->depends_on('rel');
-    $self->handler->load_so;
-}
-
-sub ACTION_load_pub {
-    my ($self) = @_;
-    $self->depends_on('rel');
-    $self->handler->load_pub;
-}
-
-sub ACTION_load_fixture {
-    my ($self) = @_;
-    $self->depends_on('deploy');
-    $self->handler->load_organism;
-    $self->handler->load_rel;
-    $self->handler->load_so;
-    $self->handler->load_pub;
-    $self->feature( 'is_fixture_loaded' => 1 );
-}
-
-sub ACTION_unload_rel {
-    my ($self) = @_;
-    $self->common_setup;
-    $self->db_handler;
-    $self->handler->unload_rel;
-}
-
-sub ACTION_unload_pub {
-    my ($self) = @_;
-    $self->common_setup;
-    $self->db_handler;
-    $self->handler->unload_pub;
-}
-
-sub ACTION_unload_so {
-    my ($self) = @_;
-    $self->common_setup;
-    $self->db_handler;
-    $self->handler->unload_so;
-}
-
-sub ACTION_unload_fixture {
-    my ($self) = @_;
-    $self->depends_on('setup');
-    if ( Modware::ConfigData->feature('is_fixture_loaded') ) {
-        $self->handler->unload_rel;
-        $self->handler->unload_so;
-        $self->handler->unload_pub;
-        $self->handler->unload_organism;
-        $self->feature( 'is_fixture_loaded'   => 0 );
-        $self->feature( 'is_fixture_unloaded' => 1 );
-    }
-}
-
-sub ACTION_prune_fixture {
-    my ($self) = @_;
-    $self->depends_on('setup');
-    $self->handler->prune_fixture;
-    $self->feature( 'is_fixture_loaded'   => 0 );
-    $self->feature( 'is_fixture_unloaded' => 1 );
-
-}
-
-sub ACTION_test {
-    my $self = shift;
-    if ( $self->args('load-fixture') ) {
-        if ( $self->args('create') ) {    #just load the schema
-            $self->depends_on('deploy_schema');
-        }
-        $self->depends_on('load_fixture');
-    }
-    $self->SUPER::ACTION_test;
-    $self->depends_on('drop') if $self->args('drop');
-}
-
-sub ACTION_unload_organism {
-    my ($self) = @_;
-    $self->common_setup;
-    $self->db_handler;
-    $self->handler->unload_organism;
-}
-
-sub ACTION_drop {
-    my ($self) = @_;
-    $self->depends_on('setup');
-    $self->handler->drop_db;
-}
-
-sub ACTION_drop_schema {
-    my ($self) = @_;
-    $self->depends_on('setup');
-    $self->handler->drop_schema;
 }
 
 1;    # Magic true value required at end of module

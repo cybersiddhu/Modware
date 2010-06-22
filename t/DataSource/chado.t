@@ -8,7 +8,7 @@ use Try::Tiny;
 use lib '../lib';
 
 die_on_fail;
-use_ok('ModwareX::DataSource::Chado');
+use_ok('Modware::DataSource::Chado');
 
 #make the tmp folder if not there
 my $folder = Path::Class::Dir->new($Bin)->parent->subdir('tmp');
@@ -52,7 +52,7 @@ set_chado(
     }
 );
 
-my $datasource = 'ModwareX::DataSource::Chado';
+my $datasource = 'Modware::DataSource::Chado';
 
 #1
 $datasource->connect( dsn => "dbi:SQLite:dbname=$tmp1" );
@@ -65,8 +65,6 @@ $datasource->connect(
 
 my $handler  = $datasource->handler;
 my $handler2 = $datasource->handler('beermod');
-
-
 
 die_on_fail;
 isa_ok( $handler,  'Bio::Chado::Schema' );
@@ -89,16 +87,16 @@ isnt( $row4, 1, 'drago is not in beermod' );
 
 $datasource->connect(
     dsn         => "dbi:SQLite:dbname=$tmp3",
-    source_name => 'modless', 
-    default => 1
+    source_name => 'modless',
+    default     => 1
 );
 
 my $handler3 = $datasource->handler;
-my $row5 = $handler3->resultset('General::Db')->find( { name => 'drago' });
+my $row5 = $handler3->resultset('General::Db')->find( { name => 'drago' } );
 die_on_fail;
 like( $row5->description, qr/drago/, 'drago is in default handler now' );
 
-rmtree( $folder->stringify, 1, 1 );
+unlink grep {/sqlite$/} map { $_->stringify } $folder->children;
 
 sub set_chado {
     my %arg = @_;
@@ -156,7 +154,7 @@ SQL
 
 set_failure_handler(
     sub {
-        rmtree( $folder->stringify, 1, 1 );
+        unlink grep {/sqlite$/} map { $_->stringify } $folder->children;
         exit;
     }
 );

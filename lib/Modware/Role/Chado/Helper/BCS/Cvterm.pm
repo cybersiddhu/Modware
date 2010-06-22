@@ -1,4 +1,4 @@
-package Modware::Role::Chado::Reader::BCS::Helper::Cvterm;
+package Modware::Role::Chado::Helper::BCS::Cvterm;
 
 use version; our $VERSION = qv('1.0.0');
 

@@ -1,11 +1,11 @@
 use Test::More qw/no_plan/;
 
-use_ok('ModwareX::Publication::Author');
+use_ok('Modware::Publication::Author');
 
-my $author = ModwareX::Publication::Author->new;
+my $author = Modware::Publication::Author->new;
 
-isa_ok( $author, 'ModwareX::Publication::Author' );
-can_ok( 'ModwareX::Publication::Author', $_ )
+isa_ok( $author, 'Modware::Publication::Author' );
+can_ok( 'Modware::Publication::Author', $_ )
     for
     qw/first_name initials last_name suffix rank given_name is_editor is_primary/;
 
