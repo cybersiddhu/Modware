@@ -47,6 +47,6 @@ $pub->add_author(
 );
 
 $record = $pub->create;
-diag($record->pub_id);
 $pub->dbrow($record);
 $pub->delete;
+

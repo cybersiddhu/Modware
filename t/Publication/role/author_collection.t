@@ -6,7 +6,13 @@ use Modware::Publication::Author;
 
     package MyAuthors;
     use Moose;
+    use Modware::Publication::Author;
     with 'Modware::Role::Publication::HasAuthors';
+
+    sub _build_authors {
+    	my $author = Modware::Publication::Author->new;
+    	return  [];
+    }
 
 }
 
@@ -31,7 +37,7 @@ my $author3 = Modware::Publication::Author->new(
 my $collection = MyAuthors->new;
 
 $collection->add_author($_) for ( $author1, $author2, $author3 );
-is( $collection->total, 3, 'has 3 authors' );
+is( $collection->total_authors, 3, 'has 3 authors' );
 my @authors = $collection->authors;
 is( $authors[$_]->rank, $_ + 1,
     "author has rank decided by the order of addition" )
@@ -42,7 +48,7 @@ $author3->rank(1);
 $author1->rank(2);
 $author2->rank(3);
 
-$collection->delete_all;
+$collection->delete_authors;
 $collection->add_author($_) for ( $author1, $author2, $author3 );
 
 @authors = $collection->authors;

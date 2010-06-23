@@ -4,16 +4,15 @@ package Modware::Role::Publication::HasAuthors;
 use Carp;
 use Moose::Role;
 use MooseX::Params::Validate;
-use MooseX::Aliases;
-use aliased 'Modware::Publication::Author';
 use Modware::Types::Publication qw/PubAuthor/;
 
-with 'Modware::Role::Collection::HasArray';
+with 'Modware::Role::Collection::HasArray' => {
+    name       => 'authors',
+    class_name => 'Modware::Publication::Author'
+};
 
 # Module implementation
 #
-
-sub authors { $_[0]->all }
 
 sub add_author {
     my $self = shift;
@@ -21,36 +20,31 @@ sub add_author {
         = pos_validated_list( \@_, { isa => PubAuthor, coerce => 1 } );
 
     if ( !$author->has_rank ) {
-        my $total = $self->total;
+        my $total = $self->total_authors;
         $author->rank( $total == 0 ? 1 : $total + 1 );
         $self->add_to_collection($author);
         return;
     }
-    my $element = $self->find_from_collection(
+    my $element = $self->find_from_authors(
         sub {
             $_->rank == $author->rank;
         }
     );
     if ($element) {
-        my $msg =  "Author with identical rank ** ", $element->rank;
+        my $msg = "Author with identical rank ** ", $element->rank;
         $msg .= " is already present in the collection\n";
-        $msg .=  "It is recomended not to add the rank to the authors before adding to collection\n";
-        $msg .= "Look at the documentation of the authors collection module\n";
+        $msg
+            .= "It is recomended not to add the rank to the authors before adding to collection\n";
+        $msg
+            .= "Look at the documentation of the authors collection module\n";
         croak $msg;
     }
 
     $self->add_to_collection($author);
 
     #sort the collection by rank
-    $self->sort_collection( sub { $_[0]->rank <=> $_[1]->rank } );
+    $self->sort_authors( sub { $_[0]->rank <=> $_[1]->rank } );
 }
-
-sub has_authors {
-	my ($self) = @_;
-	$self->total;
-}
-
-alias next_author => 'next';
 
 1;    # Magic true value required at end of module
 

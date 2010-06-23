@@ -78,7 +78,7 @@ role {
         }
     }
 
-    method 'to_hashref' => sub {
+    method 'to_insert_hashref' => sub {
         my $self = shift;
         my $hash;
         for my $name (@columns) {
@@ -91,6 +91,17 @@ role {
         }
         $hash;
     };
+
+    method 'to_update_hashref' => sub {
+        my $self = shift;
+        my $hash;
+        for my $name (@columns) {
+            my $method = 'has_' . $name;
+            $hash->{$name} = $self->$name if $self->$method;
+        }
+        $hash;
+    };
+
 };
 
 1;    # Magic true value required at end of module

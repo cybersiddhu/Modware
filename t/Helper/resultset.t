@@ -54,7 +54,7 @@ my $hash = {
 
 can_ok( 'My::Cv::Resultset',
     qw/name definition add_to_cvterms add_to_cvtermpaths has_cvterms/ );
-is_deeply( $rs->to_hashref, $hash, 'it returns the expected hashref' );
+is_deeply( $rs->to_insert_hashref, $hash, 'it returns the expected hashref' );
 
 my $feat = My::Feature::Resultset->new;
 can_ok(
@@ -86,12 +86,12 @@ $feat->add_to_featureprops(
     }
 );
 
-is_deeply( $feat->to_hashref, $hash,
+is_deeply( $feat->to_insert_hashref, $hash,
     'it returns the expected feature hashref' );
 
 $feat->type( { name => 'protein', description => 'nobody knows' } );
 $hash->{type} = { name => 'protein', description => 'nobody knows' };
-is_deeply( $feat->to_hashref, $hash,
+is_deeply( $feat->to_insert_hashref, $hash,
     'it returns the expected feature hashref with belongs_to relationship' );
 
 {
