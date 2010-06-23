@@ -6,6 +6,7 @@ use version; our $VERSION = qv('0.1');
 use Moose::Role;
 use Try::Tiny;
 use aliased 'Modware::DataSource::Chado';
+use aliased 'Modware::Publication::Author';
 
 # Module implementation
 #
@@ -83,20 +84,43 @@ sub _build_source {
     $self->dbrow->pubplace if $self->has_dbrow;
 }
 
+sub _build_authors {
+    my ($self) = @_;
+    my $collection = [];
+    my $rs = $self->dbrow->pubauthors;
+
+    #no authors for you
+    return $collection if $rs->count == 0;
+
+    while(my $row = $rs->next) {
+    	my $author = Author->new(
+    		rank => $row->rank, 
+    		is_editor =>$row->editor, 
+    		last_name => $row->surname, 
+    		suffix => $row->suffix
+    	);
+    	if ($row->givennames =~ /^(\S+)\s+(\S+)$/) {
+    		$author->initials($1);
+    		$author->first_name($2);
+    	}
+    	else {
+    		$author->first_name($row->givennames);
+    	}
+    	push @$collection, $author;
+    }
+    $collection;
+}
+
 sub _build_keywords_stack {
     my ($self) = @_;
     return [] if !$self->has_dbrow;
     my $rs = $self->dbrow->search_related(
         'pubprops',
-        {   'type_id' => {
-                -in => $self->cvterm_ids_by_namespace(
-                    'dictyBase_literature_topic'
-                )
-            }
-        }
+        { 'cv.name' => 'dictyBase_literature_topic' },
+        { join      => { 'type' => 'cv' }, cache => 1 }
     );
-    if ($rs) {
-        my $terms = [ map { $_->value } $rs->all ];
+    if ( $rs->count > 0 ) {
+        my $terms = [ map { $_->pubprop_id => $_->type->name } $rs->all ];
         return $terms;
     }
     return [];
@@ -131,7 +155,7 @@ before 'create' => sub {
     if ( $self->has_keywords_stack ) {
         for my $word ( $self->keywords ) {
             $pub->add_to_pubprops(
-                {   type_id => $self->cvterm_id_by_name($word),
+                {   type_id => $self->cvterm_id_by_name( $word->{name} ),
                     value   => 'true'
                 }
             );
@@ -162,8 +186,8 @@ sub create {
         $new_value = $chado->txn_do(
             sub {
                 my $value = $chado->resultset('Pub::Pub')
-                    ->create( $pub->to_hashref );
-				$value;
+                    ->create( $pub->to_insert_hashref );
+                $value;
             }
         );
     }
@@ -251,7 +275,7 @@ Use subsections (=head2, =head3) as appropriate.
 
 =item B<Functions:> Returns either a list/iterator with the given conditions. By default,
 the conditions are expected to be joined together with ' AND
-                        ' clause. However,  it could be
+                    ' clause. However,  it could be
 changed using the I<clause> options.
 
 =item B<Return:> Depending on the context either an array of B<Modware::Publication>
