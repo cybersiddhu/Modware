@@ -3,59 +3,80 @@ package Modware::Role::Collection::HasArray;
 use version; our $VERSION = qv('0.1');
 
 # Other modules:
-use Moose::Role;
+use MooseX::Role::Parameterized;
 
 # Module implementation
 #
 
-has 'collection' => (
-    is      => 'rw',
-    traits  => ['Array'],
-    isa     => 'ArrayRef[Object]',
-    default => sub { [] },
-    predicate => 'has_collection', 
-    lazy    => 1,
-    handles => {
-        all                  => 'elements',
-        total                => 'count',
-        has_no_element       => 'is_empty',
-        add_to_collection    => 'push',
-        sort_collection      => 'sort_in_place',
-        get_from_collection  => 'get',
-        find_from_collection => 'first',
-        delete_all           => 'clear',
-        add_to_stack         => 'splice'
-    }
+parameter name => (
+    isa      => 'Str',
+    required => 1
 );
 
-has 'counter' => (
-    is      => 'rw',
-    traits  => ['Counter'],
-    isa     => 'Int',
-    default => 0,
-    lazy    => 1,
-    handles => {
-        inc_counter  => 'inc',
-        decr_counter => 'dec',
-        rewind       => 'reset'
-    }
+parameter class_name => (
+    isa      => 'Str',
+    required => 1
 );
 
-sub has_next {
-	my ($self) = @_;
-    return if $self->counter > $self->total;
-    return 1;
-}
+role {
 
-sub next {
-    my $self = shift;
-    return if !$self->has_next;
-    my $element = $self->get_from_collection( $self->counter );
-    $self->inc_counter;
-    $element;
-}
+    my $p          = shift;
+    my $class_name = $p->class_name;
+    my $name       = $p->name;
+    ( my $singular = $name ) =~ s/s$//;
 
-no Moose::Role;
+    my $isa = "ArrayRef[$class_name]";
+
+    has 'collection' => (
+        is        => 'rw',
+        traits    => ['Array'],
+        isa       => $isa,
+        predicate => 'has_collection',
+        builder   => '_build_' . $name,
+        lazy      => 1,
+        handles   => {
+            $name                => 'elements',
+            'total_' . $name     => 'count',
+            'has_' . $name       => 'count',
+            'has_no_' . $name    => 'is_empty',
+            add_to_collection    => 'push',
+            'sort_' . $name      => 'sort_in_place',
+            'get_from_' . $name  => 'get',
+            'find_from_' . $name => 'first',
+            'delete_' . $name    => 'clear',
+            add_to_stack         => 'splice'
+        }
+    );
+
+    has 'counter' => (
+        is      => 'rw',
+        traits  => ['Counter'],
+        isa     => 'Int',
+        default => 0,
+        lazy    => 1,
+        handles => {
+            inc_counter  => 'inc',
+            decr_counter => 'dec',
+            rewind       => 'reset'
+        }
+    );
+
+    method 'has_next' => sub {
+        my ($self) = @_;
+        my $method = 'total_' . $name;
+        return if $self->counter > $self->$method;
+        return 1;
+    };
+
+    method 'next_' . $singular => sub {
+        my $self = shift;
+        return if !$self->has_next;
+        my $method = 'get_from_'.$name;
+        my $element = $self->$method( $self->counter );
+        $self->inc_counter;
+        $element;
+    };
+};
 
 1;    # Magic true value required at end of module
 
