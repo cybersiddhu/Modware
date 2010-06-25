@@ -1,15 +1,39 @@
-package Modware::Role::Publication::Journal;
-
-use warnings;
-use strict;
-use Carp;
+package Modware::Role::Chado::Writer::BCS::Publication::JournalArticle;
 
 use version; our $VERSION = qv('1.0.0');
 
 # Other modules:
+use Moose::Role;
 
 # Module implementation
 #
+
+sub _build_issue {
+    my ($self) = @_;
+    return if !$self->has_dbrow;
+    $self->dbrow->issue;
+}
+
+sub _build_volume {
+    my ($self) = @_;
+    return if !$self->has_dbrow;
+    $self->dbrow->volume;
+}
+
+before 'create' => sub {
+    my ($self) = @_;
+    my $pub = $self->meta->get_attribute('pub');
+    $pub->issue( $self->issue )     if $self->has_issue;
+    $pub->volume( $self->volume )   if $self->has_volume;
+};
+
+before 'update' => sub {
+    my $pub = $self->meta->get_attribute('pub');
+    $pub->issue( $self->issue )
+        if $self->has_issue and $self->issue ne $self->dbrow->issue;
+    $pub->volume( $self->volume )
+        if $self->has_volume and $self->volume ne $self->dbrow->issue;
+};
 
 1;    # Magic true value required at end of module
 

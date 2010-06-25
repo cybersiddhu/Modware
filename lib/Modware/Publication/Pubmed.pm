@@ -1,12 +1,25 @@
-package Modware::Role::Publication::Pubmed;
+package Modware::Publication::Pubmed;
 
 use version; our $VERSION = qv('0.1');
 
 # Other modules:
-use Moose::Role;
 
 # Module implementation
 #
+with 'Modware::Role::DataSource::Util';
+with 'Modware::Role::Chado::Writer::BCS::Publication';
+with 'Modware::Role::Chado::Writer::BCS::Publication::Article';
+with 'Modware::Role::Chado::Writer::BCS::Publication::Journal';
+with 'Modware::Role::Chado::Writer::BCS::Publication::Pubmed';
+with 'Modware::Role::Chado::Helper::BCS::Cvterm';
+with 'Modware::Role::Chado::Helper::BCS::Dbxref';
+with 'Modware::Role::Publication::HasAuthors';
+with 'Modware::Role::HasPublication';
+with 'Modware::Role::HasArticle';
+with 'Modware::Role::HasJournal';
+with 'Modware::Role::HasPubmed';
+
+has '+type' => (default => 'pubmed_journal_article');
 
 
 
@@ -16,43 +29,25 @@ __END__
 
 =head1 NAME
 
-B<Modware::Role::Publication::Pubmed> - [Moose role for handling pubmed metadata
-associated that is with publication]
+B<Modware::Publication::PubmedJournalArticle> - [Module for handling pubmed journal article]
 
 
 =head1 VERSION
 
-This document describes B<Modware::Role::Publication::Pubmed> version 0.1
+This document describes <Modware::Publication::PubmedJournalArticle> version 0.1
 
 
 =head1 SYNOPSIS
 
-use Modware::Role::Publication::Pubmed;
-
-=for author to fill in:
-Brief code example(s) here showing commonest usage(s).
-This section will be as far as many users bother reading
-so make it as educational and exeplary as possible.
+use Modware::Publication::PubmedJournalArticle;
 
 
 =head1 DESCRIPTION
 
-=for author to fill in:
-Write a full description of the module and its features here.
-Use subsections (=head2, =head3) as appropriate.
-
 
 =head1 INTERFACE 
 
-=head2 pubmed_id
-
-=head2 medline_id
-
-=head2 doi
-
-=head2 mesh_terms
-
-For additional info about pubmed,  visit L<http://pubmed.gov> 
+Look at B<Modware::Publication>, B<Modware::Publication::Article>, B<Modware::Publication::Journal> and B<Modware::Role::Publication::Pubmed>
 
 
 =head1 DIAGNOSTICS
@@ -87,7 +82,7 @@ files, and the meaning of any environment variables or properties
 that can be set. These descriptions must also include details of any
 configuration language used.
 
-B<Modware::Role::Publication::Pubmed> requires no configuration files or environment variables.
+<Modware::Publication::PubmedJournalArticle> requires no configuration files or environment variables.
 
 
 =head1 INCOMPATIBILITIES
@@ -138,7 +133,7 @@ B<Modware::Role::Publication::Pubmed> requires no configuration files or environ
   I<Siddhartha Basu>  B<siddhartha-basu@northwestern.edu>
 
 
-  =head1 LICENCE AND COPYRIGHT
+=head1 LICENCE AND COPYRIGHT
 
   Copyright (c) B<2003>, Siddhartha Basu C<<siddhartha-basu@northwestern.edu>>. All rights reserved.
 

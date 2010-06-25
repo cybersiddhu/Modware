@@ -1,15 +1,20 @@
-package Modware::Role::Publication::Article;
+package Modware::Role::Publication::HasJournalArticle;
 
-use warnings;
-use strict;
-use Carp;
 
 use version; our $VERSION = qv('1.0.0');
 
 # Other modules:
+use Moose::Role;
 
 # Module implementation
 #
+requires '_issue',  '_volume';
+
+has [qw/issue volume/] => (
+    is         => 'rw',
+    isa        => 'Maybe[Str]',
+    lazy_build => 1
+);
 
 1;    # Magic true value required at end of module
 

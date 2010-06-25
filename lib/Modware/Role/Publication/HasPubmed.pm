@@ -1,66 +1,28 @@
-package Modware::Role::Publication;
+package Modware::Role::Publication::HasPubmed;
 
 use version; our $VERSION = qv('0.1');
 
 # Other modules:
 use Moose::Role;
 
-#module implementation
+# Module implementation
+#
+requires '_build_pubmed_id', '_build_medline_id',
+    '_build_doi';
 
-requires '_build_abstract';
-requires '_build_title';
-requires '_build_year';
-requires '_build_source';
-requires '_build_status';
-requires '_build_keywords_stack';
+has 'doi' => ( is => 'rw', isa => 'Str', lazy_build => 1 );
+has [qw/pubmed_id medline_id/] =>
+    ( is => 'rw', isa => 'Int', lazy_build => 1 );
 
-has 'abstract' => (
-    is         => 'rw',
-    isa        => 'Maybe[Str]',
-    lazy_build => 1
-);
-
-has 'title' => (
-    is         => 'rw',
-    isa        => 'Maybe[Str]',
-    lazy_build => 1
-);
-
-has 'year' => (
-    is         => 'rw',
-    isa        => 'Maybe[Str]',
-    lazy_build => 1
-);
-
-has 'keywords_stack' => (
+has 'mesh_terms_stack' => (
     is         => 'rw',
     isa        => 'ArrayRef',
     traits     => [qw/Array/],
     lazy_build => 1,
     handles    => {
-        add_keyword => 'push',
-        keywords    => 'elements', 
-        keywords_sorted => 'sort'
+        add_meshterm => 'push',
+        meshterms    => 'elements',
     }
-);
-
-has 'source' => (
-    is         => 'rw',
-    isa        => 'Maybe[Str]',
-    lazy_build => 1
-);
-
-has 'status' => (
-    is         => 'rw',
-    isa        => 'Maybe[Str]',
-    lazy_build => 1
-);
-
-has 'type' => (
-    is      => 'rw',
-    isa     => 'Str',
-    lazy    => 1,
-    default => 'paper'
 );
 
 1;    # Magic true value required at end of module
@@ -69,29 +31,44 @@ __END__
 
 =head1 NAME
 
-<Modware::Role::Publication> - [Moose role for publication module]
+B<Modware::Role::Publication::Pubmed> - [Moose role for handling pubmed metadata
+associated that is with publication]
 
 
 =head1 VERSION
 
-This document describes B<Modware::Role::Publication> version 0.1.0
+This document describes B<Modware::Role::Publication::Pubmed> version 0.1
 
 
 =head1 SYNOPSIS
 
-use Moose;
-with Modware::Role::Publication;
+use Modware::Role::Publication::Pubmed;
+
+=for author to fill in:
+Brief code example(s) here showing commonest usage(s).
+This section will be as far as many users bother reading
+so make it as educational and exeplary as possible.
 
 
 =head1 DESCRIPTION
 
-The role in intended to be consumed by B<Modware::Publication> class. 
+=for author to fill in:
+Write a full description of the module and its features here.
+Use subsections (=head2, =head3) as appropriate.
+
 
 =head1 INTERFACE 
 
-=for author to fill in:
-Only role specific but non-public internal methods will be documented here, meant for API
-developer.
+=head2 pubmed_id
+
+=head2 medline_id
+
+=head2 doi
+
+=head2 mesh_terms
+
+For additional info about pubmed,  visit L<http://pubmed.gov> 
+
 
 =head1 DIAGNOSTICS
 
@@ -100,6 +77,20 @@ List every single error and warning message that the module can
 generate (even the ones that will "never happen"), with a full
 explanation of each problem, one or more likely causes, and any
 suggested remedies.
+
+=over
+
+=item C<< Error message here, perhaps with %s placeholders >>
+
+[Description of error here]
+
+=item C<< Another error message here >>
+
+[Description of error here]
+
+[Et cetera, et cetera]
+
+=back
 
 
 =head1 CONFIGURATION AND ENVIRONMENT
@@ -111,10 +102,12 @@ files, and the meaning of any environment variables or properties
 that can be set. These descriptions must also include details of any
 configuration language used.
 
+B<Modware::Role::Publication::Pubmed> requires no configuration files or environment variables.
+
 
 =head1 INCOMPATIBILITIES
 
-=for author to fill in:
+  =for author to fill in:
   A list of any modules that this module cannot be used in conjunction
   with. This may be due to name conflicts in the interface, or
   competition for system or program resources, or due to internal
@@ -126,7 +119,7 @@ configuration language used.
 
 =head1 BUGS AND LIMITATIONS
 
-=for author to fill in:
+  =for author to fill in:
   A list of known problems with the module, together with some
   indication Whether they are likely to be fixed in an upcoming
   release. Also a list of restrictions on the features the module
@@ -135,8 +128,8 @@ configuration language used.
   limitations on the size of data sets, special cases that are not
   (yet) handled, etc.
 
-No bugs have been reported.Please report any bugs or feature requests to
-dictybase@northwestern.edu
+  No bugs have been reported.Please report any bugs or feature requests to
+  dictybase@northwestern.edu
 
 
 
@@ -160,7 +153,7 @@ dictybase@northwestern.edu
   I<Siddhartha Basu>  B<siddhartha-basu@northwestern.edu>
 
 
-=head1 LICENCE AND COPYRIGHT
+  =head1 LICENCE AND COPYRIGHT
 
   Copyright (c) B<2003>, Siddhartha Basu C<<siddhartha-basu@northwestern.edu>>. All rights reserved.
 

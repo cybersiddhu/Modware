@@ -49,8 +49,7 @@ has 'cv' => (
     default => 'pub_type'
 );
 
-has 'cvterm' => ( is => 'rw', isa => 'Str', lazy => 1, default => 'paper' );
-has 'db'     => ( is => 'rw', isa => 'Str', lazy => 1, default => 'pubmed' );
+has 'db'     => ( is => 'rw', isa => 'Str', lazy => 1, default => 'Pubmed' );
 
 sub _build_status {
     my $self = shift;
@@ -65,7 +64,7 @@ sub _build_abstract {
     return if !$self->has_dbrow;
     my $rs = $self->dbrow->search_related( 'pubprops',
         { 'type_id' => $self->cvterm_id_by_name('abstract') } );
-    $rs->first->value if $rs;
+    $rs->first->value if $rs->count > 0;
 }
 
 sub _build_title {

@@ -1,11 +1,67 @@
-package Modware::Publication::Journal;
+package Modware::Role::HasPublication;
 
 use version; our $VERSION = qv('0.1');
 
 # Other modules:
+use Moose::Role;
 
-# Module implementation
-#
+#module implementation
+
+requires '_build_abstract';
+requires '_build_title';
+requires '_build_year';
+requires '_build_source';
+requires '_build_status';
+requires '_build_keywords_stack';
+
+has 'abstract' => (
+    is         => 'rw',
+    isa        => 'Maybe[Str]',
+    lazy_build => 1
+);
+
+has 'title' => (
+    is         => 'rw',
+    isa        => 'Maybe[Str]',
+    lazy_build => 1
+);
+
+has 'year' => (
+    is         => 'rw',
+    isa        => 'Maybe[Str]',
+    lazy_build => 1
+);
+
+has 'keywords_stack' => (
+    is         => 'rw',
+    isa        => 'ArrayRef',
+    traits     => [qw/Array/],
+    lazy_build => 1,
+    handles    => {
+        add_keyword => 'push',
+        keywords    => 'elements', 
+        keywords_sorted => 'sort'
+    }
+);
+
+has 'source' => (
+    is         => 'rw',
+    isa        => 'Maybe[Str]',
+    lazy_build => 1
+);
+
+has 'status' => (
+    is         => 'rw',
+    isa        => 'Maybe[Str]',
+    lazy_build => 1
+);
+
+has 'type' => (
+    is      => 'rw',
+    isa     => 'Str',
+    lazy    => 1,
+    default => 'paper'
+);
 
 1;    # Magic true value required at end of module
 
@@ -13,37 +69,29 @@ __END__
 
 =head1 NAME
 
-B<Modware::Publication::Journal> - [Module for handling journal]
+<Modware::Role::Publication> - [Moose role for publication module]
 
 
 =head1 VERSION
 
-This document describes <Modware::Publication::Journal> version 0.1
+This document describes B<Modware::Role::Publication> version 0.1.0
 
 
 =head1 SYNOPSIS
 
-use Modware::Publication::Journal;
+use Moose;
+with Modware::Role::Publication;
 
 
 =head1 DESCRIPTION
 
+The role in intended to be consumed by B<Modware::Publication> class. 
 
 =head1 INTERFACE 
 
-
-=head2 abbreviation
-
-=head2 issn
-
-=head2 name
-
-=head2 journal
-
-
-
-Also look at L<Modware::Publication::Role::Journal>
-
+=for author to fill in:
+Only role specific but non-public internal methods will be documented here, meant for API
+developer.
 
 =head1 DIAGNOSTICS
 
@@ -52,20 +100,6 @@ List every single error and warning message that the module can
 generate (even the ones that will "never happen"), with a full
 explanation of each problem, one or more likely causes, and any
 suggested remedies.
-
-=over
-
-=item C<< Error message here, perhaps with %s placeholders >>
-
-[Description of error here]
-
-=item C<< Another error message here >>
-
-[Description of error here]
-
-[Et cetera, et cetera]
-
-=back
 
 
 =head1 CONFIGURATION AND ENVIRONMENT
@@ -77,12 +111,10 @@ files, and the meaning of any environment variables or properties
 that can be set. These descriptions must also include details of any
 configuration language used.
 
-<Modware::Publication::Journal> requires no configuration files or environment variables.
-
 
 =head1 INCOMPATIBILITIES
 
-  =for author to fill in:
+=for author to fill in:
   A list of any modules that this module cannot be used in conjunction
   with. This may be due to name conflicts in the interface, or
   competition for system or program resources, or due to internal
@@ -94,7 +126,7 @@ configuration language used.
 
 =head1 BUGS AND LIMITATIONS
 
-  =for author to fill in:
+=for author to fill in:
   A list of known problems with the module, together with some
   indication Whether they are likely to be fixed in an upcoming
   release. Also a list of restrictions on the features the module
@@ -103,8 +135,8 @@ configuration language used.
   limitations on the size of data sets, special cases that are not
   (yet) handled, etc.
 
-  No bugs have been reported.Please report any bugs or feature requests to
-  dictybase@northwestern.edu
+No bugs have been reported.Please report any bugs or feature requests to
+dictybase@northwestern.edu
 
 
 

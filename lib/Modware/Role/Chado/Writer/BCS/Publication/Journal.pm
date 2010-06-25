@@ -1,11 +1,83 @@
-package Modware::Publication::Article;
+package Modware::Role::Chado::Writer::BCS::Publication::Journal;
 
-use version; our $VERSION = qv('0.1.0');
+use version; our $VERSION = qv('1.0.0');
 
 # Other modules:
+use Moose::Role;
 
 # Module implementation
 #
+
+
+sub _build_abbreviation {
+    my ($self) = @_;
+    return if !$self->has_dbrow;
+    my $rs = $self->dbrow->search_related( 'pubprops',
+        { 'type_id' => $self->cvterm_id_by_name('journal_abbreviation') } );
+    $rs->first->value if $rs->count > 0;
+
+}
+
+sub _build_issn {
+    my ($self) = @_;
+    return if !$self->has_dbrow;
+    my $rs
+        = $self->dbrow->search_related( 'pub_dbxrefs', {} )->search_related(
+        'dbxref',
+        { 'db.name' => 'issn' },
+        { join      => 'db' }
+        );
+    $rs->first->accession if $rs->count > 0;
+}
+
+sub _build_journal {
+    my ($self) = @_;
+    return if !$self->has_dbrow;
+    $self->dbrow->series_name;
+}
+
+before 'create' => sub {
+    my ($self) = @_;
+    my $pub = $self->meta->get_attribute('pub');
+    $pub->journal( $self->journal ) if $self->has_journal;
+    $pub->add_to_pubprops(
+        {   type_id => $self->cvterm_id_by_name('journal_abbreviation'),
+            value   => $self->abbreviation
+        }
+    ) if $self->has_abbreviation;
+    $pub->add_to_pub_dbxrefs(
+        {   dbxref => {
+                accession => $self->issn,
+                db_id     => $self->db_id_by_name('issn')
+            }
+        }
+    ) if $self->has_issn;
+};
+
+before 'update' => sub {
+    my $pub = $self->meta->get_attribute('pub');
+    $pub->journal( $self->journal )
+        if $self->has_journal and $self->journal ne $self->dbrow->journal;
+    $pub->add_to_pubprops(
+        {   type_id => $self->cvterm_id_by_name('journal_abbreviation'),
+            value   => $self->abbreviation
+        }
+    ) if $self->has_abbreviation;
+    $pub->issue( $self->issue )
+        if $self->has_issue and $self->issue ne $self->dbrow->issue;
+
+    if ( $self->has_issn ) {
+        my $issn = $self->_build_issn;
+
+        $pub->add_to_pub_dbxrefs(
+            {   dbxref => {
+                    accession => $self->issn,
+                    db_id     => $self->db_id_by_name('issn')
+                }
+            }
+        ) if $issn ne $self->issn;
+    }
+};
 
 1;    # Magic true value required at end of module
 
@@ -13,17 +85,22 @@ __END__
 
 =head1 NAME
 
-B<Modware::Publication::Article> - [Module for handling published article]
+<MODULE NAME> - [One line description of module's purpose here]
 
 
 =head1 VERSION
 
-This document describes B<Modware::Publication::Article> version 0.1.0
+This document describes <MODULE NAME> version 0.0.1
 
 
 =head1 SYNOPSIS
 
-use Modware::Publication::Article;
+use <MODULE NAME>;
+
+=for author to fill in:
+Brief code example(s) here showing commonest usage(s).
+This section will be as far as many users bother reading
+so make it as educational and exeplary as possible.
 
 
 =head1 DESCRIPTION
@@ -35,12 +112,55 @@ Use subsections (=head2, =head3) as appropriate.
 
 =head1 INTERFACE 
 
+=for author to fill in:
+Write a separate section listing the public components of the modules
+interface. These normally consist of either subroutines that may be
+exported, or methods that may be called on objects belonging to the
+classes provided by the module.
 
-=head2 first_page
+=head2 <METHOD NAME>
 
-=head2 last_page
+=over
 
-For more docs,  look at B<Modware::Publication>
+=item B<Use:> <Usage>
+
+[Detail text here]
+
+=item B<Functions:> [What id does]
+
+[Details if neccessary]
+
+=item B<Return:> [Return type of value]
+
+[Details]
+
+=item B<Args:> [Arguments passed]
+
+[Details]
+
+=back
+
+=head2 <METHOD NAME>
+
+=over
+
+=item B<Use:> <Usage>
+
+[Detail text here]
+
+=item B<Functions:> [What id does]
+
+[Details if neccessary]
+
+=item B<Return:> [Return type of value]
+
+[Details]
+
+=item B<Args:> [Arguments passed]
+
+[Details]
+
+=back
 
 
 =head1 DIAGNOSTICS
@@ -75,7 +195,7 @@ files, and the meaning of any environment variables or properties
 that can be set. These descriptions must also include details of any
 configuration language used.
 
-<Modware::Publication::Article> requires no configuration files or environment variables.
+<MODULE NAME> requires no configuration files or environment variables.
 
 
 =head1 DEPENDENCIES
@@ -89,7 +209,7 @@ A list of all the other modules that this module relies upon,
   None.
 
 
-=head1 INCOMPATIBILITIES
+  =head1 INCOMPATIBILITIES
 
   =for author to fill in:
   A list of any modules that this module cannot be used in conjunction
@@ -101,7 +221,7 @@ A list of all the other modules that this module relies upon,
   None reported.
 
 
-=head1 BUGS AND LIMITATIONS
+  =head1 BUGS AND LIMITATIONS
 
   =for author to fill in:
   A list of known problems with the module, together with some
@@ -117,7 +237,7 @@ A list of all the other modules that this module relies upon,
 
 
 
-=head1 TODO
+  =head1 TODO
 
   =over
 
@@ -132,12 +252,12 @@ A list of all the other modules that this module relies upon,
   =back
 
 
-=head1 AUTHOR
+  =head1 AUTHOR
 
   I<Siddhartha Basu>  B<siddhartha-basu@northwestern.edu>
 
 
-=head1 LICENCE AND COPYRIGHT
+  =head1 LICENCE AND COPYRIGHT
 
   Copyright (c) B<2003>, Siddhartha Basu C<<siddhartha-basu@northwestern.edu>>. All rights reserved.
 
@@ -145,7 +265,7 @@ A list of all the other modules that this module relies upon,
   modify it under the same terms as Perl itself. See L<perlartistic>.
 
 
-=head1 DISCLAIMER OF WARRANTY
+  =head1 DISCLAIMER OF WARRANTY
 
   BECAUSE THIS SOFTWARE IS LICENSED FREE OF CHARGE, THERE IS NO WARRANTY
   FOR THE SOFTWARE, TO THE EXTENT PERMITTED BY APPLICABLE LAW. EXCEPT WHEN

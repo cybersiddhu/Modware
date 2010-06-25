@@ -1,11 +1,20 @@
-package Modware::Publication::PubmedArticle;
+package Modware::Role::Publication::HasJournal;
 
-use version; our $VERSION = qv('0.1');
+use version; our $VERSION = qv('1.0.0');
 
 # Other modules:
+use Moose::Role;
 
 # Module implementation
 #
+
+requires '_build_abbreviation', '_build_issn', '_build_journal';
+
+has [qw/abbreviation issn journal/] => (
+    is         => 'rw',
+    isa        => 'Maybe[Str]',
+    lazy_build => 1
+);
 
 1;    # Magic true value required at end of module
 
@@ -13,25 +22,82 @@ __END__
 
 =head1 NAME
 
-B<Modware::Publication::PubmedArticle> - [Module for handling pubmed article]
+<MODULE NAME> - [One line description of module's purpose here]
 
 
 =head1 VERSION
 
-This document describes <Modware::Publication::PubmedArticle> version 0.1
+This document describes <MODULE NAME> version 0.0.1
 
 
 =head1 SYNOPSIS
 
-use Modware::Publication::PubmedArticle;
+use <MODULE NAME>;
+
+=for author to fill in:
+Brief code example (
+        s) here showing commonest usage(s).
+This section will be as far as many users bother reading
+so make it as educational and exeplary as possible.
 
 
 =head1 DESCRIPTION
 
+=for author to fill in:
+Write a full description of the module and its features here.
+Use subsections (=head2, =head3) as appropriate .
 
 =head1 INTERFACE 
 
-Look at B<Modware::Publication::Article> and B<Modware::Role::Publication::Pubmed>
+=for author to fill in:
+Write a separate section listing the public components of the modules
+interface. These normally consist of either subroutines that may be
+exported, or methods that may be called on objects belonging to the
+classes provided by the module.
+
+=head2 <METHOD NAME>
+
+=over
+
+=item B<Use:> <Usage>
+
+[Detail text here]
+
+=item B<Functions:> [What id does]
+
+[Details if neccessary]
+
+=item B<Return:> [Return type of value]
+
+[Details]
+
+=item B<Args:> [Arguments passed]
+
+[Details]
+
+=back
+
+=head2 <METHOD NAME>
+
+=over
+
+=item B<Use:> <Usage>
+
+[Detail text here]
+
+=item B<Functions:> [What id does]
+
+[Details if neccessary]
+
+=item B<Return:> [Return type of value]
+
+[Details]
+
+=item B<Args:> [Arguments passed]
+
+[Details]
+
+=back
 
 
 =head1 DIAGNOSTICS
@@ -66,10 +132,21 @@ files, and the meaning of any environment variables or properties
 that can be set. These descriptions must also include details of any
 configuration language used.
 
-<Modware::Publication::PubmedArticle> requires no configuration files or environment variables.
+<MODULE NAME> requires no configuration files or environment variables.
 
 
-=head1 INCOMPATIBILITIES
+=head1 DEPENDENCIES
+
+=for author to fill in:
+A list of all the other modules that this module relies upon,
+  including any restrictions on versions, and an indication whether
+  the module is part of the standard Perl distribution, part of the
+  module's distribution, or must be installed separately. ]
+
+  None.
+
+
+  =head1 INCOMPATIBILITIES
 
   =for author to fill in:
   A list of any modules that this module cannot be used in conjunction
@@ -81,7 +158,7 @@ configuration language used.
   None reported.
 
 
-=head1 BUGS AND LIMITATIONS
+  =head1 BUGS AND LIMITATIONS
 
   =for author to fill in:
   A list of known problems with the module, together with some
@@ -97,7 +174,7 @@ configuration language used.
 
 
 
-=head1 TODO
+  =head1 TODO
 
   =over
 
@@ -112,12 +189,12 @@ configuration language used.
   =back
 
 
-=head1 AUTHOR
+  =head1 AUTHOR
 
   I<Siddhartha Basu>  B<siddhartha-basu@northwestern.edu>
 
 
-=head1 LICENCE AND COPYRIGHT
+  =head1 LICENCE AND COPYRIGHT
 
   Copyright (c) B<2003>, Siddhartha Basu C<<siddhartha-basu@northwestern.edu>>. All rights reserved.
 
@@ -125,7 +202,7 @@ configuration language used.
   modify it under the same terms as Perl itself. See L<perlartistic>.
 
 
-=head1 DISCLAIMER OF WARRANTY
+  =head1 DISCLAIMER OF WARRANTY
 
   BECAUSE THIS SOFTWARE IS LICENSED FREE OF CHARGE, THERE IS NO WARRANTY
   FOR THE SOFTWARE, TO THE EXTENT PERMITTED BY APPLICABLE LAW. EXCEPT WHEN

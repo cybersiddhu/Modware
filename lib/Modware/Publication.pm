@@ -12,7 +12,7 @@ with 'Modware::Role::DataSource::Util';
 with 'Modware::Role::Chado::Writer::BCS::Publication';
 with 'Modware::Role::Chado::Helper::BCS::Cvterm';
 with 'Modware::Role::Publication::HasAuthors';
-with 'Modware::Role::Publication';
+with 'Modware::Role::HasPublication';
 
 # Module implementation
 #
