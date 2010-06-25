@@ -9,15 +9,11 @@ use Moose;
 #
 with 'Modware::Role::DataSource::Util';
 with 'Modware::Role::Chado::Writer::BCS::Publication';
-with 'Modware::Role::Chado::Writer::BCS::Publication::Journal';
-with 'Modware::Role::Chado::Writer::BCS::Publication::Article';
 with 'Modware::Role::Chado::Writer::BCS::Publication::JournalArticle';
 with 'Modware::Role::Chado::Helper::BCS::Cvterm';
 with 'Modware::Role::Chado::Helper::BCS::Dbxref';
 with 'Modware::Role::Publication::HasAuthors';
 with 'Modware::Role::HasPublication';
-with 'Modware::Role::HasJournal';
-with 'Modware::Role::HasArticle';
 with 'Modware::Role::HasJournalArticle';
 
 has '+type' => ( default => 'journal_article');

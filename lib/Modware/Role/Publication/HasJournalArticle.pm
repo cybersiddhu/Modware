@@ -9,6 +9,22 @@ use Moose::Role;
 # Module implementation
 #
 requires '_issue',  '_volume';
+requires '_build_first_page';
+requires '_build_last_page';
+requires '_build_abbreviation', '_build_issn', '_build_journal';
+
+has [qw/abbreviation issn journal/] => (
+    is         => 'rw',
+    isa        => 'Maybe[Str]',
+    lazy_build => 1
+);
+
+has $_ => (
+    is  => 'rw',
+    isa => 'Maybe[Int],  lazy_build => 1) 
+    for qw(first_page last_page);
+
+
 
 has [qw/issue volume/] => (
     is         => 'rw',

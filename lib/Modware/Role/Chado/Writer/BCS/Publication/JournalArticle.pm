@@ -8,6 +8,47 @@ use Moose::Role;
 # Module implementation
 #
 
+sub _build_first_page {
+    my ($self) = @_;
+    return if !$self->has_dbrow;
+    my $first = ( ( split /\-\-/, $self->dbrow->pages ) )[0];
+    $first;
+}
+
+sub _build_last_page {
+    my ($self) = @_;
+    return if !$self->has_dbrow;
+    my $last = ( ( split /\-\-/, $self->dbrow->pages ) )[1];
+    $last;
+}
+
+sub _build_abbreviation {
+    my ($self) = @_;
+    return if !$self->has_dbrow;
+    my $rs = $self->dbrow->search_related( 'pubprops',
+        { 'type_id' => $self->cvterm_id_by_name('journal_abbreviation') } );
+    $rs->first->value if $rs->count > 0;
+
+}
+
+sub _build_issn {
+    my ($self) = @_;
+    return if !$self->has_dbrow;
+    my $rs
+        = $self->dbrow->search_related( 'pub_dbxrefs', {} )->search_related(
+        'dbxref',
+        { 'db.name' => 'issn' },
+        { join      => 'db' }
+        );
+    $rs->first->accession if $rs->count > 0;
+}
+
+sub _build_journal {
+    my ($self) = @_;
+    return if !$self->has_dbrow;
+    $self->dbrow->series_name;
+}
+
 sub _build_issue {
     my ($self) = @_;
     return if !$self->has_dbrow;
@@ -22,17 +63,62 @@ sub _build_volume {
 
 before 'create' => sub {
     my ($self) = @_;
-    my $pub = $self->meta->get_attribute('pub');
-    $pub->issue( $self->issue )     if $self->has_issue;
-    $pub->volume( $self->volume )   if $self->has_volume;
+    my $pub    = $self->meta->get_attribute('pub');
+    my $pub    = $self->meta->get_attribute('pub');
+    $pub->pages( $self->first_page . '--' . $self->last_page )
+        if $self->has_first_page
+            and $self->has_last_page;
+    $pub->journal( $self->journal ) if $self->has_journal;
+    $pub->add_to_pubprops(
+        {   type_id => $self->cvterm_id_by_name('journal_abbreviation'),
+            value   => $self->abbreviation
+        }
+    ) if $self->has_abbreviation;
+    $pub->add_to_pub_dbxrefs(
+        {   dbxref => {
+                accession => $self->issn,
+                db_id     => $self->db_id_by_name('issn')
+            }
+        }
+    ) if $self->has_issn;
+
+    $pub->issue( $self->issue )   if $self->has_issue;
+    $pub->volume( $self->volume ) if $self->has_volume;
 };
 
 before 'update' => sub {
     my $pub = $self->meta->get_attribute('pub');
+    if ( $self->has_first_page and $self->has_last_page ) {
+        my $pages = $self->first_page . '--' . $self->last_page;
+        $pub->pages($pages) if $pages ne $self->dbrow->pages;
+    }
+
     $pub->issue( $self->issue )
         if $self->has_issue and $self->issue ne $self->dbrow->issue;
     $pub->volume( $self->volume )
         if $self->has_volume and $self->volume ne $self->dbrow->issue;
+
+    $pub->journal( $self->journal )
+        if $self->has_journal and $self->journal ne $self->dbrow->journal;
+    $pub->add_to_pubprops(
+        {   type_id => $self->cvterm_id_by_name('journal_abbreviation'),
+            value   => $self->abbreviation
+        }
+    ) if $self->has_abbreviation;
+    $pub->issue( $self->issue )
+        if $self->has_issue and $self->issue ne $self->dbrow->issue;
+
+    if ( $self->has_issn ) {
+        my $issn = $self->_build_issn;
+
+        $pub->add_to_pub_dbxrefs(
+            {   dbxref => {
+                    accession => $self->issn,
+                    db_id     => $self->db_id_by_name('issn')
+                }
+            }
+        ) if $issn ne $self->issn;
+    }
 };
 
 1;    # Magic true value required at end of module

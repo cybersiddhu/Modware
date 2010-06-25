@@ -8,14 +8,23 @@ use Moose;
 
 # Module implementation
 #
-with 'Modware::Role::DataSource::Util';
-with 'Modware::Role::Chado::Writer::BCS::Publication';
-with 'Modware::Role::Chado::Helper::BCS::Cvterm';
-with 'Modware::Role::Publication::HasAuthors';
-with 'Modware::Role::HasPublication';
 
 # Module implementation
 #
+with 'Modware::Role::DataSource::Util';
+with 'Modware::Role::Chado::Writer::BCS::Publication';
+with 'Modware::Role::Chado::Writer::BCS::Publication::JournalArticle';
+with 'Modware::Role::Chado::Writer::BCS::Publication::Pubmed';
+with 'Modware::Role::Chado::Helper::BCS::Cvterm';
+with 'Modware::Role::Chado::Helper::BCS::Dbxref';
+with 'Modware::Role::Publication::HasAuthors';
+with 'Modware::Role::HasPublication';
+with 'Modware::Role::HasJournalArticle';
+with 'Modware::Role::HasPubmed';
+
+has '+type' => (default => 'pubmed_journal_article');
+
+
 
 
 no Moose;

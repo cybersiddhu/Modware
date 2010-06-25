@@ -1,4 +1,4 @@
-package Modware::Publication::Pubmed;
+package Modware::Publication::Journal;
 
 use version; our $VERSION = qv('0.1');
 
@@ -8,18 +8,14 @@ use version; our $VERSION = qv('0.1');
 #
 with 'Modware::Role::DataSource::Util';
 with 'Modware::Role::Chado::Writer::BCS::Publication';
-with 'Modware::Role::Chado::Writer::BCS::Publication::Article';
 with 'Modware::Role::Chado::Writer::BCS::Publication::Journal';
-with 'Modware::Role::Chado::Writer::BCS::Publication::Pubmed';
 with 'Modware::Role::Chado::Helper::BCS::Cvterm';
 with 'Modware::Role::Chado::Helper::BCS::Dbxref';
 with 'Modware::Role::Publication::HasAuthors';
 with 'Modware::Role::HasPublication';
-with 'Modware::Role::HasArticle';
 with 'Modware::Role::HasJournal';
-with 'Modware::Role::HasPubmed';
 
-has '+type' => (default => 'pubmed_journal_article');
+has '+type' => (default => 'journal');
 
 
 
