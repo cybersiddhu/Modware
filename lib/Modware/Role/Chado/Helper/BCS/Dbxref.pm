@@ -1,50 +1,54 @@
-package Modware::Chado::Writer::BCS::Analysis;
+package Modware::Role::Chado::Helper::BCS::Dbxref;
 
 use version; our $VERSION = qv('1.0.0');
 
 # Other modules:
 use Moose::Role;
+use MooseX::Params::Validate;
 
 # Module implementation
 #
-requires 'chadowriter';
 
-has 'program' => (
-    is        => 'rw',
-    isa       => 'Str',
-    predicate => 'has_program',
+requires 'db';
+
+has 'cvrow' => (
+    is         => 'rw',
+    isa        => 'HashRef[Bio::Chado::Schema::General::DB]',
+    traits     => ['Hash'],
+    lazy_build => 1,
+    handles    => {
+        get_dbrow   => 'get',
+        set_dbrow   => 'set',
+        exist_dbrow => 'defined'
+    }
 );
 
-has 'sourcename' => (
-    is      => 'rw',
-    isa     => 'Str',
-    default => 'MOD',
-);
+sub db_id_by_name {
+    my $self = shift;
+    my ($name) = pos_validated_list( \@_, { isa => 'Str' } );
 
-has 'analysis_name' => (
-    is      => 'rw',
-    isa     => 'Str',
-    lazy    => 1,
-    default => sub {
-        return $self->program . $self->sourcename;
-    },
-);
+    #check if it is already been cached
+    if ( $self->exist_db_row($name) ) {
+        return $self->get_db_row($name)->db_id;
+    }
 
-has [qw/analysis_description algorithm/] => (
-    is  => 'rw',
-    isa => 'Str',
-);
+    #otherwise try to retrieve from database
+    my $rs
+        = $self->chado->resultset('General::Db')->search( { name => $name } );
+    if ( $rs->count > 0 ) {
+        $self->set_db_row( $name => $rs->first );
+        return $rs->first->db_id;
+    }
 
-sub create_analysis {
-    my ($self) = @_;
-    return $self->handler->resultset('Analysis')->create(
-        {   name        => $self->analysis_name,
-            description => $self->analysis_description,
-            program     => $self->program,
-            algorithm   => $self->algorithm,
-            sourcename  => $self->sourcename,
+    #otherwise create one using the default cv namespace
+    my $row = $self->chado->txn_do(
+        sub {
+            $self->chado->resultset('General::Db')
+                ->create( { name => $name } );
         }
     );
+    $self->set_dbrow( $name, $row );
+    $row->db_id;
 }
 
 1;    # Magic true value required at end of module
@@ -53,7 +57,7 @@ __END__
 
 =head1 NAME
 
-<MODULE NAME> - [One line description of module's purpose here]
+B<Modware::Role::Chado::Reader::BCS::Helper::Dbxref> - [One line description of module's purpose here]
 
 
 =head1 VERSION
@@ -66,8 +70,7 @@ This document describes <MODULE NAME> version 0.0.1
 use <MODULE NAME>;
 
 =for author to fill in:
-Brief code example (
-    s) here showing commonest usage(s).
+Brief code example(s) here showing commonest usage(s).
 This section will be as far as many users bother reading
 so make it as educational and exeplary as possible.
 
@@ -76,7 +79,8 @@ so make it as educational and exeplary as possible.
 
 =for author to fill in:
 Write a full description of the module and its features here.
-Use subsections (=head2, =head3) as appropriate .
+Use subsections (=head2, =head3) as appropriate.
+
 
 =head1 INTERFACE 
 

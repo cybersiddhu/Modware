@@ -1,27 +1,46 @@
-package Modware::Publication::JournalArticle;
+package Modware::Collection::Iterator::BCS::ResultSet;
 
-use version; our $VERSION = qv('0.1');
+use version; our $VERSION = qv('1.0.0');
 
 # Other modules:
 use Moose;
-use MooseX::ClassAttribute;
 
 # Module implementation
 #
-with 'Modware::Role::Chado::Writer::BCS::Publication';
-with 'Modware::Role::Chado::Writer::BCS::Publication::JournalArticle';
-with 'Modware::Role::Chado::Helper::BCS::Cvterm';
-with 'Modware::Role::Chado::Helper::BCS::Dbxref';
-with 'Modware::Role::Publication::HasAuthors';
-with 'Modware::Role::HasPublication';
-with 'Modware::Role::HasJournalArticle';
 
-has '+type' => ( default => 'journal_article' );
-class_has 'query' => (
-    default => 'Modware::Chado::Query::Publication::JournalArticle',
-    is      => 'rw',
-    handles => [qw/source find/]
+has 'collection' => (
+    is  => 'rw',
+    isa => 'DBIx::Class::ResultSet'
 );
+
+has 'count' => (
+    is      => 'ro',
+    isa     => 'Int',
+    lazy    => 1,
+    default => sub {
+        my $self = shift;
+        $self->collection->count;
+    }
+);
+
+has [qw/data_class search_class/] => (
+    isa => 'rw',
+    isa => 'Str'
+);
+
+sub next {
+    my ($self) = @_;
+    if ( my $next = $self->collection->next ) {
+        $self->data_class->new( dbrow => $next );
+    }
+
+}
+
+sub find {
+	my ($self, %arg) = @_;
+	$self->search_class->find(%arg);
+}
+
 
 1;    # Magic true value required at end of module
 
@@ -29,17 +48,22 @@ __END__
 
 =head1 NAME
 
-B<Modware::Publication::JournalArticle> - [Module for handling published article in the journal]
+<MODULE NAME> - [One line description of module's purpose here]
 
 
 =head1 VERSION
 
-This document describes <Modware::Publication::JournalArticle> version 0.1
+This document describes <MODULE NAME> version 0.0.1
 
 
 =head1 SYNOPSIS
 
-use Modware::Publication::JournalArticle;
+use <MODULE NAME>;
+
+=for author to fill in:
+Brief code example(s) here showing commonest usage(s).
+This section will be as far as many users bother reading
+so make it as educational and exeplary as possible.
 
 
 =head1 DESCRIPTION
@@ -51,14 +75,55 @@ Use subsections (=head2, =head3) as appropriate.
 
 =head1 INTERFACE 
 
-=head2 issue
+=for author to fill in:
+Write a separate section listing the public components of the modules
+interface. These normally consist of either subroutines that may be
+exported, or methods that may be called on objects belonging to the
+classes provided by the module.
 
-=head2 issue_suppliment
+=head2 <METHOD NAME>
 
-=head2 volume
+=over
 
-For more docs,  look at B<Modware::Publication>,  B<Modware::Publication::Journal> and
-B<Modware::Publication::Article>
+=item B<Use:> <Usage>
+
+[Detail text here]
+
+=item B<Functions:> [What id does]
+
+[Details if neccessary]
+
+=item B<Return:> [Return type of value]
+
+[Details]
+
+=item B<Args:> [Arguments passed]
+
+[Details]
+
+=back
+
+=head2 <METHOD NAME>
+
+=over
+
+=item B<Use:> <Usage>
+
+[Detail text here]
+
+=item B<Functions:> [What id does]
+
+[Details if neccessary]
+
+=item B<Return:> [Return type of value]
+
+[Details]
+
+=item B<Args:> [Arguments passed]
+
+[Details]
+
+=back
 
 
 =head1 DIAGNOSTICS
@@ -93,10 +158,21 @@ files, and the meaning of any environment variables or properties
 that can be set. These descriptions must also include details of any
 configuration language used.
 
-B<Modware::Publication::JournalArticle> requires no configuration files or environment variables.
+<MODULE NAME> requires no configuration files or environment variables.
 
 
-=head1 INCOMPATIBILITIES
+=head1 DEPENDENCIES
+
+=for author to fill in:
+A list of all the other modules that this module relies upon,
+  including any restrictions on versions, and an indication whether
+  the module is part of the standard Perl distribution, part of the
+  module's distribution, or must be installed separately. ]
+
+  None.
+
+
+  =head1 INCOMPATIBILITIES
 
   =for author to fill in:
   A list of any modules that this module cannot be used in conjunction
@@ -108,7 +184,7 @@ B<Modware::Publication::JournalArticle> requires no configuration files or envir
   None reported.
 
 
-=head1 BUGS AND LIMITATIONS
+  =head1 BUGS AND LIMITATIONS
 
   =for author to fill in:
   A list of known problems with the module, together with some
@@ -124,7 +200,7 @@ B<Modware::Publication::JournalArticle> requires no configuration files or envir
 
 
 
-=head1 TODO
+  =head1 TODO
 
   =over
 
@@ -139,12 +215,12 @@ B<Modware::Publication::JournalArticle> requires no configuration files or envir
   =back
 
 
-=head1 AUTHOR
+  =head1 AUTHOR
 
   I<Siddhartha Basu>  B<siddhartha-basu@northwestern.edu>
 
 
-=head1 LICENCE AND COPYRIGHT
+  =head1 LICENCE AND COPYRIGHT
 
   Copyright (c) B<2003>, Siddhartha Basu C<<siddhartha-basu@northwestern.edu>>. All rights reserved.
 
@@ -152,7 +228,7 @@ B<Modware::Publication::JournalArticle> requires no configuration files or envir
   modify it under the same terms as Perl itself. See L<perlartistic>.
 
 
-=head1 DISCLAIMER OF WARRANTY
+  =head1 DISCLAIMER OF WARRANTY
 
   BECAUSE THIS SOFTWARE IS LICENSED FREE OF CHARGE, THERE IS NO WARRANTY
   FOR THE SOFTWARE, TO THE EXTENT PERMITTED BY APPLICABLE LAW. EXCEPT WHEN

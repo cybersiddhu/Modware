@@ -1,50 +1,98 @@
-package Modware::Chado::Writer::Analysis;
+package Modware::Chado::Query::BCS::Publication::JournalArticle;
 
 use version; our $VERSION = qv('1.0.0');
 
 # Other modules:
-use Moose::Role;
+use Moose;
+use MooseX::ClassAttribute;
+use Modware::Publication;
+use aliased 'Modware::Collection::Iterator::BCS::ResultSet';
 
 # Module implementation
 #
-requires 'chadowriter';
 
-has 'program' => (
-    is        => 'rw',
-    isa       => 'Str',
-    predicate => 'has_program',
+class_has 'chado' => (
+    is         => 'ro',
+    isa        => 'Bio::Chado::Schema',
+    lazy_build => 1
 );
 
-has 'sourcename' => (
-    is      => 'rw',
-    isa     => 'Str',
-    default => 'MOD',
-);
+sub _build_chado {
+    my ($class) = @_;
+    my $chado
+        = $class->has_source
+        ? Chado->handler( $self->source )
+        : Chado->handler;
+    $chado;
+}
 
-has 'analysis_name' => (
-    is      => 'rw',
-    isa     => 'Str',
-    lazy    => 1,
-    default => sub {
-        return $self->program . $self->sourcename;
-    },
-);
-
-has [qw/analysis_description algorithm/] => (
+class_has 'source' => (
     is  => 'rw',
-    isa => 'Str',
+    isa => 'Str'
 );
 
-sub create_analysis {
-    my ($self) = @_;
-    return $self->handler->resultset('Analysis')->create(
-        {   name        => $self->analysis_name,
-            description => $self->analysis_description,
-            program     => $self->program,
-            algorithm   => $self->algorithm,
-            sourcename  => $self->sourcename,
-        }
+class_has 'allowed_params' => (
+    is      => 'rw',
+    isa     => 'ArrayRef',
+    default => sub { [qw/author journal title year/] }
+);
+
+sub find {
+    my ( $class, %arg ) = @_;
+    my $attrs;
+    for my $param ( @{ $class->allowed_params } ) {
+        next if not defined $arg{$param};
+        $param = 'pubauthors.givennames' if $param eq 'author';
+        $param = 'series.name'           if $param eq 'journal';
+        $param = 'pyear'                 if $param eq 'year';
+        $attrs->{$param} = $arg{$param};
+    }
+    my $where = $class->rearrange( $attrs, $arg{cond} );
+    my $rs
+        = $class->chado->resultset('Pub::Pub')
+        ->search( $where,
+        { join => 'pubauthors', prefetch => 'pubauthors', cache => 1 } );
+    return if $rs->count == 0;
+    if ( wantarray() ) {
+        return map { Modware::Publication->new( dbrow => $_ ) } $rs->all;
+    }
+    ResultSet->new(
+        collection => $rs,
+        data_class      => 'Modware::Publication', 
+        search_class => $class
     );
+
+}
+
+sub rearrange {
+    my ( $class, $attrs, $cond ) = @_;
+    my $clause     = $cond->{clause} ? $cond->{clause} : 'AND';
+    my $match_type = $cond->{match}  ? $cond->{match}  : 'partial';
+    my $where;
+    if ( $clause eq 'AND' ) {
+        if ( $match eq 'partial' ) {
+            for my $param ( keys %attrs ) {
+                $where->{$param} = { 'like', '%' . $attrs->{$param} . '%' };
+            }
+        }
+        else {
+            $where = $attrs;
+        }
+    }
+    else {
+        my $arr;
+        for my $param ( keys %attrs ) {
+            if ( $match eq 'partial' ) {
+                push @$arr,
+                    { $param => { 'like', '%' . $attrs->{$param} . '%' } };
+            }
+            else {
+                push @$arr, { $param => $attrs->{$param} };
+            }
+        }
+        $where = { or => $arr };
+    }
+    $where;
 }
 
 1;    # Magic true value required at end of module
@@ -66,8 +114,7 @@ This document describes <MODULE NAME> version 0.0.1
 use <MODULE NAME>;
 
 =for author to fill in:
-Brief code example (
-    s) here showing commonest usage(s).
+Brief code example(s) here showing commonest usage(s).
 This section will be as far as many users bother reading
 so make it as educational and exeplary as possible.
 
@@ -76,7 +123,8 @@ so make it as educational and exeplary as possible.
 
 =for author to fill in:
 Write a full description of the module and its features here.
-Use subsections (=head2, =head3) as appropriate .
+Use subsections (=head2, =head3) as appropriate.
+
 
 =head1 INTERFACE 
 
