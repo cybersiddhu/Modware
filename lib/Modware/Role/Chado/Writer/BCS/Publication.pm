@@ -4,7 +4,6 @@ use version; our $VERSION = qv('0.1');
 
 # Other modules:
 use Moose::Role;
-use Try::Tiny;
 use aliased 'Modware::DataSource::Chado';
 use aliased 'Modware::Publication::Author';
 
@@ -29,7 +28,7 @@ sub _build_chado {
             traits => [
                 'Modware::Role::Chado::Helper::BCS::ResultSet' => {
                     resultset     => $chado->resultset('Pub::Pub')->new( {} ),
-                    relationships => [qw/pubprops pubauthors/]
+                    relationships => [qw/pubprops pubauthors/],
                 }
             ]
         )
@@ -85,28 +84,29 @@ sub _build_source {
 }
 
 sub _build_authors {
-    my ($self) = @_;
+    my ($self)     = @_;
     my $collection = [];
-    my $rs = $self->dbrow->pubauthors;
+    my $rs         = $self->dbrow->pubauthors;
 
     #no authors for you
     return $collection if $rs->count == 0;
 
-    while(my $row = $rs->next) {
-    	my $author = Author->new(
-    		rank => $row->rank, 
-    		is_editor =>$row->editor, 
-    		last_name => $row->surname, 
-    		suffix => $row->suffix
-    	);
-    	if ($row->givennames =~ /^(\S+)\s+(\S+)$/) {
-    		$author->initials($1);
-    		$author->first_name($2);
-    	}
-    	else {
-    		$author->first_name($row->givennames);
-    	}
-    	push @$collection, $author;
+    while ( my $row = $rs->next ) {
+        my $author = Author->new(
+            id        => $row->pubauthor_id,
+            rank      => $row->rank,
+            is_editor => $row->editor,
+            last_name => $row->surname,
+            suffix    => $row->suffix
+        );
+        if ( $row->givennames =~ /^(\S+)\s+(\S+)$/ ) {
+            $author->initials($1);
+            $author->first_name($2);
+        }
+        else {
+            $author->first_name( $row->givennames );
+        }
+        push @$collection, $author;
     }
     $collection;
 }
@@ -120,7 +120,11 @@ sub _build_keywords_stack {
         { join      => { 'type' => 'cv' }, cache => 1 }
     );
     if ( $rs->count > 0 ) {
-        my $terms = [ map { $_->pubprop_id => $_->type->name } $rs->all ];
+        my $terms;
+        while ( my $row = $rs->next ) {
+            push @$terms,
+                { id => $row->pubprop_id, name => $row->type->name };
+        }
         return $terms;
     }
     return [];
@@ -140,7 +144,6 @@ before 'create' => sub {
     $pub->pyear( $self->year )      if $self->has_year;
     $pub->pubplace( $self->source ) if $self->has_source;
 
-    my $pubprops;
     $pub->add_to_pubprops(
         {   type_id => $self->cvterm_id_by_name('status'),
             value   => $self->status
@@ -181,20 +184,14 @@ sub create {
     my ($self) = @_;
     my $chado  = $self->chado;
     my $pub    = $self->meta->get_attribute('pub');
-    my $new_value;
-    try {
-        $new_value = $chado->txn_do(
-            sub {
-                my $value = $chado->resultset('Pub::Pub')
-                    ->create( $pub->to_insert_hashref );
-                $value;
-            }
-        );
-    }
-    catch {
-        confess "Issue in inserting publication record: $_";
-    };
-    $new_value;
+    my $dbrow  = $chado->txn_do(
+        sub {
+            my $value = $chado->resultset('Pub::Pub')
+                ->create( $pub->to_insert_hashref );
+            $value;
+        }
+    );
+    return Modware::Publication->new( dbrow => $dbrow );
 }
 
 before 'delete' => sub {
@@ -235,7 +232,122 @@ sub delete {
     }
 }
 
+before 'update' => sub {
+    my $self = shift;
+    confess "No data being fetched from storage: nothing to delete\n"
+        if !$self->has_dbrow;
+
+    my $pub   = $self->meta->get_attribute('pub');
+    $pub->reset;
+
+    my $dbrow = $self->dbrow;
+
+    $pub->title( $self->title )
+        if $self->has_title and $dbrow->title ne $self->title;
+    $pub->pyear( $self->year )
+        if $self->has_year and $dbrow->pyear ne $self->year;
+    $pub->pubplace( $self->source )
+        if $self->has_source and $dbrow->pubplace ne $self->has_source;
+    $pub->type_id( $self->cvterm_id_by_name( $self->type ) )
+        if $dbrow->type_id != $self->cvterm_id_by_name( $self->type );
+
+ #Did not check for changes in the value as it is a blob field in the database
+    $pub->add_to_pubprops(
+        {   type_id => $self->cvterm_id_by_name('status'),
+            value   => $self->status
+        }
+    );
+    $pub->add_to_pubprops(
+        {   type_id => $self->cvterm_id_by_name('abstract'),
+            value   => $self->abstract
+        }
+    );
+
+    #both for authors and keywords get the mapping from database
+    #then compare with the one that exist in the data objects
+    #both for keywords and authors compare their names
+    my $key_rows = {
+        map { $_->pubprop_id => $_->type->name } $self->dbrow->search_related(
+            'pubprops',
+            { 'cv.name' => 'dictyBase_literature_topic' },
+            { join      => { 'type' => 'cv' }, }
+        )
+    };
+
+    if ( $self->has_keywords_stack ) {
+        for my $key ( $self->keywords ) {
+            if ( not defined $key->{id} ) {
+                $pub->add_to_pubprops(
+                    {   type_id => $self->cvterm_id_by_name( $key->{name} ),
+                        value   => 'true'
+                    }
+                );
+                next;
+            }
+            $pub->add_to_pubprops(
+                {   type_id => $self->cvterm_id_by_name( $key->{name} ),
+                    value   => 'true'
+                }
+            ) if $key->{name} ne $row{ $key->{id} };
+        }
+    }
+
+    if ( $self->has_authors ) {
+        my $author_rows = {
+            map { $_->pubauthor_id => $_->givennames }
+                $self->dbrow->pubauthors;
+        };
+
+        while ( my $pubauthor = $self->next_author ) {
+            if ( !$pubauthor->has_id ) {
+                $pub->add_to_pubauthors(
+                    {   rank       => $pubauthor->rank,
+                        editor     => $pubauthor->is_editor,
+                        surname    => $pubauthor->last_name,
+                        givennames => $pubauthor->given_name,
+                        suffix     => $pubauthor->suffix
+                    }
+                );
+                next;
+            }
+            $pub->add_to_pubauthors(
+                {   rank         => $pubauthor->rank,
+                    editor       => $pubauthor->is_editor,
+                    surname      => $pubauthor->last_name,
+                    givennames   => $pubauthor->given_name,
+                    suffix       => $pubauthor->suffix,
+                    pubauthor_id => $pubauthor_id,
+                }
+                )
+                if $pubauthor->given_name ne $author_rows->{ $pubauthor->id };
+        }
+    }
+
+};
+
 sub update {
+    my ($self) = @_;
+    my $chado  = $self->chado;
+    my $pub    = $self->meta->get_attribute('pub');
+    $chado->txn_do(
+        sub {
+            $self->dbrow->update( $pub->to_update_hashref );
+
+            $self->dbrow->create_related( 'pubprops', $_ )
+                for $pub->pubprops_create_hashrefs;
+
+            $self->dbrow->create_related( 'pubauthors', $_ )
+                for $pub->pubauthors_create_hashrefs;
+
+            for my $hashref ( $pub->pubauthors_update_hashrefs ) {
+                my $id = $hashref->{pubauthor_id};
+                delete $hashref->{pubauthor_id};
+                $chado->resultset('Pub::PubAuthor')->find($id)
+                    ->update($hashref);
+            }
+
+        }
+    );
 }
 
 1;    # Magic true value required at end of module
@@ -244,18 +356,18 @@ __END__
 
 =head1 NAME
 
-B<Modware::Chado::Reader::BCS::Publication> - [Module for retrieiving publication from
+B<Modware::Role::Chado::Reader::BCS::Publication> - [Moose role for persisting publication data to 
 chado database]
 
 
 =head1 VERSION
 
-This document describes <Modware::Chado::Reader::BCS::Publication> version 0.1
+This document describes <Modware::Role::Chado::Reader::BCS::Publication> version 0.1
 
 
 =head1 SYNOPSIS
 
-use Modware::Chado::Reader::BCS::Publication;
+with Modware::Role::Chado::Reader::BCS::Publication;
 
 
 =head1 DESCRIPTION

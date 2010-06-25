@@ -51,8 +51,12 @@ role {
         push @columns, grep { not defined $primary->{$_} } keys %$cols;
     }
 
-    has $_ => ( is => 'rw', isa => 'Str', predicate => 'has_' . $_ )
-        for @columns;
+    has $_ => (
+        is        => 'rw',
+        isa       => 'Str',
+        predicate => 'has_' . $_,
+        clearer   => '_clear_' . $_
+    ) for @columns;
 
     for my $name (@relations) {
         my $info     = $source->relationship_info($name);
@@ -71,12 +75,34 @@ role {
                 traits  => [qw/Array/],
                 handles => {
                     'add_to_' . $name => 'push',
-                    'has_' . $name    => 'count'
+                    'has_' . $name    => 'count',
+                    'all_' . $name    => 'elements'
                 },
                 default => sub { [] }
             );
+
+            methods $name. '_create_hashrefs' => sub {
+                my ($self) = @_;
+                my $method = 'all_' . $name;
+                grep { not defined $_->{pubauthor_id} } $self->$method;
+            };
+
+			methods $name. '_update_hashrefs' => sub {
+                my ($self) = @_;
+                my $method = 'all_' . $name;
+                grep { defined $_->{pubauthor_id} } $self->$method;
+            };
+
         }
     }
+
+    method 'reset' => sub {
+        my ($self) = @_;
+        for my $name ( ( @relations, @columns ) ) {
+            my $method = '_clear_' . $_;
+            $self->$method;
+        }
+    };
 
     method 'to_insert_hashref' => sub {
         my $self = shift;

@@ -9,6 +9,12 @@ use Modware::Types qw/CleanStr/;
 # Module implementation
 #
 
+has 'id' => (
+	is => 'rw', 
+	isa => 'Int', 
+	predicate => 'has_author_id'
+);
+
 has 'first_name' => (
     is        => 'rw',
     isa       => CleanStr,

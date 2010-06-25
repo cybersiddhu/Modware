@@ -39,7 +39,8 @@ has 'keywords_stack' => (
     lazy_build => 1,
     handles    => {
         add_keyword => 'push',
-        keywords    => 'elements'
+        keywords    => 'elements', 
+        keywords_sorted => 'sort'
     }
 );
 
