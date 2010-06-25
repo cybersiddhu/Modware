@@ -11,8 +11,7 @@ use Moose::Role;
 sub _build_pubmed_id {
     my ($self) = @_;
     return if !$self->has_dbrow;
-    $self->db2accession('Pubmed');
-
+    $self->dbrow->uniquename;
 }
 
 sub _build_medline_id {
@@ -43,14 +42,7 @@ sub db2accession {
 before 'create' => sub {
     my ($self) = @_;
     my $pub = $self->meta->get_attribute('pub');
-    $pub->add_to_pub_dbxrefs(
-        {   dbxref => {
-                accession => $self->pubmed_id,
-                db_id     => $self->db_id_by_name('Pubmed')
-            }
-        }
-    ) if $self->has_pubmed;
-
+    $pub->uniquename( $self->pubmed_id ) if $self->has_pubmed_id;
     $pub->add_to_pub_dbxrefs(
         {   dbxref => {
                 accession => $self->medline_id,
@@ -71,15 +63,10 @@ before 'create' => sub {
 
 before 'update' => sub {
     my $pub = $self->meta->get_attribute('pub');
-    if ( $self->has_pubmed_id ) {
-        my $id = $self->_build_pubmed_id;
-        $pub->add_to_pub_dbxrefs(
-            {   dbxref => {
-                    accession => $self->pubmed_id,
-                    db_id     => $self->db_id_by_name('Pubmed')
-                }
-            }
-        ) if $id ne $self->pubmed_id;
+    if ( $self->has_pubmed_id
+        and ( $self->pubmed_id ne $self->dbrow->uniquename ) )
+    {
+        $pub->uniquename( $self->pubmed_id );
     }
 
     if ( $self->has_medline_id ) {
