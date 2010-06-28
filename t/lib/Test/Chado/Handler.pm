@@ -12,6 +12,7 @@ use Try::Tiny;
 use Carp;
 use FindBin qw/$Bin/;
 use File::Spec::Functions;
+use namespace::autoclean;
 
 # Module implementation
 #
@@ -126,7 +127,6 @@ after 'password' => sub {
     }
 };
 
-no Moose;
 
 1;    # Magic true value required at end of module
 

@@ -219,6 +219,15 @@ sub ACTION_drop_schema {
     $self->feature( 'is_schema_loaded' => 0 );
 }
 
+sub ACTION_list_fixture {
+	my ($self) = @_;
+	$self->depends_on('setup');
+	my $fixture = $self->handler->fixture;
+	print ref $fixture->organism, "\n";
+	print $fixture->organism->taxon_file, "\n";
+	print $fixture->pub->journal_file, "\n";
+}
+
 sub ACTION_list_profiles {
     my ($self) = @_;
     $self->db_handler;

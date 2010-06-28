@@ -14,6 +14,8 @@ use XML::Twig::XPath;
 use Graph;
 use Graph::Traversal::BFS;
 use MooseX::Aliases;
+use YAML qw/LoadFile/;
+use namespace::clean;
 
 # Module implementation
 #
@@ -26,9 +28,9 @@ has 'schema' => (
 );
 
 has 'loader_instance' => (
-    is       => 'rw',
-    isa      => 'Bio::Chado::Schema',
-    lazy     => 1,
+    is      => 'rw',
+    isa     => 'Bio::Chado::Schema',
+    lazy    => 1,
     builder => '_build_schema'
 );
 
@@ -106,6 +108,113 @@ has 'obo_xml' => (
     isa => 'Str'
 );
 
+has 'cvrow' => (
+    is         => 'rw',
+    isa        => 'HashRef[Bio::Chado::Schema::Cv::Cv]',
+    traits     => ['Hash'],
+    lazy_build => 1,
+    handles    => {
+        get_cvrow   => 'get',
+        set_cvrow   => 'set',
+        exist_cvrow => 'defined'
+    }
+);
+
+sub _build_cvrow {
+    my ($self) = @_;
+    my $name   = $self->cv;
+    my $cvrow  = $self->chado->resultset('Cv::Cv')
+        ->find_or_create( { name => $name } );
+    return { $name => $cvrow };
+}
+
+sub cvterm_id_by_name {
+    my $self = shift;
+    my ($name) = pos_validated_list( \@_, { isa => 'Str' } );
+
+    #check if it is already been cached
+    if ( $self->exist_cvterm_row($name) ) {
+        return $self->get_cvterm_row($name)->cvterm_id;
+    }
+
+    #otherwise try to retrieve from database
+    my $rs
+        = $self->chado->resultset('Cv::Cvterm')->search( { name => $name } );
+    if ( $rs->count > 0 ) {
+        $self->set_cvterm_row( $name => $rs->first );
+        return $rs->first->cvterm_id;
+    }
+
+    #otherwise create one using the default cv namespace
+    my $row = $self->chado->resultset('Cv::Cvterm')->create_with(
+        {   name   => $name,
+            cv     => $self->current_cv,
+            db     => $self->current_db,
+            dbxref => $self->cv . ':' . ord($name)
+        }
+    );
+    $self->set_cvterm_row( $name, $row );
+    $row->cvterm_id;
+}
+
+sub cvterm_ids_by_namespace {
+    my $self = shift;
+    my ($name) = pos_validated_list( \@_, { isa => 'Str' } );
+
+    if ( $self->exist_cvrow($name) ) {
+        my $ids = [ map { $_->cvterm_id } $self->get_cvrow($name)->cvterms ];
+        return $ids;
+    }
+
+    my $rs = $self->chado->resultset('Cv::Cv')->search( { name => $name } );
+    if ( $rs->count > 0 ) {
+        my $row = $rs->first;
+        $self->set_cvrow( $name, $row );
+        my $ids = [ map { $_->cvterm_id } $row->cvterms ];
+        return $ids;
+    }
+    croak "the given cv namespace $name does not exist : create one \n";
+}
+
+sub current_cv {
+    my ($self) = @_;
+    return 'Modware-' . $self->loader_tag . '-' . $self->ontology_namespace;
+}
+
+sub current_db {
+    my ($self) = @_;
+    return
+          'GMOD:Modware-'
+        . $self->loader_tag . '-'
+        . $self->ontology_namespace;
+}
+
+sub _build_cvrow {
+    my ($self)    = @_;
+    my $namespace = $self->ontology_namespace;
+    my $name      = 'Modware-' . $self->loader_tag . '-' . $namespace;
+    my $cvrow     = $self->schema->resultset('Cv::Cv')
+        ->find_or_create( { name => $name } );
+    $cvrow->definition('Ontology namespace for modwareX module');
+    $cvrow->update;
+    return { $namespace => $cvrow, default => $cvrow };
+}
+
+sub _build_dbrow {
+    my ($self) = @_;
+    my $name   = $self->ontology_namespace;
+    my $row    = $self->schema->resultset('General::Db')->find_or_create(
+        {         name => 'GMOD:Modware-'
+                . $self->loader_tag . '-'
+                . $self->ontology_namespace,
+        }
+    );
+    $row->description('Test database for module modwareX');
+    $row->update;
+    return { default => $row, $name => $row };
+
+}
+
 sub default_cv_id {
     $_[0]->get_cv_id('default');
 }
@@ -121,6 +230,62 @@ sub default_db_id {
 
 sub get_db_id {
     $_[0]->get_dbrow( $_[1] )->db_id;
+}
+
+sub lookup_cv_id {
+    my ( $self, $namespace ) = @_;
+    my $schema = $self->schema;
+    if ( $self->has_cv_id($namespace) ) {
+        return $self->get_cv_id($namespace);
+    }
+    my $cvrow;
+    try {
+        $cvrow = $schema->txn_do(
+            sub {
+                my $name  = 'Modware-' . $self->loader_tag . '-' . $namespace;
+                my $cvrow = $schema->resultset('Cv::Cv')->create(
+                    {   name       => $name,
+                        definition => "Ontology namespace for modwarex module"
+                    }
+                );
+                $cvrow;
+            }
+        );
+        $schema->txn_commit;
+    }
+    catch {
+        confess "unable to create cv row: $_";
+    };
+    $self->set_cv_id( $namespace, $cvrow );
+    $cvrow->cv_id;
+}
+
+sub lookup_db_id {
+    my ( $self, $dbname ) = @_;
+    my $schema = $self->schema;
+    if ( $self->has_db_id($dbname) ) {
+        return $self->get_db_id($dbname);
+    }
+    my $dbrow;
+    try {
+        $dbrow = $schema->txn_do(
+            sub {
+                my $name  = $self->current_db;
+                my $dbrow = $schema->resultset('General::Db')->create(
+                    {   name        => $name,
+                        description => "Ontology dbname for modwarex module"
+                    }
+                );
+                $dbrow;
+            }
+        );
+        $schema->txn_commit;
+    }
+    catch {
+        confess "unable to create db row: $_";
+    };
+    $self->set_db_id( $dbname, $dbrow );
+    $dbrow->db_id;
 }
 
 sub _build_schema {
@@ -159,32 +324,6 @@ sub _build_ontology_namespace {
     $namespace;
 }
 
-sub _build_cvrow {
-    my ($self)    = @_;
-    my $namespace = $self->ontology_namespace;
-    my $name      = 'Modware-' . $self->loader_tag . '-' . $namespace;
-    my $cvrow     = $self->schema->resultset('Cv::Cv')
-        ->find_or_create( { name => $name } );
-    $cvrow->definition('Ontology namespace for modwareX module');
-    $cvrow->update;
-    return { $namespace => $cvrow, default => $cvrow };
-}
-
-sub _build_dbrow {
-    my ($self) = @_;
-    my $name   = $self->ontology_namespace;
-    my $row    = $self->schema->resultset('General::Db')->find_or_create(
-        {         name => 'GMOD:Modware-'
-                . $self->loader_tag . '-'
-                . $self->ontology_namespace,
-        }
-    );
-    $row->description('Test database for module modwareX');
-    $row->update;
-    return { default => $row, $name => $row };
-
-}
-
 sub _build_traverse_graph {
     my ($self) = @_;
     Graph::Traversal::BFS->new(
@@ -214,8 +353,9 @@ sub reset_all {
 }
 
 sub load_organism {
-    my $self     = shift;
-    my $organism = $self->fixture->organism;
+    my $self = shift;
+    my $organism
+        = LoadFile( $self->fixture->organism->taxon_file->stringify );
     unshift @$organism, [qw/abbreviation genus species common_name/];
 
     my $schema = $self->schema;
@@ -257,7 +397,7 @@ sub load_pub {
     $self->ontology_name($name);
     $self->loader_tag($name);
     my $method = $name . '_ontology';
-    $self->obo_xml( $self->fixture->$method->file );
+    $self->obo_xml( $self->fixture->pub->journal_file->stringify );
     $self->load_ontology;
 
 }
@@ -268,7 +408,7 @@ sub load_rel {
     $self->ontology_name($name);
     $self->loader_tag($name);
     my $method = $name . '_ontology';
-    $self->obo_xml( $self->fixture->$method->file );
+    $self->obo_xml( $self->fixture->cv->relation_file->stringify );
     $self->load_ontology;
 }
 
@@ -278,9 +418,112 @@ sub load_so {
     $self->ontology_name($name);
     $self->loader_tag($name);
     my $method = $name . '_ontology';
-    $self->obo_xml( $self->fixture->$method->file );
+    $self->obo_xml( $self->fixture->cv->sequence_file->stringify );
     $self->load_ontology;
 
+}
+
+sub load_journal_pub_fixture {
+    my ($self) = @_;
+    my $file   = $self->fixture->pub->journal_file;
+    my $twig   = XML::Twig::XPath->new->parsefile($file);
+
+    my $source = 'Medline';
+    my $type   = 'journal_article';
+
+#at this point the code below looks very verbose and repititive and i don't know know
+#how to make it clean,  will try later on
+    my @nodes = $twig->findnodes('//MedlineCitation');
+    for each $node (@nodes) {
+        my $status = $node->attr('Status');
+
+        my ($year_node)
+            = $node->findnodes('//Article/Journal/JournalIssue/PubDate/Year');
+        my $year = $year_node->getValue;
+
+        my ($title_node) = $node->findnodes('//Article/ArticleTitle/');
+        my $title = $title_node->getValue;
+
+        my ($abs_node) = $node->findnodes('//Article/Abstract/AbstractText');
+        my $abstract = $abs_node->getValue;
+
+        my $authors;
+        my @auth_nodes = $node->findnodes('//Article/AuthorList/Author');
+        for my $auth (@auth_nodes) {
+            my $last_name  = $auth->getValue if $auth->tag eq 'LastName';
+            my $first_name = $auth->getValue if $auth->tag eq 'ForeName';
+            my $initials   = $auth->getValue if $auth->tag eq 'Initials';
+            my $suffix     = $auth->getValue if $auth->tag eq 'Suffix';
+
+            push @$authors, {
+                suffix     => $suffix,
+                surname    => $last_name,
+                givennames => $initials . ' '
+                    . $first_name
+
+            };
+        }
+        my ($first_page_node) = $node->findnodes('//Pagination/StartPage');
+        my ($last_page_node)  = $node->findnodes('//Pagination/EndPage');
+        my $page
+            = $first_page_node->getValue . '--' . $last_page_node->getValue;
+
+        my ($journal_node) = $node->findnodes('//Journal//Title');
+        my $journal = $journal_node->getValue;
+
+        my ($abbr_node) = $node->findnodes('//Journal//ISOAbbreviation');
+        my $abbr = $abbr_node->getValue;
+
+        my ($issn_node) = $node->findnodes('//Journal//ISSN');
+        my $issn = $issn_node->getValue;
+
+        my ($issue_node) = $node->findnodes('//JournalIssue//Issue');
+        my $issue = $issue_node->getValue;
+
+        my ($vol_node) = $node->findnodes('//JournalIssue//Volume');
+        my $volume = $vol_node->getValue;
+
+        $self->schema->txn_do(
+            sub {
+                my $row = $self->schema->resultset('Pub::Pub')->create(
+                    {   uniquename => 'PUB' . init( rand(9999999) ),
+                        type_id    => $self->cvterm_id_by_name($type),
+                        pubplace   => $source,
+                        title      => $title,
+                        pyear      => $year,
+                        pages      => $page,
+                        journal    => $journal,
+                        issue      => $issue,
+                        volume     => $volume,
+                        pubauthors => $authors,
+                        pubprops   => [
+                            {   type_id => $self->cvterm_id_by_name('status'),
+                                value   => $status,
+
+                            },
+                            {   type_id =>
+                                    $self->cvterm_id_by_name('abstract'),
+                                value => $abstract
+                            },
+                            {   type_id => $self->cvterm_id_by_name(
+                                    'journal_abbreviation'),
+                                value => $abbr
+                            }
+                        ]
+                    }
+                );
+                $row->add_to_pub_dbxrefs(
+                    {   dbxref => {
+                            accession => $issn,
+                            db_id     => $self->lookup_db_id('issn')
+                        }
+                    }
+                );
+                $row;
+            }
+        );
+    }
+    $self->schema->txn_commit;
 }
 
 sub load_ontology {
@@ -583,62 +826,6 @@ sub create_more_dbxref {
         $schema->txn_commit;
     }
     catch { confess "error in creating dbxref $_" };
-}
-
-sub lookup_cv_id {
-    my ( $self, $namespace ) = @_;
-    my $schema = $self->schema;
-    if ( $self->has_cv_id($namespace) ) {
-        return $self->get_cv_id($namespace);
-    }
-    my $cvrow;
-    try {
-        $cvrow = $schema->txn_do(
-            sub {
-                my $name = 'Modware-' . $self->loader_tag . '-' . $namespace;
-                my $cvrow = $schema->resultset('Cv::Cv')->create(
-                    {   name       => $name,
-                        definition => "Ontology namespace for modwarex module"
-                    }
-                );
-                $cvrow;
-            }
-        );
-        $schema->txn_commit;
-    }
-    catch {
-        confess "unable to create cv row: $_";
-    };
-    $self->set_cv_id( $namespace, $cvrow );
-    $cvrow->cv_id;
-}
-
-sub lookup_db_id {
-    my ( $self, $dbname ) = @_;
-    my $schema = $self->schema;
-    if ( $self->has_db_id($dbname) ) {
-        return $self->get_db_id($dbname);
-    }
-    my $dbrow;
-    try {
-        $dbrow = $schema->txn_do(
-            sub {
-                my $name  = 'Modware-' . $self->loader_tag . '-' . $dbname;
-                my $dbrow = $schema->resultset('General::Db')->create(
-                    {   name        => $name,
-                        description => "Ontology dbname for modwarex module"
-                    }
-                );
-                $dbrow;
-            }
-        );
-        $schema->txn_commit;
-    }
-    catch {
-        confess "unable to create db row: $_";
-    };
-    $self->set_db_id( $dbname, $dbrow );
-    $dbrow->db_id;
 }
 
 1;    # Magic true value required at end of module

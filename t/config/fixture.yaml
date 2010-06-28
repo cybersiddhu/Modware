@@ -1,11 +1,16 @@
-organism: "t/data/fixture/organism.yaml"
-ontology:
+organism: 
+   taxon:
+        file: "organism.yaml"
+cv:
    sequence: 
-        file: "t/data/fixture/sofa.obo_xml"
+        file: "sofa.obo_xml"
         namespace: sequence
    relation: 
-        file: "t/data/fixture/relationship.obo_xml"
+        file: "relationship.obo_xml"
         namespace: relationship
    publication: 
-        file: "t/data/fixture/publication.obo_xml"
+        file: "publication.obo_xml"
         namespace: pub_type
+pub:
+   journal:
+       file: "journal.xml"

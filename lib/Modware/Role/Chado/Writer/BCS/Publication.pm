@@ -4,6 +4,7 @@ use version; our $VERSION = qv('0.1');
 
 # Other modules:
 use Moose::Role;
+use namespace::autoclean;
 use aliased 'Modware::DataSource::Chado';
 use aliased 'Modware::Publication::Author';
 
@@ -22,17 +23,19 @@ sub _build_chado {
         = $self->has_source
         ? Chado->handler( $self->source )
         : Chado->handler;
+    $self->meta->make_mutable;
     $self->meta->add_attribute(
         'pub' => (
             is     => 'ro',
             traits => [
                 'Modware::Role::Chado::Helper::BCS::ResultSet' => {
-                    resultset     => $chado->resultset('Pub::Pub')->new( {} ),
-                    relationships => [qw/pubprops pubauthors/],
+                    resultset => $chado->resultset('Pub::Pub')->new( {} ),
+                    relationships => [qw/pubprops pubauthors pub_dbxrefs/],
                 }
             ]
         )
     );
+    $self->meta->make_immutable;
     $chado;
 }
 
@@ -49,7 +52,7 @@ has 'cv' => (
     default => 'pub_type'
 );
 
-has 'db'     => ( is => 'rw', isa => 'Str', lazy => 1, default => 'Pubmed' );
+has 'db' => ( is => 'rw', isa => 'Str', lazy => 1, default => 'Pubmed' );
 
 sub _build_status {
     my $self = shift;
@@ -236,7 +239,7 @@ before 'update' => sub {
     confess "No data being fetched from storage: nothing to delete\n"
         if !$self->has_dbrow;
 
-    my $pub   = $self->meta->get_attribute('pub');
+    my $pub = $self->meta->get_attribute('pub');
     $pub->reset;
 
     my $dbrow = $self->dbrow;

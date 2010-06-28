@@ -5,37 +5,19 @@ use version; our $VERSION = qv('1.0.0');
 # Other modules:
 use Moose;
 use MooseX::ClassAttribute;
-use Modware::Publication;
 use aliased 'Modware::Collection::Iterator::BCS::ResultSet';
+use Module::Load;
+use namespace::autoclean;
+extends 'Modware::Chado::Query::BCS';
 
 # Module implementation
 #
 
-class_has 'chado' => (
-    is         => 'ro',
-    isa        => 'Bio::Chado::Schema',
-    lazy_build => 1
-);
+class_has '+allowed_params' =>
+    ( default => sub { [qw/author journal title year/] } );
 
-sub _build_chado {
-    my ($class) = @_;
-    my $chado
-        = $class->has_source
-        ? Chado->handler( $self->source )
-        : Chado->handler;
-    $chado;
-}
-
-class_has 'source' => (
-    is  => 'rw',
-    isa => 'Str'
-);
-
-class_has 'allowed_params' => (
-    is      => 'rw',
-    isa     => 'ArrayRef',
-    default => sub { [qw/author journal title year/] }
-);
+class_has '+data_class' =>
+    ( default => 'Modware::Publication::JournalArticle' );
 
 sub find {
     my ( $class, %arg ) = @_;
@@ -54,51 +36,17 @@ sub find {
         { join => 'pubauthors', prefetch => 'pubauthors', cache => 1 } );
     return if $rs->count == 0;
     if ( wantarray() ) {
-        return map { Modware::Publication->new( dbrow => $_ ) } $rs->all;
+        load $class->data_class;
+        return map { $class->data_class->new( dbrow => $_ ) } $rs->all;
     }
     ResultSet->new(
-        collection => $rs,
-        data_class      => 'Modware::Publication', 
+        collection   => $rs,
+        data_class   => $class->data_class,
         search_class => $class
     );
-
 }
 
-sub count {
-	my ($class,  %arg) = @_;
-	$class->find(%arg)->count;
-}
-
-sub rearrange {
-    my ( $class, $attrs, $cond ) = @_;
-    my $clause     = $cond->{clause} ? $cond->{clause} : 'AND';
-    my $match_type = $cond->{match}  ? $cond->{match}  : 'partial';
-    my $where;
-    if ( $clause eq 'AND' ) {
-        if ( $match eq 'partial' ) {
-            for my $param ( keys %attrs ) {
-                $where->{$param} = { 'like', '%' . $attrs->{$param} . '%' };
-            }
-        }
-        else {
-            $where = $attrs;
-        }
-    }
-    else {
-        my $arr;
-        for my $param ( keys %attrs ) {
-            if ( $match eq 'partial' ) {
-                push @$arr,
-                    { $param => { 'like', '%' . $attrs->{$param} . '%' } };
-            }
-            else {
-                push @$arr, { $param => $attrs->{$param} };
-            }
-        }
-        $where = { or => $arr };
-    }
-    $where;
-}
+__PACKAGE__->meta->make_immutable;
 
 1;    # Magic true value required at end of module
 

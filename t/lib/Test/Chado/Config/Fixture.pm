@@ -4,66 +4,79 @@ use version; our $VERSION = qv('0.1');
 
 # Other modules:
 use Moose;
-use FindBin qw/$Bin/;
+use Path::Class::File;
 use YAML qw/LoadFile/;
-use Carp;
-use File::Spec::Functions;
-use Test::Chado::Types;
-use Test::Chado::Config::Fixture::Ontology;
+use namespace::autoclean;
 
 # Module implementation
 #
 with 'Test::Chado::Role::Config';
 with 'MooseX::LogDispatch::Levels';
 
-has 'organism' => (
-    is      => 'rw',
-    isa     => 'ArrayRef',
-    traits  => ['Array'],
-    lazy    => 1,
-    default => sub {
-        my $self = shift;
-        LoadFile( catfile( $self->base_path, $self->get_value('organism') ) );
-    },
-    handles => {
-        'organism_record' => 'count',
-        'add_organism'    => 'push',
-        'organisms'       => 'elements'
-    }
-);
-
-sub install_attributes {
-    my $self = shift;
-    for my $name ( keys %{ $self->get_value('ontology') } ) {
-        my $attr_name = $name . '_ontology';
-        __PACKAGE__->meta->add_attribute(
-            Moose::Meta::Attribute->new(
-                $attr_name => (
-                    is  => 'rw',
-                    isa => 'Test::Chado::Config::Fixture::Ontology',
-                )
-            )
-        );
-    }
-}
 
 after 'config' => sub {
     my $self = shift;
-    $self->install_attributes;
-    my $str = $self->get_value('ontology');
-    for my $name ( keys %$str ) {
-        my $attr = $name . '_ontology';
-        if ( __PACKAGE__->meta->has_attribute($attr) ) {
-            my $obj = Test::Chado::Config::Fixture::Ontology->new;
-            $obj->file( $str->{$name}->{file} );
-            $obj->namespace( $str->{$name}->{namespace} )
-                if exists $str->{$name}->{namespace};
-            $self->$attr($obj);
+
+	#make a superclass having a new method
+	Class::MOP::Class->create(
+		'Test::Chado::Config::Base' => (
+		version => 0.01, 
+		 methods => {
+		   'new' => sub {
+	           my $class = shift;
+		       my $instance = $class->meta->new_object(@_);
+		       bless $instance => $class;
+		   } 
+		 }
+	   )
+	);
+
+    for my $name ( $self->modules ) {
+        my $module = $self->get_module($name);
+
+        my $attrs;
+        for my $section ( keys %$module ) {
+            for my $subsection ( keys %{$module->{$section}} ) {
+                my $attr = $section . '_' . $subsection;
+                push @$attrs,
+                    Class::MOP::Attribute->new(
+                    $attr => (
+                        accessor  => $attr,
+                        predicate => 'has_' . $attr,
+                        default   => $subsection eq 'file'
+                        ? sub { Path::Class::File->new(
+                            $self->base_path, $self->append_path,
+                            $module->{$section}->{$subsection}
+                            )}
+                        : $module->{$section}->{$subsection}
+                    )
+                );
+            }
         }
+
+        my $class_name = 'Test::Chado::Config::Fixture::' . ucfirst $name;
+        my $anon_class = Class::MOP::Class->create(
+            $class_name => (
+                version    => '0.1',
+                superclasses => ['Test::Chado::Config::Base'], 
+                attributes => $attrs
+            )
+        );
+        $self->meta->make_mutable;
+        $self->meta->add_attribute(
+            $name => (
+                is      => 'rw',
+                isa     => $class_name,
+                lazy => 1, 
+                default => sub { $class_name->new }
+            )
+        );
+        $self->meta->make_immutable;
     }
 };
 
-no Moose;
+__PACKAGE__->meta->make_immutable;
+
 1;    # Magic true value required at end of module
 
 __END__

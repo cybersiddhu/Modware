@@ -1,4 +1,4 @@
-package Modware::Chado::Query::BCS::Publication::JournalArticle;
+package Modware::Chado::Query::BCS::Publication::Publication;
 
 use version; our $VERSION = qv('1.0.0');
 
@@ -34,7 +34,7 @@ class_has 'source' => (
 class_has 'allowed_params' => (
     is      => 'rw',
     isa     => 'ArrayRef',
-    default => sub { [qw/author journal title year/] }
+    default => sub { [qw/author journal title year pubmed_id medline_id/] }
 );
 
 sub find {
@@ -61,7 +61,6 @@ sub find {
         data_class      => 'Modware::Publication', 
         search_class => $class
     );
-
 }
 
 sub rearrange {

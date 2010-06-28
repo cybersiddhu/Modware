@@ -5,6 +5,7 @@ use version; our $VERSION = qv('0.1');
 # Other modules:
 use Moose::Role;
 use YAML qw/LoadFile DumpFile/;
+use File::Spec::Functions;
 use Test::Chado::Types qw/ModConfig/;
 
 # Module implementation
@@ -15,6 +16,13 @@ has 'base_path' => (
 	isa => 'Str'
 );
 
+has 'append_path' => (
+	is => 'rw', 
+	isa => 'Str', 
+	lazy => 1, 
+	default => catfile('t', 'data', 'fixture')
+);
+
 has 'config' => (
     is        => 'rw',
     isa       => ModConfig,
@@ -23,8 +31,10 @@ has 'config' => (
     traits    => ['Hash'],
     handles   => {
         get_value     => 'get',
+        get_module    => 'get', 
         pair_value    => 'kv',
         sections      => 'keys',
+        modules      => 'keys',
         has_value     => 'exists',
         add_to_config => 'set', 
         delete_config => 'delete'
