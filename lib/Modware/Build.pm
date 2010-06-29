@@ -123,8 +123,14 @@ sub ACTION_load_so {
 
 sub ACTION_load_pub {
     my ($self) = @_;
-    $self->depends_on('rel');
+    $self->depends_on('load_rel');
     $self->handler->load_pub;
+}
+
+sub ACTION_load_publication {
+    my ($self) = @_;
+    $self->depends_on('load_pub');
+    $self->handler->load_journal_fixture;
 }
 
 sub ACTION_load_fixture {
@@ -135,6 +141,7 @@ sub ACTION_load_fixture {
         $self->handler->load_rel;
         $self->handler->load_so;
         $self->handler->load_pub;
+        $self->handler->load_journal_fixture;
         $self->feature( 'is_fixture_loaded' => 1 );
     }
 }

@@ -23,22 +23,22 @@ has 'count' => (
     }
 );
 
-has [qw/data_class search_class/] => (
-    isa => 'rw',
+has [qw/data_access_class search_class/] => (
+    is => 'rw',
     isa => 'Str'
 );
 
 sub next {
     my ($self) = @_;
     if ( my $next = $self->collection->next ) {
-        $self->data_class->new( dbrow => $next );
+        $self->data_access_class->new( dbrow => $next );
     }
 
 }
 
-sub find {
+sub search {
 	my ($self, %arg) = @_;
-	$self->search_class->find(%arg);
+	$self->search_class->search(%arg);
 }
 
 

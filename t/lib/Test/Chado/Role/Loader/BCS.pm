@@ -14,7 +14,9 @@ use XML::Twig::XPath;
 use Graph;
 use Graph::Traversal::BFS;
 use MooseX::Aliases;
+use MooseX::Params::Validate;
 use YAML qw/LoadFile/;
+use Bio::Biblio::IO;
 use namespace::clean;
 
 # Module implementation
@@ -108,25 +110,19 @@ has 'obo_xml' => (
     isa => 'Str'
 );
 
-has 'cvrow' => (
-    is         => 'rw',
-    isa        => 'HashRef[Bio::Chado::Schema::Cv::Cv]',
-    traits     => ['Hash'],
-    lazy_build => 1,
-    handles    => {
-        get_cvrow   => 'get',
-        set_cvrow   => 'set',
-        exist_cvrow => 'defined'
+has 'cvterm_row' => (
+    is        => 'rw',
+    isa       => 'HashRef[Bio::Chado::Schema::Cv::Cvterm]',
+    traits    => ['Hash'],
+    predicate => 'has_cvterm_row',
+    default   => sub { {} },
+    lazy      => 1,
+    handles   => {
+        get_cvterm_row   => 'get',
+        set_cvterm_row   => 'set',
+        exist_cvterm_row => 'defined'
     }
 );
-
-sub _build_cvrow {
-    my ($self) = @_;
-    my $name   = $self->cv;
-    my $cvrow  = $self->chado->resultset('Cv::Cv')
-        ->find_or_create( { name => $name } );
-    return { $name => $cvrow };
-}
 
 sub cvterm_id_by_name {
     my $self = shift;
@@ -139,18 +135,18 @@ sub cvterm_id_by_name {
 
     #otherwise try to retrieve from database
     my $rs
-        = $self->chado->resultset('Cv::Cvterm')->search( { name => $name } );
+        = $self->schema->resultset('Cv::Cvterm')->search( { name => $name } );
     if ( $rs->count > 0 ) {
         $self->set_cvterm_row( $name => $rs->first );
         return $rs->first->cvterm_id;
     }
 
     #otherwise create one using the default cv namespace
-    my $row = $self->chado->resultset('Cv::Cvterm')->create_with(
+    my $row = $self->schema->resultset('Cv::Cvterm')->create_with(
         {   name   => $name,
             cv     => $self->current_cv,
             db     => $self->current_db,
-            dbxref => $self->cv . ':' . ord($name)
+            dbxref => $self->current_cv . ':' . $name
         }
     );
     $self->set_cvterm_row( $name, $row );
@@ -270,7 +266,7 @@ sub lookup_db_id {
     try {
         $dbrow = $schema->txn_do(
             sub {
-                my $name  = $self->current_db;
+                my $name  = $self->current_db . '-' . $dbname;
                 my $dbrow = $schema->resultset('General::Db')->create(
                     {   name        => $name,
                         description => "Ontology dbname for modwarex module"
@@ -423,98 +419,68 @@ sub load_so {
 
 }
 
-sub load_journal_pub_fixture {
+sub load_journal_fixture {
     my ($self) = @_;
-    my $file   = $self->fixture->pub->journal_file;
-    my $twig   = XML::Twig::XPath->new->parsefile($file);
+    $self->ontology_namespace('publication');
+    my $file = $self->fixture->pub->journal_file;
 
     my $source = 'Medline';
     my $type   = 'journal_article';
 
-#at this point the code below looks very verbose and repititive and i don't know know
-#how to make it clean,  will try later on
-    my @nodes = $twig->findnodes('//MedlineCitation');
-    for each $node (@nodes) {
-        my $status = $node->attr('Status');
+    my $biblio = Bio::Biblio::IO->new(
+        -file   => $file,
+        -format => 'medlinexml',
+        -result => 'medline2ref'
+    );
 
-        my ($year_node)
-            = $node->findnodes('//Article/Journal/JournalIssue/PubDate/Year');
-        my $year = $year_node->getValue;
 
-        my ($title_node) = $node->findnodes('//Article/ArticleTitle/');
-        my $title = $title_node->getValue;
-
-        my ($abs_node) = $node->findnodes('//Article/Abstract/AbstractText');
-        my $abstract = $abs_node->getValue;
-
-        my $authors;
-        my @auth_nodes = $node->findnodes('//Article/AuthorList/Author');
-        for my $auth (@auth_nodes) {
-            my $last_name  = $auth->getValue if $auth->tag eq 'LastName';
-            my $first_name = $auth->getValue if $auth->tag eq 'ForeName';
-            my $initials   = $auth->getValue if $auth->tag eq 'Initials';
-            my $suffix     = $auth->getValue if $auth->tag eq 'Suffix';
-
-            push @$authors, {
-                suffix     => $suffix,
-                surname    => $last_name,
-                givennames => $initials . ' '
-                    . $first_name
-
-            };
+    while ( my $citation = $biblio->next_bibref ) {
+        my $count = 1;
+    	my $authors;
+        for my $person ( @{ $citation->authors } ) {
+            push @$authors,
+                {
+                suffix     => $person->suffix,
+                surname    => $person->lastname,
+                givennames => $person->initials . ' ' . $person->forename,
+                rank       => $count++
+                };
         }
-        my ($first_page_node) = $node->findnodes('//Pagination/StartPage');
-        my ($last_page_node)  = $node->findnodes('//Pagination/EndPage');
-        my $page
-            = $first_page_node->getValue . '--' . $last_page_node->getValue;
-
-        my ($journal_node) = $node->findnodes('//Journal//Title');
-        my $journal = $journal_node->getValue;
-
-        my ($abbr_node) = $node->findnodes('//Journal//ISOAbbreviation');
-        my $abbr = $abbr_node->getValue;
-
-        my ($issn_node) = $node->findnodes('//Journal//ISSN');
-        my $issn = $issn_node->getValue;
-
-        my ($issue_node) = $node->findnodes('//JournalIssue//Issue');
-        my $issue = $issue_node->getValue;
-
-        my ($vol_node) = $node->findnodes('//JournalIssue//Volume');
-        my $volume = $vol_node->getValue;
+        $count = 0;
 
         $self->schema->txn_do(
             sub {
                 my $row = $self->schema->resultset('Pub::Pub')->create(
-                    {   uniquename => 'PUB' . init( rand(9999999) ),
+                    {   uniquename => 'PUB' . int( rand(9999999) ),
                         type_id    => $self->cvterm_id_by_name($type),
                         pubplace   => $source,
-                        title      => $title,
-                        pyear      => $year,
-                        pages      => $page,
-                        journal    => $journal,
-                        issue      => $issue,
-                        volume     => $volume,
-                        pubauthors => $authors,
-                        pubprops   => [
+                        title      => $citation->title,
+                        pyear      => $citation->date,
+                        pages      => $citation->first_page . '--'
+                            . $citation->last_page,
+                        series_name => $citation->journal->name,
+                        issue       => $citation->issue,
+                        volume      => $citation->volume,
+                        pubauthors  => $authors,
+                        pubprops    => [
                             {   type_id => $self->cvterm_id_by_name('status'),
-                                value   => $status,
+                                value   => $citation->status,
 
                             },
                             {   type_id =>
                                     $self->cvterm_id_by_name('abstract'),
-                                value => $abstract
+                                value => $citation->abstract
                             },
                             {   type_id => $self->cvterm_id_by_name(
                                     'journal_abbreviation'),
-                                value => $abbr
+                                value => $citation->journal->abbreviation
                             }
                         ]
                     }
                 );
                 $row->add_to_pub_dbxrefs(
                     {   dbxref => {
-                            accession => $issn,
+                            accession => $citation->journal->issn,
                             db_id     => $self->lookup_db_id('issn')
                         }
                     }

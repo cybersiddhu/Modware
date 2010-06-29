@@ -68,7 +68,7 @@ before 'create' => sub {
     $pub->pages( $self->first_page . '--' . $self->last_page )
         if $self->has_first_page
             and $self->has_last_page;
-    $pub->journal( $self->journal ) if $self->has_journal;
+    $pub->series_name( $self->journal ) if $self->has_journal;
     $pub->add_to_pubprops(
         {   type_id => $self->cvterm_id_by_name('journal_abbreviation'),
             value   => $self->abbreviation

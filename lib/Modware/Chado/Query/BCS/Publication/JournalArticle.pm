@@ -19,15 +19,15 @@ class_has '+allowed_params' =>
 class_has '+data_class' =>
     ( default => 'Modware::Publication::JournalArticle' );
 
-sub find {
+sub search {
     my ( $class, %arg ) = @_;
     my $attrs;
     for my $param ( @{ $class->allowed_params } ) {
         next if not defined $arg{$param};
-        $param = 'pubauthors.givennames' if $param eq 'author';
-        $param = 'series.name'           if $param eq 'journal';
-        $param = 'pyear'                 if $param eq 'year';
-        $attrs->{$param} = $arg{$param};
+        $attrs->{'pubauthors.givennames'} = $arg{$param} if $param eq 'author';
+        $attrs->{'series_name'} = $arg{$param}     if $param eq 'journal';
+        $attrs->{pyear}         = $arg{$param}    if $param eq 'year';
+        $attrs->{$param}        = $arg{$param} if $param eq 'title';
     }
     my $where = $class->rearrange( $attrs, $arg{cond} );
     my $rs
@@ -40,9 +40,9 @@ sub find {
         return map { $class->data_class->new( dbrow => $_ ) } $rs->all;
     }
     ResultSet->new(
-        collection   => $rs,
-        data_class   => $class->data_class,
-        search_class => $class
+        collection        => $rs,
+        data_access_class => $class->data_class,
+        search_class      => $class
     );
 }
 

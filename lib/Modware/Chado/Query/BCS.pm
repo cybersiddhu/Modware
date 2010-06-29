@@ -4,7 +4,9 @@ use version; our $VERSION = qv('1.0.0');
 
 # Other modules:
 use Moose;
+use Data::Dumper;
 use MooseX::ClassAttribute;
+use aliased 'Modware::DataSource::Chado';
 
 # Module implementation
 #
@@ -19,14 +21,15 @@ sub _build_chado {
     my ($class) = @_;
     my $chado
         = $class->has_source
-        ? Chado->handler( $self->source )
+        ? Chado->handler( $class->source )
         : Chado->handler;
     $chado;
 }
 
 class_has 'source' => (
     is  => 'rw',
-    isa => 'Str'
+    isa => 'Str', 
+    predicate => 'has_source'
 );
 
 class_has 'allowed_params' => (
@@ -47,8 +50,9 @@ sub rearrange {
     my $match_type = $cond->{match}  ? $cond->{match}  : 'partial';
     my $where;
     if ( $clause eq 'AND' ) {
-        if ( $match eq 'partial' ) {
-            for my $param ( keys %attrs ) {
+        if ( $match_type eq 'partial' ) {
+            for my $param ( keys %$attrs ) {
+            	print $param, "\n";
                 $where->{$param} = { 'like', '%' . $attrs->{$param} . '%' };
             }
         }
@@ -58,8 +62,8 @@ sub rearrange {
     }
     else {
         my $arr;
-        for my $param ( keys %attrs ) {
-            if ( $match eq 'partial' ) {
+        for my $param ( keys %$attrs ) {
+            if ( $match_type eq 'partial' ) {
                 push @$arr,
                     { $param => { 'like', '%' . $attrs->{$param} . '%' } };
             }
@@ -69,12 +73,13 @@ sub rearrange {
         }
         $where = { or => $arr };
     }
+    print Dumper $where;
     $where;
 }
 
 sub count {
 	my ($class,  %arg) = @_;
-	$class->find(%arg)->count;
+	$class->search(%arg)->count;
 }
 
 1;    # Magic true value required at end of module
