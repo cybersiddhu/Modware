@@ -13,4 +13,4 @@ cv:
         namespace: pub_type
 pub:
    journal:
-       file: "journal.xml"
+       file: "journal_articles.xml"

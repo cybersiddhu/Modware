@@ -6,6 +6,7 @@ use version; our $VERSION = qv('1.0.0');
 use Moose;
 use Data::Dumper;
 use MooseX::ClassAttribute;
+use namespace::autoclean;
 use aliased 'Modware::DataSource::Chado';
 
 # Module implementation
@@ -27,60 +28,72 @@ sub _build_chado {
 }
 
 class_has 'source' => (
-    is  => 'rw',
-    isa => 'Str', 
+    is        => 'rw',
+    isa       => 'Str',
     predicate => 'has_source'
 );
 
 class_has 'allowed_params' => (
     is      => 'rw',
     isa     => 'ArrayRef',
-    default => sub { [] }, 
-    lazy => 1, 
+    default => sub { [] },
+    lazy    => 1,
 );
 
 class_has 'data_class' => (
-	 is => 'rw', 
-	 isa => 'Str', 
+    is  => 'rw',
+    isa => 'Str',
 );
 
-sub rearrange {
-    my ( $class, $attrs, $cond ) = @_;
-    my $clause     = $cond->{clause} ? $cond->{clause} : 'AND';
-    my $match_type = $cond->{match}  ? $cond->{match}  : 'partial';
+sub rearrange_nested_query {
+    my ( $class, $attrs, $clause, $match_type ) = @_;
+    $clause     = lc $clause;
+    $match_type = lc $match_type;
+
     my $where;
-    if ( $clause eq 'AND' ) {
-        if ( $match_type eq 'partial' ) {
-            for my $param ( keys %$attrs ) {
-            	print $param, "\n";
-                $where->{$param} = { 'like', '%' . $attrs->{$param} . '%' };
-            }
+    for my $param ( keys %$attrs ) {
+        push @$where,
+            {
+              $param => $match_type eq 'exact'
+            ? $attrs->{$param}
+            : { 'like', '%' . $attrs->{$param} . '%' }
+            };
+    }
+    my $nested_where;
+    $nested_where->{'-' . $clause} = $where;
+    $nested_where;
+}
+
+sub rearrange_query {
+    my ( $class, $attrs, $clause, $match_type ) = @_;
+    $clause     = lc $clause;
+    $match_type = lc $match_type;
+
+    my $where;
+    for my $param ( keys %$attrs ) {
+        if ( $clause eq 'and' ) {
+            $where->{$param}
+                = $match_type eq 'exact'
+                ? $attrs->{$param}
+                : { 'like', '%' . $attrs->{$param} . '%' };
         }
         else {
-            $where = $attrs;
+            push @$where,
+                $match_type eq 'exact'
+                ? { $param => $attrs->{$param} }
+                : { $param => { 'like', '%' . $attrs->{$param} . '%' } };
+
         }
     }
-    else {
-        my $arr;
-        for my $param ( keys %$attrs ) {
-            if ( $match_type eq 'partial' ) {
-                push @$arr,
-                    { $param => { 'like', '%' . $attrs->{$param} . '%' } };
-            }
-            else {
-                push @$arr, { $param => $attrs->{$param} };
-            }
-        }
-        $where = { or => $arr };
-    }
-    print Dumper $where;
     $where;
 }
 
 sub count {
-	my ($class,  %arg) = @_;
-	$class->search(%arg)->count;
+    my ( $class, %arg ) = @_;
+    $class->find(%arg)->count;
 }
+
+__PACKAGE__->meta->make_immutable;
 
 1;    # Magic true value required at end of module
 
