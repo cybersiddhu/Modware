@@ -27,7 +27,9 @@ my $build          = Modware::Build->new(
         'MooseX::Aliases'           => '0.08',
         'MooseX::Types'             => '0.22',
         'Path::Class'               => '0.18',
-        'aliased'                   => '0.30'
+        'aliased'                   => '0.30',
+        'Test::Most'                => '0.22',
+        'MooseX::Role::Parameterized' => '0.19'
     },
     add_to_cleanup => ['Modware-*'],
     create_readme  => 1,
