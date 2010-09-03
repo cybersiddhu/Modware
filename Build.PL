@@ -27,7 +27,9 @@ my $build          = Modware::Build->new(
         'MooseX::Aliases'           => '0.08',
         'MooseX::Types'             => '0.22',
         'Path::Class'               => '0.18',
-        'aliased'                   => '0.30'
+        'aliased'                   => '0.30',
+        'File::Path'                => '2.08', 
+        'Test::Most' => '' 
     },
     add_to_cleanup => ['Modware-*'],
     create_readme  => 1,
@@ -47,7 +49,7 @@ my $build          = Modware::Build->new(
     }
 );
 
-$build->config_data('base_dir' => $build->base_dir);
+$build->config_data( 'base_dir' => $build->base_dir );
 $build->create_build_script;
 
 1;
