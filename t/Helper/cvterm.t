@@ -19,7 +19,7 @@ use aliased 'Modware::ConfigData';
         }
     );
 
-    with 'Modware::Role::Chado::Helper:BCS::Cvterm';
+    with 'Modware::Role::Chado::Helper::BCS::Cvterm';
 
     __PACKAGE__->meta->make_immutable;
     no Moose;
