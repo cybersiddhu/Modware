@@ -13,6 +13,9 @@ __PACKAGE__->add_property( 'default_profile' => 'fallback' );
 __PACKAGE__->add_property('action_profile');
 __PACKAGE__->add_property('handler');
 
+my @feature_list = qw/setup_done is_db_created is_schema_loaded
+    is_fixture_loaded/;
+
 sub db_handler {
     my ($self) = @_;
     my $handler;
@@ -59,7 +62,7 @@ sub check_and_setup {
 sub common_setup {
     my ($self) = @_;
     $self->action_profile( $self->args('name') ) if $self->args('name');
-    my $path = catfile($self->base_dir, 't', 'tmp');
+    my $path = catfile( $self->base_dir, 't', 'tmp' );
     make_path($path) if !-e $path;
 }
 
@@ -70,9 +73,11 @@ sub ACTION_setup {
     if ( $self->handler ) {
         return;
     }
+    print "running setup\n" if $self->args('test_debug');
     $self->common_setup;
     $self->db_handler;
     $self->feature( 'setup_done' => 1 );
+    print "done with setup\n" if $self->args('test_debug');
 }
 
 sub ACTION_create {
@@ -81,6 +86,7 @@ sub ACTION_create {
     if ( !Modware::ConfigData->feature('is_db_created') ) {
         $self->handler->create_db;
         $self->feature( 'is_db_created' => 1 );
+        print "created database\n" if $self->args('test_debug');
     }
 }
 
@@ -90,6 +96,7 @@ sub ACTION_deploy {
     if ( !Modware::ConfigData->feature('is_schema_loaded') ) {
         $self->handler->deploy_schema;
         $self->feature( 'is_schema_loaded' => 1 );
+        print "loaded schema\n" if $self->args('test_debug');
     }
 }
 
@@ -100,6 +107,7 @@ sub ACTION_deploy_schema {
     if ( !Modware::ConfigData->feature('is_schema_loaded') ) {
         $self->handler->deploy_schema;
         $self->feature( 'is_schema_loaded' => 1 );
+        print "loaded schema\n" if $self->args('test_debug');
     }
 }
 
@@ -143,6 +151,7 @@ sub ACTION_load_fixture {
         $self->handler->load_pub;
         $self->handler->load_journal_fixture;
         $self->feature( 'is_fixture_loaded' => 1 );
+        print "loaded fixture\n" if $self->args('test_debug');
     }
 }
 
@@ -192,14 +201,15 @@ sub ACTION_prune_fixture {
 sub ACTION_test {
     my ($self) = @_;
 
-    #if ( $self->args('load-fixture') ) {
-    #    if ( $self->args('create') ) {    #just load the schema
-    #        $self->depends_on('deploy_schema');
-    #    }
+    #cleanup all the setup values if any
+    for my $name (@feature_list) {
+        print "cleaning $name\n" if $self->args('test_debug');
+        $self->feature( $name => 0 );
+    }
+    $self->depends_on('drop');
     $self->depends_on('load_fixture');
     $self->recursive_test_files(1);
 
-    #}
     $self->SUPER::ACTION_test(@_);
     $self->depends_on('drop') if $self->args('drop');
 }
@@ -216,7 +226,8 @@ sub ACTION_drop {
     $self->depends_on('setup');
     $self->handler->drop_db;
     $self->feature( 'is_schema_loaded' => 0 );
-    $self->feature( 'is_db_created' => 0 );
+    $self->feature( 'is_db_created'    => 0 );
+    print "dropped the database\n" if $self->args('test_debug');
 }
 
 sub ACTION_drop_schema {
@@ -227,12 +238,12 @@ sub ACTION_drop_schema {
 }
 
 sub ACTION_list_fixture {
-	my ($self) = @_;
-	$self->depends_on('setup');
-	my $fixture = $self->handler->fixture;
-	print ref $fixture->organism, "\n";
-	print $fixture->organism->taxon_file, "\n";
-	print $fixture->pub->journal_file, "\n";
+    my ($self) = @_;
+    $self->depends_on('setup');
+    my $fixture = $self->handler->fixture;
+    print ref $fixture->organism, "\n";
+    print $fixture->organism->taxon_file, "\n";
+    print $fixture->pub->journal_file,    "\n";
 }
 
 sub ACTION_list_profiles {

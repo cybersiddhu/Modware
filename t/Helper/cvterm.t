@@ -1,13 +1,14 @@
 use strict;
 use Test::Most qw/no_plan die/;
 use aliased 'Modware::DataSource::Chado';
-use aliased 'Modware::ConfigData';
+use Modware::Build;
 
 {
 
     package My::Helper::Cv;
     use Moose;
     use aliased 'Modware::DataSource::Chado';
+    use namespace::autoclean;
 
     has 'cv' => ( is => 'rw', isa => 'Str', default => 'pub_type' );
     has 'db' => ( is => 'rw', isa => 'Str', default => 'modwarex' );
@@ -22,13 +23,13 @@ use aliased 'Modware::ConfigData';
     with 'Modware::Role::Chado::Helper::BCS::Cvterm';
 
     __PACKAGE__->meta->make_immutable;
-    no Moose;
 }
 
+my $build = Modware::Build->current;
 Chado->connect(
-    dsn      => ConfigData->config('dsn'),
-    user     => ConfigData->config('user'),
-    password => ConfigData->config('password')
+    dsn      => $build->config_data('dsn'),
+    user     => $build->config_data('user'),
+    password => $build->config_data('password')
 );
 
 my $helper = My::Helper::Cv->new;

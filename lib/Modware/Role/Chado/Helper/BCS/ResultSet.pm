@@ -59,6 +59,7 @@ role {
     ) for @columns;
 
     for my $name (@relations) {
+    	print $name, "\n";
         my $info     = $source->relationship_info($name);
         my $rel_type = $info->{attrs}->{accessor};
         if ( $rel_type eq 'single' ) {
@@ -81,13 +82,13 @@ role {
                 default => sub { [] }
             );
 
-            methods $name. '_create_hashrefs' => sub {
+            method $name. '_create_hashrefs' => sub {
                 my ($self) = @_;
                 my $method = 'all_' . $name;
                 grep { not defined $_->{pubauthor_id} } $self->$method;
             };
 
-			methods $name. '_update_hashrefs' => sub {
+			method $name. '_update_hashrefs' => sub {
                 my ($self) = @_;
                 my $method = 'all_' . $name;
                 grep { defined $_->{pubauthor_id} } $self->$method;

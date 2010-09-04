@@ -7,7 +7,7 @@ use Moose::Role;
 
 # Module implementation
 #
-requires '_issue', '_volume';
+requires '_build_issue', '_build_volume';
 requires '_build_first_page';
 requires '_build_last_page';
 requires '_build_abbreviation', '_build_issn', '_build_journal';

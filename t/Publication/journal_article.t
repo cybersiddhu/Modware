@@ -1,15 +1,18 @@
 use Test::Most qw/no_plan die/;
 use aliased 'Modware::DataSource::Chado';
 use aliased 'Modware::ConfigData';
+use Modware::Build;
 
 BEGIN {
     use_ok('Modware::Chado::Query::BCS::Publication::JournalArticle');
 }
 
+
+my $build = Modware::Build->current;
 Chado->connect(
-    dsn      => ConfigData->config('dsn'),
-    user     => ConfigData->config('user'),
-    password => ConfigData->config('password')
+    dsn      => $build->config_data('dsn') ,
+    user     => $build->config_data('user'),
+    password => $build->config_data('password')
 );
 
 #Chado->handler->storage->debug(1);

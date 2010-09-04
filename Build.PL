@@ -46,6 +46,7 @@ my $build          = Modware::Build->new(
         'load-fixture' => { type    => '!', default => 1 },
         create         => { type    => '!', default => 1 },
         drop           => { type    => '!', default => 1 },
+        test_debug     => { type    => '!', default => 0 },
         default => {},
     }
 );

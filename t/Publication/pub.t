@@ -1,14 +1,15 @@
 use strict;
 use Test::Most qw/no_plan die/;
 use aliased 'Modware::DataSource::Chado';
-use aliased 'Modware::ConfigData';
+use Modware::Build;
 
 use_ok('Modware::Publication');
 
+my $build = Modware::Build->current;
 Chado->connect(
-    dsn      => ConfigData->config('dsn'),
-    user     => ConfigData->config('user'),
-    password => ConfigData->config('password')
+    dsn      => $build->config_data('dsn'),
+    user     => $build->config_data('user'),
+    password => $build->config_data('password')
 );
 
 my $pub = Modware::Publication->new( year => 2004 );
@@ -18,7 +19,7 @@ $pub->status('unpublished');
 $pub->cv('Modware-publication-pub_type');
 my $record = $pub->create;
 
-$pub->dbrow($record);
+$pub->dbrow($record->dbrow);
 $pub->delete;
 
 #another new record
@@ -47,6 +48,6 @@ $pub->add_author(
 );
 
 $record = $pub->create;
-$pub->dbrow($record);
+$pub->dbrow($record->dbrow);
 $pub->delete;
 

@@ -11,6 +11,7 @@ use File::Spec::Functions;
 use Test::Chado::Handler;
 use Test::Chado::Config::Database;
 use Test::Chado::Config::Fixture;
+use namespace::autoclean;
 
 # Module implementation
 #
@@ -94,7 +95,7 @@ sub _build_from_profile {
     $fixture_conf->config( $self->fixture );
 
     my $handler = Test::Chado::Handler->new(
-        name    => 'fallback',
+        name    => $name,
         section => $db_conf,
         fixture => $fixture_conf,
         loader  => $db_str->{$name}->{loader}
@@ -102,7 +103,6 @@ sub _build_from_profile {
     $handler;
 }
 
-no Moose;
 
 1;    # Magic true value required at end of module
 

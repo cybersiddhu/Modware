@@ -62,6 +62,7 @@ before 'create' => sub {
 };
 
 before 'update' => sub {
+	my $self = shift;
     my $pub = $self->meta->get_attribute('pub');
     if ( $self->has_pubmed_id
         and ( $self->pubmed_id ne $self->dbrow->uniquename ) )

@@ -4,9 +4,10 @@ use version; our $VERSION = qv('0.1');
 
 # Other modules:
 use Moose::Role;
-use namespace::autoclean;
 use aliased 'Modware::DataSource::Chado';
 use aliased 'Modware::Publication::Author';
+use Try::Tiny;
+use namespace::autoclean;
 
 # Module implementation
 #
@@ -88,6 +89,8 @@ sub _build_source {
 sub _build_authors {
     my ($self)     = @_;
     my $collection = [];
+    return $collection if !$self->has_dbrow;
+
     my $rs         = $self->dbrow->pubauthors;
 
     #no authors for you
@@ -236,7 +239,7 @@ sub delete {
 
 before 'update' => sub {
     my $self = shift;
-    confess "No data being fetched from storage: nothing to delete\n"
+    confess "No data being fetched from storage: nothing to update\n"
         if !$self->has_dbrow;
 
     my $pub = $self->meta->get_attribute('pub');
@@ -290,14 +293,14 @@ before 'update' => sub {
                 {   type_id => $self->cvterm_id_by_name( $key->{name} ),
                     value   => 'true'
                 }
-            ) if $key->{name} ne $row{ $key->{id} };
+            ) if $key->{name} ne $key_rows->{ $key->{id} };
         }
     }
 
     if ( $self->has_authors ) {
         my $author_rows = {
             map { $_->pubauthor_id => $_->givennames }
-                $self->dbrow->pubauthors;
+                $self->dbrow->pubauthors
         };
 
         while ( my $pubauthor = $self->next_author ) {
@@ -318,7 +321,7 @@ before 'update' => sub {
                     surname      => $pubauthor->last_name,
                     givennames   => $pubauthor->given_name,
                     suffix       => $pubauthor->suffix,
-                    pubauthor_id => $pubauthor_id,
+                    pubauthor_id => $pubauthor->id,
                 }
                 )
                 if $pubauthor->given_name ne $author_rows->{ $pubauthor->id };

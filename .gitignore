@@ -1,9 +1,13 @@
-cover_db
-META.yml
-Makefile
+#Perl's build specific stuff
+Build
+_blib
 blib
-inc
-pm_to_blib
-MANIFEST
-Makefile.old
-*.conf
+_build
+MANIFEST*
+MYMETA*
+META
+data
+tmp
+
+#exclude Build.PL
+!Build.PL

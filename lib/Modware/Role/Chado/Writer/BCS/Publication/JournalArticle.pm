@@ -64,7 +64,6 @@ sub _build_volume {
 before 'create' => sub {
     my ($self) = @_;
     my $pub    = $self->meta->get_attribute('pub');
-    my $pub    = $self->meta->get_attribute('pub');
     $pub->pages( $self->first_page . '--' . $self->last_page )
         if $self->has_first_page
             and $self->has_last_page;
@@ -87,6 +86,7 @@ before 'create' => sub {
 };
 
 before 'update' => sub {
+	my $self = shift;
     my $pub = $self->meta->get_attribute('pub');
     if ( $self->has_first_page and $self->has_last_page ) {
         my $pages = $self->first_page . '--' . $self->last_page;

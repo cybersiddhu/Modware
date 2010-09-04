@@ -16,7 +16,7 @@ sub connect {
     my $class  = shift;
     my %params = validated_hash(
         \@_,
-        dsn              => { isa => 'Str' },
+        dsn              => { isa => 'Str',  optional => 1 },
         user             => { isa => 'Maybe[Str]', optional => 1 },
         password         => { isa => 'Maybe[Str]', optional => 1 },
         attr             => { isa => 'Maybe[HashRef]', optional => 1 },

@@ -12,7 +12,7 @@ use Moose::Util;
 {
 	package MyPub;
 	use Moose;
-	with 'Modware::Role::Publication';
+	with 'Modware::Role::HasPublication';
 
 	sub _build_abstract {
 		'abstract';
@@ -44,7 +44,7 @@ dies_ok { Moose::Util::apply_all_roles(MyBadPub->meta, ('Modware::Role::Publicat
 
 my $pub = MyPub->new;
 
-does_ok($pub, 'Modware::Role::Publication', 'it does the Publiction role');
+does_ok($pub, 'Modware::Role::HasPublication', 'it does the Publiction role');
 has_attribute_ok($pub, $_,  "it has the attribute $_") for qw/abstract title year source
 status keywords_stack/;
 is($pub->status,  'status',  'it has the default status value');

@@ -5,6 +5,7 @@ use version; our $VERSION = qv('0.1');
 
 # Other modules:
 use Moose;
+use namespace::autoclean;
 
 # Module implementation
 #
@@ -18,15 +19,12 @@ with 'Modware::Role::Chado::Helper::BCS::Cvterm';
 with 'Modware::Role::Chado::Helper::BCS::Dbxref';
 with 'Modware::Role::Publication::HasAuthors';
 with 'Modware::Role::HasPublication';
-with 'Modware::Role::HasJournalArticle';
-with 'Modware::Role::HasPubmed';
+with 'Modware::Role::Publication::HasJournalArticle';
+with 'Modware::Role::Publication::HasPubmed';
 
 has '+type' => (default => 'pubmed_journal_article');
 
 
-
-
-no Moose;
 
 1;    # Magic true value required at end of module
 
