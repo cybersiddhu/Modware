@@ -5,7 +5,7 @@ blib
 _build
 MANIFEST*
 MYMETA*
-META
+META*
 data
 tmp
 
