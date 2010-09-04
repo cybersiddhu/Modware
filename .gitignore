@@ -8,6 +8,7 @@ MYMETA*
 META*
 data
 tmp
+log
 
 #exclude Build.PL
 !Build.PL
