@@ -2,7 +2,7 @@ package Modware;
 
 use strict;
 use warnings;
-our $VERSION = '0.01';
+our $VERSION = '0.001';
 
 
 1;
@@ -10,21 +10,22 @@ __END__
 
 =head1 NAME
 
-Modware -
+Modware - A GMOD L<http://gmod.org> middleware toolkit for Chado
+L<http://gmod.org/wiki/Chado> relational database.
 
 =head1 SYNOPSIS
 
-  use Modware;
 
 =head1 DESCRIPTION
 
-Modware is
 
 =head1 AUTHOR
 
-Siddhartha Basu E<lt>sidd.basu@gmail.comE<gt>
+Siddhartha Basu E<lt>biosidd.basu@gmail.comE<gt>
 
 =head1 SEE ALSO
+
+L<http://gmod.org/wiki/Modware>
 
 =head1 LICENSE
 
