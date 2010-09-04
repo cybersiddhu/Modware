@@ -11,7 +11,6 @@ use namespace::autoclean;
 # Module implementation
 #
 with 'Test::Chado::Role::Config';
-with 'MooseX::LogDispatch::Levels';
 
 
 after 'config' => sub {
