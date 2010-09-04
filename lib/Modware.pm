@@ -10,8 +10,7 @@ __END__
 
 =head1 NAME
 
-Modware - A GMOD L<http://gmod.org> middleware toolkit for Chado
-L<http://gmod.org/wiki/Chado> relational database.
+Modware - A GMOD L<http://gmod.org> middleware toolkit for Chado L<http://gmod.org/wiki/Chado> relational database.
 
 =head1 SYNOPSIS
 

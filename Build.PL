@@ -3,7 +3,8 @@ use strict;
 use inc::latest 'Module::Build';
 use File::Spec::Functions;
 use FindBin qw/$Bin/;
-use lib ( 'lib', 't/lib' );
+use lib 'lib/';
+use lib 't/lib/';
 use Modware::Build;
 
 my $db_config      = catfile( $Bin, 't', 'config', 'database.yaml' );
@@ -11,9 +12,9 @@ my $fixture_config = catfile( $Bin, 't', 'config', 'fixture.yaml' );
 my $build          = Modware::Build->new(
     module_name   => 'Modware',
     license       => 'perl',
-    dist_author   => 'Siddhartha Basu <siddhartha-basu@northwestern.edu>',
-    dist_version  => '0.01',
-    dist_abstract => 'API for chado database',
+    create_readme  => 1,
+    create_license => 1, 
+    dist_abstract => 'A GMOD L<http://gmod.org> middleware toolkit for Chado L<http://gmod.org/wiki/Chado> relational database.', 
     requires      => {
         'Try::Tiny'                   => '',
         'Bio::Chado::Schema'          => '0.05',
@@ -33,7 +34,6 @@ my $build          = Modware::Build->new(
         'MooseX::Role::Parameterized' => '0.19'
     },
     add_to_cleanup => ['Modware-*'],
-    create_readme  => 1,
     get_options    => {
         dsn            => { type    => ':s' },
         user           => { type    => ':s' },

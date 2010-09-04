@@ -1,16 +1,15 @@
 NAME
-    ModwareX -
+    Modware - A GMOD <http://gmod.org> middleware toolkit for Chado
+    <http://gmod.org/wiki/Chado> relational database.
 
 SYNOPSIS
-      use ModwareX;
-
 DESCRIPTION
-    ModwareX is
-
 AUTHOR
-    Siddhartha Basu <sidd.basu@gmail.com>
+    Siddhartha Basu <biosidd.basu@gmail.com>
 
 SEE ALSO
+    <http://gmod.org/wiki/Modware>
+
 LICENSE
     This library is free software; you can redistribute it and/or modify it
     under the same terms as Perl itself.
