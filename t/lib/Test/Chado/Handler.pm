@@ -16,7 +16,6 @@ use namespace::autoclean;
 
 # Module implementation
 #
-with 'MooseX::LogDispatch::Levels';
 
 has 'name' => ( is => 'rw', isa => 'Str' );
 has 'loader' => ( is => 'rw', isa => 'Str', default => 'bcs' );
