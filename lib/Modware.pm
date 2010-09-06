@@ -22,6 +22,8 @@ Modware - A GMOD L<http://gmod.org> middleware toolkit for Chado L<http://gmod.o
 
 Siddhartha Basu E<lt>biosidd.basu@gmail.comE<gt>
 
+Yulia Bushmanova E<lt>y-bushmanova@northwestern.eduE<gt>
+
 =head1 SEE ALSO
 
 L<http://gmod.org/wiki/Modware>
