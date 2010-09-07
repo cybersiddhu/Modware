@@ -39,42 +39,6 @@ CREATE TABLE cv (
 CREATE UNIQUE INDEX cv_c1 ON cv (name);
 
 --
--- Table: cv_cvterm_count
---
-CREATE TABLE cv_cvterm_count (
-  name character varying(255),
-  num_terms_excl_obs bigint
-);
-
---
--- Table: cv_cvterm_count_with_obs
---
-CREATE TABLE cv_cvterm_count_with_obs (
-  name character varying(255),
-  num_terms_incl_obs bigint
-);
-
---
--- Table: cv_link_count
---
-CREATE TABLE cv_link_count (
-  cv_name character varying(255),
-  relation_name character varying(1024),
-  relation_cv_name character varying(255),
-  num_links bigint
-);
-
---
--- Table: cv_path_count
---
-CREATE TABLE cv_path_count (
-  cv_name character varying(255),
-  relation_name character varying(1024),
-  relation_cv_name character varying(255),
-  num_paths bigint
-);
-
---
 -- Table: db
 --
 CREATE TABLE db (
@@ -86,14 +50,6 @@ CREATE TABLE db (
 );
 
 CREATE UNIQUE INDEX db_c1 ON db (name);
-
---
--- Table: db_dbxref_count
---
-CREATE TABLE db_dbxref_count (
-  name character varying(255),
-  num_dbxrefs bigint
-);
 
 --
 -- Table: eimage
@@ -139,32 +95,6 @@ CREATE TABLE genotype (
 );
 
 CREATE UNIQUE INDEX genotype_c1 ON genotype (uniquename);
-
---
--- Table: intron_combined_view
---
-CREATE TABLE intron_combined_view (
-  exon1_id integer,
-  exon2_id integer,
-  fmin integer,
-  fmax integer,
-  strand smallint,
-  srcfeature_id integer,
-  intron_rank integer,
-  transcript_id integer
-);
-
---
--- Table: intronloc_view
---
-CREATE TABLE intronloc_view (
-  exon1_id integer,
-  exon2_id integer,
-  fmin integer,
-  fmax integer,
-  strand smallint,
-  srcfeature_id integer
-);
 
 --
 -- Table: mageml
@@ -215,14 +145,6 @@ CREATE TABLE tableinfo (
 );
 
 CREATE UNIQUE INDEX tableinfo_c1 ON tableinfo (name);
-
---
--- Table: type_feature_count
---
-CREATE TABLE type_feature_count (
-  type character varying(1024),
-  num_features bigint
-);
 
 --
 -- Table: cell_line

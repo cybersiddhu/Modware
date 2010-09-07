@@ -1,15 +1,12 @@
 package Modware::Build;
 use base qw/Module::Build/;
 use Test::Chado;
-use FindBin qw/$Bin/;
-use Data::Dumper;
 use File::Spec::Functions;
 use Module::Load;
 use File::Path qw/make_path/;
 use lib 'blib/lib';
 
 __PACKAGE__->add_property('chado');
-__PACKAGE__->add_property( 'default_profile' => 'fallback' );
 __PACKAGE__->add_property('action_profile');
 __PACKAGE__->add_property('handler');
 
@@ -19,31 +16,18 @@ my @feature_list = qw/setup_done is_db_created is_schema_loaded
 sub db_handler {
     my ($self) = @_;
     my $handler;
-    my $chado = Test::Chado->new( config => $self->args('config_file') );
-    $chado->fixture( $self->args('fixture_config') );
-    $chado->base_path( $self->base_dir );
-    if ( $self->action_profile ) {
+    my $chado = Test::Chado->new( file_config => $self->args('file_config') );
+
+    if ( $self->args('dsn') )
+    {    #means the db credentials are passed on the command line
+        $handler = $chado->handler_from_build($self);
+    }
+    elsif ( $self->action_profile ) {
         $handler = $chado->handler_from_profile( $self->action_profile );
     }
-    elsif ( my $dsn = $self->args('dsn') ) {
-        $handler = $chado->handler;
-        $handler->user( $self->args('user') );
-        $handler->password( $self->args('password') );
-        $handler->dsn($dsn);
-        my $loader = $self->args('loader') ? $self->args('loader') : 'bcs';
-        $handler->loader($loader);
-        $handler->name('custom');
-    }
-    else {
-        if ( my $profile = $self->args('profile') ) {
-            if ( $self->args('default') ) {
-                $self->default_profile( $self->args('profile') );
-            }
-            $handler = $chado->handler_from_profile( $self->args('profile') );
-        }
-        else {
-            $handler = $chado->handler_from_profile( $self->default_profile );
-        }
+    else {    # db crendentials should be loaded from database profile
+        $chado->db_config( $self->args('db_config') );
+        $handler = $chado->handler_from_profile( $self->args('profile') );
     }
     $self->config_data( dsn      => $handler->dsn );
     $self->config_data( user     => $handler->user );

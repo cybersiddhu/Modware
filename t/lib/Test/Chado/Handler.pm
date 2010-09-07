@@ -45,10 +45,10 @@ sub _setup_values {
 
 }
 
-has 'fixture' => (
+has 'data_config' => (
     is        => 'rw',
-    isa       => 'Test::Chado::Config::Fixture',
-    predicate => 'has_fixture',
+    isa       => 'Test::Chado::Config::DataFile',
+    predicate => 'has_data_config',
 );
 
 for my $attr (qw/driver driver_dsn database/) {

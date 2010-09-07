@@ -311,8 +311,8 @@ sub _build_ontology_namespace {
     $twig->purge;
 
     if ( !$namespace ) {
-        if ( $self->fixture->$method->has_namespace ) {
-            $namespace = $self->fixture->$method->namespace;
+        if ( $self->data_config->$method->has_namespace ) {
+            $namespace = $self->data_config->$method->namespace;
         }
     }
 
@@ -351,7 +351,7 @@ sub reset_all {
 sub load_organism {
     my $self = shift;
     my $organism
-        = LoadFile( $self->fixture->organism->taxon_file->stringify );
+        = LoadFile( $self->data_config->organism->taxon_file->stringify );
     unshift @$organism, [qw/abbreviation genus species common_name/];
 
     my $schema = $self->schema;
@@ -393,7 +393,7 @@ sub load_pub {
     $self->ontology_name($name);
     $self->loader_tag($name);
     my $method = $name . '_ontology';
-    $self->obo_xml( $self->fixture->pub->journal_file->stringify );
+    $self->obo_xml( $self->data_config->pub->journal_file->stringify );
     $self->load_ontology;
 
 }
@@ -404,7 +404,7 @@ sub load_rel {
     $self->ontology_name($name);
     $self->loader_tag($name);
     my $method = $name . '_ontology';
-    $self->obo_xml( $self->fixture->cv->relation_file->stringify );
+    $self->obo_xml( $self->data_config->cv->relation_file->stringify );
     $self->load_ontology;
 }
 
@@ -414,15 +414,15 @@ sub load_so {
     $self->ontology_name($name);
     $self->loader_tag($name);
     my $method = $name . '_ontology';
-    $self->obo_xml( $self->fixture->cv->sequence_file->stringify );
+    $self->obo_xml( $self->data_config->cv->sequence_file->stringify );
     $self->load_ontology;
 
 }
 
-sub load_journal_fixture {
+sub load_journal_data_config {
     my ($self) = @_;
     $self->ontology_namespace('publication');
-    my $file = $self->fixture->pub->journal_file;
+    my $file = $self->data_config->pub->journal_file;
 
     my $source = 'Medline';
     my $type   = 'journal_article';
@@ -507,7 +507,7 @@ sub unload_pub {
     my $name = 'publication';
     $self->ontology_name($name);
     $self->loader_tag($name);
-    my $str       = $self->fixture->get_value('ontology');
+    my $str       = $self->data_config->get_value('ontology');
     my $namespace = $str->{$name}->{namespace};
     $self->unload_ontology($namespace);
 }
@@ -517,7 +517,7 @@ sub unload_rel {
     my $name = 'relation';
     $self->ontology_name($name);
     $self->loader_tag($name);
-    my $str       = $self->fixture->get_value('ontology');
+    my $str       = $self->data_config->get_value('ontology');
     my $namespace = $str->{$name}->{namespace};
     $self->unload_ontology($namespace);
 }
@@ -527,7 +527,7 @@ sub unload_so {
     my $name = 'sequence';
     $self->ontology_name($name);
     $self->loader_tag($name);
-    my $str       = $self->fixture->get_value('ontology');
+    my $str       = $self->data_config->get_value('ontology');
     my $namespace = $str->{$name}->{namespace};
     $self->unload_ontology($namespace);
 }

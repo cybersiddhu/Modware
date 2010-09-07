@@ -1,0 +1,19 @@
+{
+	"has_many": {
+	   "fetch" : 1, 
+	   "quantity" : "all"
+	}, 
+	"might_have": {
+	   "fetch" : 1 
+	}, 
+	"sets": [
+		{
+			"class": "Pub::Pub", 
+			"quantity": "all", 
+		}, 
+		{
+      "class": "Cv::CvtermRelationship", 
+      "quantity" : "all"
+		}
+	]
+}

@@ -1,0 +1,23 @@
+{
+	"sets": [
+		{
+			"class": "Cv::Cv", 
+			"quantity": "all", 
+			"fetch": [ {
+					"rel": "cvterms", 
+					"quantity": "all", 
+					"fetch": [ {
+							"rel": "dbxref", 
+							"quantity": "all", 
+							"fetch": [ {
+									"rel": "db", 
+									"quantity": "all"
+								}
+							]
+					  }
+					]
+				}
+			]
+		}
+	]
+}

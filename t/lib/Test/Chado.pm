@@ -4,6 +4,7 @@ use version; our $VERSION = qv('1.0.0');
 
 # Other modules:
 use Moose;
+use MooseX::Params::Validate;
 use Carp;
 use YAML qw/LoadFile/;
 use FindBin qw/$Bin/;
@@ -17,89 +18,49 @@ use namespace::autoclean;
 #
 with 'Test::Chado::Role::Config';
 
-has 'fixture' => (
-    is        => 'rw',
-    isa       => 'Str',
-    predicate => 'has_fixture'
-);
 
-has 'handler' => (
-    is         => 'rw',
-    isa        => 'Test::Chado::Handler',
-    lazy_build => 1
-);
-
-before '_build_handler' => sub {
-	my $self = shift;
-	confess "fixture config file is not set\n" if !$self->has_fixture;
+before 'handler_from_build' => sub {
+    my $self = shift;
+    croak "config file is not set\n" if !$self->has_file_config;
 };
 
-sub _build_handler {
-    my ($self) = @_;
-    my $fixture_conf
-        = Test::Chado::Config::Fixture->new( base_path => $self->base_path );
-    $fixture_conf->config( $self->fixture );
-    my $handler = Test::Chado::Handler->new( fixture => $fixture_conf );
+sub handler_from_build {
+    my $self = shift;
+    my ($builder) = pos_validated_list( \@_, { isa => 'Module::Build' } );
+    my $data_conf = Test::Chado::Config::DataFile->new(
+        base_path => $builder->base_dir,
+        config    => $self->file_config
+    );
+    my $handler = Test::Chado::Handler->new( data_config => $data_conf );
+    $handler->$_( $builder->args($_) ) for qw/dsn user password name loader/;
     $handler;
 }
 
-sub handlers_from_profile {
-    my ($self) = @_;
-    my @handlers;
-    for my $name ( $self->sections ) {
-        push @handlers, $self->_build_from_config($name);
-    }
-    @handlers;
-}
 
-sub handler_from_profile {
-    my ( $self, $name ) = @_;
-    if ( !$name ) {
-        return $self->default_handler;
-    }
-    $self->_build_from_profile($name);
-}
-
-has 'default_handler' => (
-    is      => 'ro',
-    isa     => 'Test::Chado::Handler',
-    lazy    => 1,
-    builder => '_build_from_profile'
-);
-
-before '_build_from_profile' => sub {
+before 'handler_from_profile' => sub {
     my $self = shift;
-    for my $conf (qw/config fixture/) {
-        my $method = 'has_' . $conf;
+    for my $conf (qw/db file/) {
+        my $method = 'has_' . $conf . '_config';
         if ( !$self->$method ) {
-            confess "config file location is not set\n";
+            croak "data config file location is not set\n";
         }
     }
+    croak "base_path for Build file location is not set\n" if !$self->base_path;
 };
 
-sub _build_from_profile {
-    my ( $self, $name ) = @_;
-    $name ||= 'fallback';
+sub handler_from_profile {
+    my $self = shift;
+    my ($name) = pos_validated_list( \@_, { isa => 'Str' } );
 
-#There could be multiple databases configured in the default configuration file
-#so we load the yaml file first and then later pass the each section to the database
-#configuration handling class.
-    my $db_str = $self->config;
-    my $db_conf
-        = Test::Chado::Config::Database->new( base_path => $self->base_path );
-    $db_conf->config( $db_str->{$name} );
-
-    #Here we directly pass the yaml configuration file to the class
-    my $fixture_conf
-        = Test::Chado::Config::Fixture->new( base_path => $self->base_path );
-    $fixture_conf->config( $self->fixture );
-
-    my $handler = Test::Chado::Handler->new(
-        name    => $name,
-        section => $db_conf,
-        fixture => $fixture_conf,
-        loader  => $db_str->{$name}->{loader}
+    my $data_conf = Test::Chado::Config::DataFile->new(
+        base_path => $self->base_path,
+        config    => $self->file_config
     );
+    my $db_str = $self->db_config;
+
+    my $handler = Test::Chado::Handler->new(data_config => $data_conf);
+    $handler->name($name);
+    $handler->$_($db_str->{$name}->{$_}) for qw/dsn user password loader/;
     $handler;
 }
 
@@ -122,9 +83,11 @@ This document describes B<Test::Chado> version 0.1
 
 use Test::Chado;
 
- my $handler = Test::Chado->new->default_handler; #default handler for test Sqlite database
+ my $tester = Test::Chado->new; 
+ $tester->file_config($config); #yaml config file for the location of data files
+ $tester->db_config($dbconfig); #yaml config file for test database
 
- my $dbh = $handler->dbh; #DBI connection object
+ my $handler = $tester->handler_from_profile($profile); #DBI connection object
  $handler->create_db;
  $handler->deploy_schema;
  $handler->load_fixture;

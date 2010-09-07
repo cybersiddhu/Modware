@@ -1,0 +1,12 @@
+{
+	"has_many": {
+	   "fetch" : 1, 
+	   "quantity" : "all"
+	}, 
+	"sets": [
+		{
+			"class": "Cv::Cv", 
+			"quantity": "all", 
+		}
+	]
+}

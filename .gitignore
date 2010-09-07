@@ -6,9 +6,9 @@ _build
 MANIFEST*
 MYMETA*
 META*
-data
 tmp
 log
+*DS_Store*
 
 #exclude Build.PL
 !Build.PL

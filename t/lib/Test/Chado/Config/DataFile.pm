@@ -1,37 +1,93 @@
-package Test::Chado::Config::Fixture::Ontology;
+package Test::Chado::Config::DataFile;
 
 use version; our $VERSION = qv('0.1');
 
 # Other modules:
-use Carp;
 use Moose;
-use Test::Chado::Types qw/ExistingFile/;
+use Path::Class::File;
+use YAML qw/LoadFile/;
+use namespace::autoclean;
 
 # Module implementation
-has 'file' => (
-    is  => 'rw',
-    isa => ExistingFile,
-);
+#
+with 'Test::Chado::Role::Config';
 
-has 'namespace' => (
-    is  => 'rw',
-    isa => 'Str',
-    predicate => 'has_namespace'
-);
 
-no Moose;
+after 'config' => sub {
+    my $self = shift;
+
+	#make a superclass having a new method
+	Class::MOP::Class->create(
+		'Test::Chado::Config::Base' => (
+		version => 0.01, 
+		 methods => {
+		   'new' => sub {
+	           my $class = shift;
+		       my $instance = $class->meta->new_object(@_);
+		       bless $instance => $class;
+		   } 
+		 }
+	   )
+	);
+
+    for my $name ( $self->modules ) {
+        my $module = $self->get_module($name);
+
+        my $attrs;
+        for my $section ( keys %$module ) {
+            for my $subsection ( keys %{$module->{$section}} ) {
+                my $attr = $section . '_' . $subsection;
+                push @$attrs,
+                    Class::MOP::Attribute->new(
+                    $attr => (
+                        accessor  => $attr,
+                        predicate => 'has_' . $attr,
+                        default   => $subsection eq 'file'
+                        ? sub { Path::Class::File->new(
+                            $self->base_path, $self->append_path,
+                            $module->{$section}->{$subsection}
+                            )}
+                        : $module->{$section}->{$subsection}
+                    )
+                );
+            }
+        }
+
+        my $class_name = 'Test::Chado::Config::DataFile::' . ucfirst $name;
+        my $anon_class = Class::MOP::Class->create(
+            $class_name => (
+                version    => '0.1',
+                superclasses => ['Test::Chado::Config::Base'], 
+                attributes => $attrs
+            )
+        );
+        $self->meta->make_mutable;
+        $self->meta->add_attribute(
+            $name => (
+                is      => 'rw',
+                isa     => $class_name,
+                lazy => 1, 
+                default => sub { $class_name->new }
+            )
+        );
+        $self->meta->make_immutable;
+    }
+};
+
+__PACKAGE__->meta->make_immutable;
+
 1;    # Magic true value required at end of module
 
 __END__
 
 =head1 NAME
 
-B<Test::Chado::Config::Fixture::Ontology> - [Module for handling ontology fixtures]
+B<Test::Chado::Config::Fixture> - [Module for handling fixture configuration]
 
 
 =head1 VERSION
 
-This document describes B<Test::Chado::Config::Fixture::Ontology> version 0.1
+This document describes Test::Chado::Config::Fixture version 0.1
 
 
 =head1 SYNOPSIS

@@ -7,6 +7,7 @@ use Moose::Role;
 use YAML qw/LoadFile DumpFile/;
 use File::Spec::Functions;
 use Test::Chado::Types qw/ModConfig/;
+use namespace::autoclean;
 
 # Module implementation
 #
@@ -23,10 +24,10 @@ has 'append_path' => (
 	default => catfile('t', 'data', 'fixture')
 );
 
-has 'config' => (
+has 'db_config' => (
     is        => 'rw',
     isa       => ModConfig,
-    predicate => 'has_config',
+    predicate => 'has_db_config',
     coerce    => 1,
     traits    => ['Hash'],
     handles   => {
@@ -41,17 +42,22 @@ has 'config' => (
     }
 );
 
+has 'file_config' => (
+    is        => 'rw',
+    isa       => 'Str',
+    predicate => 'has_file_config'
+);
+
+
 sub save_config {
     my ( $self, $file ) = @_;
 
     #include some checks for file
-
     if ($file) {
-        DumpFile( $file, $self->config );
+        DumpFile( $file, $self->db_config );
     }
 }
 
-no Moose::Role;
 
 1;    # Magic true value required at end of module
 
