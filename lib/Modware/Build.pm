@@ -4,6 +4,7 @@ use lib 'blib/lib';
 use Test::Chado;
 use File::Spec::Functions;
 use Module::Load;
+use Data::Dumper;
 use File::Path qw/make_path remove_tree/;
 
 __PACKAGE__->add_property('chado');
@@ -15,23 +16,36 @@ my @feature_list = qw/setup_done is_db_created is_schema_loaded
 sub db_handler {
     my ($self) = @_;
     my $handler;
-    my $chado = Test::Chado->new( file_config => $self->args('file_config') );
+    my $chado = Test::Chado->new;
+    $chado->module_builder($self);
+
+    if ( $self->args('preset') ) {    #load from preset fixture - the default
+        $chado->file_config( $self->args('fixture_config') );
+        $chado->append_path( $self->args('append_path') );
+    }
+    else {                            #load from data file
+        $chado->file_config( $self->args('file_config') );
+        $chado->append_path( catdir( 't', 'data', 'raw' ) );
+        $self->args( 'loader', 'bcs' );
+
+    }
 
     if ( my $dsn = $self->args('dsn') )
     {    #means the db credentials are passed on the command line
-        $handler = $chado->handler_from_build($self);
+        $handler = $chado->handler_from_options;
     }
     else {    # db crendentials should be loaded from database profile
         $chado->db_config( $self->args('db_config') );
         $chado->base_path( $self->base_dir );
-        $chado->append_path( $self->args('append_path') );
         $handler = $chado->handler_from_profile( $self->args('profile') );
     }
+
     $self->config_data( dsn      => $handler->dsn );
     $self->config_data( user     => $handler->user );
     $self->config_data( password => $handler->password );
     $self->chado($chado);
     $self->handler($handler);
+
 }
 
 sub check_and_setup {
@@ -124,15 +138,23 @@ sub ACTION_load_publication {
 
 sub ACTION_load_fixture {
     my ($self) = @_;
-    $self->depends_on('deploy');
-    if ( !Modware::ConfigData->feature('is_fixture_loaded') ) {
-        $self->handler->load_organism;
-        $self->handler->load_rel;
-        $self->handler->load_so;
-        $self->handler->load_pub;
-        $self->handler->load_journal_data;
+    if ( $self->args('preset') ) {
+        $self->depends_on('setup');
+        $self->handler->load_fixture;
         $self->feature( 'is_fixture_loaded' => 1 );
         print "loaded fixture\n" if $self->args('test_debug');
+    }
+    else {
+        $self->depends_on('deploy');
+        if ( !Modware::ConfigData->feature('is_fixture_loaded') ) {
+            $self->handler->load_organism;
+            $self->handler->load_rel;
+            $self->handler->load_so;
+            $self->handler->load_pub;
+            $self->handler->load_journal_data;
+            $self->feature( 'is_fixture_loaded' => 1 );
+            print "loaded fixture\n" if $self->args('test_debug');
+        }
     }
 }
 
@@ -159,6 +181,10 @@ sub ACTION_unload_so {
 
 sub ACTION_unload_fixture {
     my ($self) = @_;
+    if ( $self->args('preset') ) {
+        warn "Action not supported in preset mode\n";
+        die "Try prune_fixture\n";
+    }
     $self->depends_on('setup');
     if ( Modware::ConfigData->feature('is_fixture_loaded') ) {
         $self->handler->unload_rel;
@@ -194,7 +220,7 @@ sub ACTION_test {
     $self->SUPER::ACTION_test(@_);
     $self->depends_on('drop') if $self->args('drop');
     my $dir = catdir( 't', 'tmp' );
-    remove_tree( $dir ) if -e $dir;
+    remove_tree($dir) if -e $dir;
 }
 
 sub ACTION_unload_organism {
@@ -214,7 +240,6 @@ sub ACTION_drop {
         print "cleaning $name\n" if $self->args('test_debug');
         $self->feature( $name => 0 ) if $self->args($name);
     }
-
     print "dropped the database\n" if $self->args('test_debug');
 }
 
@@ -232,6 +257,12 @@ sub ACTION_list_fixtures {
     print ref $fixture->organism, "\n";
     print $fixture->organism->taxon_file, "\n";
     print $fixture->pub->journal_file,    "\n";
+}
+
+sub ACTION_list_args {
+    my $self = shift;
+    my $args = $self->args;
+    print Dumper $args;
 }
 
 1;    # Magic true value required at end of module

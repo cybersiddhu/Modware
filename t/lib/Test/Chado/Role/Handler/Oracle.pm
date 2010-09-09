@@ -6,6 +6,7 @@ use version; our $VERSION = qv('1.0.0');
 use Moose::Role;
 use Try::Tiny;
 use DBI;
+use Path::Class::File;
 
 # Module implementation
 #
@@ -166,7 +167,7 @@ has 'connection_info' => (
 sub deploy_schema {
     my ($self) = @_;
     my $dbh    = $self->dbh;
-    my $fh     = $self->ddl->openr;
+    my $fh     = Path::Class::File->new($self->ddl)->openr;
     my $data = do { local ($/); <$fh> };
     $fh->close();
 LINE:

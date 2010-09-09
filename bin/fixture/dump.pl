@@ -9,18 +9,23 @@ use Cwd;
 use Path::Class;
 
 my $config_file = 'pub.json';
+my $data_dir    = Path::Class::Dir->new(getcwd)->parent->parent->subdir('t')
+    ->subdir('data');
+my ( $dsn, $user, $pass );
+
 GetOptions(
-    'h|help'      => sub { pod2usage(1); },
-    'f|fixture:s' => \$config_file
+    'h|help'     => sub { pod2usage(1); },
+    'c|config:s' => \$config_file,
+    'dsn=s'      => \$dsn,
+    'u|user:s'   => \$user,
+    'p|pass:s'   => \$pass
 );
 
-die "no sqlite file name given\n" if !$ARGV[0];
-my $data_dir = Path::Class::Dir->new(getcwd)->parent->parent->subdir('data');
+die "no sqlite file name given\n" if !$dsn;
 my $config_dir  = $data_dir->subdir('config');
-my $fixture_dir = $data_dir->subdir('fixture');
+my $fixture_dir = $data_dir->subdir('preset');
 
-my $schema
-    = Bio::Chado::Schema->connect( "dbi:SQLite:dbname=$ARGV[0]", '', '' );
+my $schema = Bio::Chado::Schema->connect( $dsn, $user, $pass );
 my $fixture
     = DBIx::Class::Fixtures->new( { config_dir => $config_dir->stringify } );
 

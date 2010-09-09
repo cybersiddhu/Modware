@@ -1,4 +1,4 @@
-package Test::Chado::Role::Loader::BCS;
+package Test::Chado::Role::Loader::Bcs;
 
 use version; our $VERSION = qv('0.1');
 use warnings;

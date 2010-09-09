@@ -8,8 +8,10 @@ use lib 'lib/';
 use lib 't/lib/';
 use Modware::Build;
 
-my $db_config   = catfile( $Bin, 't', 'data', 'config', 'database.yaml' );
-my $file_config = catfile( $Bin, 't', 'data', 'config', 'original.yaml' );
+my $db_config      = catfile( $Bin, 't', 'data', 'config', 'database.yaml' );
+my $file_config    = catfile( $Bin, 't', 'data', 'config', 'raw.yaml' );
+my $fixture_config = catfile( $Bin, 't', 'data', 'config', 'preset.yaml' );
+
 my $build = Modware::Build->new(
     module_name    => 'Modware',
     license        => 'perl',
@@ -38,27 +40,30 @@ my $build = Modware::Build->new(
     },
     add_to_cleanup => ['Modware-*'],
     get_options    => {
-        dsn           => { type    => ':s' },
-        user          => { type    => ':s' },
-        password      => { type    => ':s' },
-        profile       => { type    => ':s' },
-        superuser     => { type    => ':s' },
-        superpassword => { type    => ':s' },
-        loader        => { type    => ':s', default => 'bcs' },
-        name          => { type    => ':s', default => 'custom' },
-        profile       => { type    => ':s', default => 'fallback' },
-        load_fixture  => { type    => '!', default => 1 },
-        create        => { type    => '!', default => 1 },
-        drop          => { type    => '!', default => 1 },
-        test_debug    => { type    => '!', default => 0 },
-        db_config     => { default => $db_config, type => ':s' },
-        file_config   => { default => $file_config, type => ':s' },
+        dsn            => { type    => ':s' },
+        user           => { type    => ':s' },
+        password       => { type    => ':s' },
+        profile        => { type    => ':s' },
+        superuser      => { type    => ':s' },
+        superpassword  => { type    => ':s' },
+        loader         => { type    => ':s', default => 'preset' },
+        name           => { type    => ':s', default => 'custom' },
+        profile        => { type    => ':s', default => 'fallback' },
+        load_fixture   => { type    => '!', default => 1 },
+        create         => { type    => '!', default => 1 },
+        drop           => { type    => '!', default => 1 },
+        test_debug     => { type    => '!', default => 0 },
+        db_config      => { default => $db_config, type => ':s' },
+        file_config    => { default => $file_config, type => ':s' },
+        fixture_config => { default => $fixture_config, type => ':s' },
+        preset         => { default => 1, type => '!' },
         append_path =>
-            { default => catfile( 't', 'data', 'original' ), type => ':s' },
+            { default => catfile( 't', 'data', 'preset' ), type => ':s' },
         default => {},
     }
 );
 
+$build->args('ddl_dir',  catdir($build->base_dir,  't',  'data',  'ddl'));
 $build->config_data( 'config' => 'custom' );
 $build->create_build_script;
 

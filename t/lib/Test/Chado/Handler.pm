@@ -47,11 +47,11 @@ sub _setup_values {
 
 has 'data_config' => (
     is        => 'rw',
-    isa       => 'Test::Chado::Config::DataFile',
     predicate => 'has_data_config',
+    does      => 'Test::Chado::Role::Config'
 );
 
-for my $attr (qw/driver driver_dsn database/) {
+for my $attr (qw/driver driver_dsn database ddl_dir/) {
     has $attr => ( is => 'rw', isa => 'Str', predicate => 'has_' . $attr );
 }
 
@@ -67,6 +67,17 @@ has 'dsn' => (
     trigger   => \&_setup_dsn
 );
 
+has 'ddl' => (
+    is        => 'rw',
+    isa       => 'Str',
+    predicate => 'has_ddl',
+    lazy      => 1,
+    default   => sub {
+        my $self = shift;
+        catfile( $self->ddl_dir, 'chado.' . lc $self->driver );
+    }
+);
+
 sub _setup_dsn {
     my ( $self, $value ) = @_;
     return if !$value;
@@ -76,7 +87,7 @@ sub _setup_dsn {
     $self->driver($driver);
     $self->driver_dsn($driver_dsn);
     apply_all_roles( $self,
-        'Test::Chado::Role::Loader::' . uc $self->loader );
+        'Test::Chado::Role::Loader::' . ucfirst lc( $self->loader ) );
 }
 
 after 'driver' => sub {
@@ -87,23 +98,6 @@ after 'driver' => sub {
         'Test::Chado::Role::Handler::' . ucfirst $driver );
 };
 
-subtype 'FileClass' => as 'Object' => where { $_->isa('Path::Class::File') };
-coerce 'FileClass' => from 'Str' =>
-    via { Path::Class::File->new($_)->absolute };
-
-has 'ddl' => (
-    is      => 'rw',
-    isa     => 'FileClass',
-    lazy    => 1,
-    coerce  => 1,
-    default => sub {
-        my ($self) = @_;
-        Path::Class::File->new(
-            catfile( $Bin, 't', 'data', 'ddl', 'chado.' . lc $self->driver )
-        );
-    }
-);
-
 has 'attr_hash' => (
     is      => 'rw',
     isa     => 'HashRef',
@@ -111,6 +105,13 @@ has 'attr_hash' => (
     default => sub { { AutoCommit => 0 } },
     handles => { add_dbh_attribute => 'set' }
 );
+
+after 'ddl_dir' => sub {
+    my ( $self, $value ) = @_;
+    return if !$value;
+    $self->ddl( catfile( $value, 'chado.' . lc $self->driver ) )
+        if $self->has_driver;
+};
 
 after 'user' => sub {
     my ( $self, $user ) = @_;
@@ -125,7 +126,6 @@ after 'password' => sub {
         $self->superpass($pass);
     }
 };
-
 
 1;    # Magic true value required at end of module
 

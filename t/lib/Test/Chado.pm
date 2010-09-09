@@ -12,27 +12,41 @@ use File::Spec::Functions;
 use Test::Chado::Handler;
 use Test::Chado::Config::Database;
 use Test::Chado::Config::DataFile;
+use Test::Chado::Config::Preset;
 use namespace::autoclean;
 
 # Module implementation
 #
 with 'Test::Chado::Role::Config';
 
-before 'handler_from_build' => sub {
+has 'module_builder' => (
+    is        => 'rw',
+    isa       => 'Module::Build',
+    predicate => 'has_module_builder'
+);
+
+before 'handler_from_options' => sub {
     my $self = shift;
-    croak "config file is not set\n" if !$self->has_file_config;
+    croak "module builder is not set\n" if !$self->has_module_builder;
+    croak "config file is not set\n"    if !$self->has_file_config;
 };
 
-sub handler_from_build {
-    my $self = shift;
-    my ($builder) = pos_validated_list( \@_, { isa => 'Module::Build' } );
-    my $data_conf = Test::Chado::Config::DataFile->new(
-        base_path   => $builder->base_dir,
-        append_path => $builder->args('append_path'),
-        file_config => $self->file_config
-    );
+sub handler_from_options {
+    my $self    = shift;
+    my $builder = $self->module_builder;
+    my $data_conf;
+    if ( $builder->args('preset') ) {
+        $data_conf = Test::Chado::Config::Preset->new;
+    }
+    else {
+        $data_conf = Test::Chado::Config::DataFile->new;
+    }
+    $data_conf->base_path( $builder->base_path );
+    $data_conf->append_path( $self->append_path );
+    $data_conf->file_config( $self->file_config );
     my $handler = Test::Chado::Handler->new( data_config => $data_conf );
-    $handler->$_( $builder->args($_) ) for qw/dsn user password name loader/;
+    $handler->$_( $builder->args($_) )
+        for qw/dsn user password name loader ddl_dir/;
     $handler;
 }
 
@@ -44,8 +58,8 @@ before 'handler_from_profile' => sub {
             confess "$conf config file location is not set with $method\n";
         }
     }
-    croak "base_path for Build file location is not set\n"
-        if !$self->base_path;
+
+    croak "module builder is not set\n" if !$self->has_module_builder;
     croak "append_path for Build file location is not set\n"
         if !$self->append_path;
 };
@@ -54,15 +68,29 @@ sub handler_from_profile {
     my $self = shift;
     my ($name) = pos_validated_list( \@_, { isa => 'Str' } );
 
-    my $data_conf
-        = Test::Chado::Config::DataFile->new( base_path => $self->base_path );
+    my $builder = $self->module_builder;
+    my $data_conf;
+    if ( $builder->args('preset') ) {
+        $data_conf = Test::Chado::Config::Preset->new;
+    }
+    else {
+        $data_conf = Test::Chado::Config::DataFile->new;
+    }
+
+    $data_conf->base_path( $builder->base_dir );
+    $data_conf->db_config($builder->args('db_config'));
     $data_conf->file_config( $self->file_config );
-    $data_conf->append_path($self->append_path);
-    my $db_str = $self->db_config;
+    $data_conf->append_path( $self->append_path );
 
     my $handler = Test::Chado::Handler->new( data_config => $data_conf );
     $handler->name($name);
-    $handler->$_( $db_str->{$name}->{$_} ) for qw/dsn user password loader/;
+
+    $handler->$_( $builder->args($_) ) for qw/loader ddl_dir/;
+    my $db_str = $data_conf->db_config;
+    for my $opt (qw/dsn user password/) {
+        $handler->$opt( $db_str->{$name}->{$opt} )
+            if defined $db_str->{$name}->{$opt};
+    }
     $handler;
 }
 
