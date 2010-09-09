@@ -10,10 +10,10 @@ use namespace::autoclean;
 
 # Module implementation
 #
+
 with 'Test::Chado::Role::Config';
 
-
-after 'config' => sub {
+after 'file_config' => sub {
     my $self = shift;
 
 	#make a superclass having a new method
@@ -73,6 +73,7 @@ after 'config' => sub {
         $self->meta->make_immutable;
     }
 };
+
 
 __PACKAGE__->meta->make_immutable;
 

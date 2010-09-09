@@ -13,41 +13,39 @@ use namespace::autoclean;
 #
 
 has 'base_path' => (
-	is => 'rw', 
-	isa => 'Str'
+    is  => 'rw',
+    isa => 'Str'
 );
 
 has 'append_path' => (
-	is => 'rw', 
-	isa => 'Str', 
-	lazy => 1, 
-	default => catfile('t', 'data', 'fixture')
+    is      => 'rw',
+    isa     => 'Str',
+);
+
+has 'file_config' => (
+    is        => 'rw',
+    isa       => ModConfig,
+    predicate => 'has_file_config',
+    coerce    => 1,
+    traits    => ['Hash'],
+    handles   => {
+        get_value     => 'get',
+        get_module    => 'get',
+        pair_value    => 'kv',
+        sections      => 'keys',
+        modules       => 'keys',
+        has_value     => 'exists',
+        add_to_config => 'set',
+        delete_config => 'delete'
+    }
 );
 
 has 'db_config' => (
     is        => 'rw',
     isa       => ModConfig,
-    predicate => 'has_db_config',
     coerce    => 1,
-    traits    => ['Hash'],
-    handles   => {
-        get_value     => 'get',
-        get_module    => 'get', 
-        pair_value    => 'kv',
-        sections      => 'keys',
-        modules      => 'keys',
-        has_value     => 'exists',
-        add_to_config => 'set', 
-        delete_config => 'delete'
-    }
+    predicate => 'has_db_config'
 );
-
-has 'file_config' => (
-    is        => 'rw',
-    isa       => 'Str',
-    predicate => 'has_file_config'
-);
-
 
 sub save_config {
     my ( $self, $file ) = @_;
@@ -57,7 +55,6 @@ sub save_config {
         DumpFile( $file, $self->db_config );
     }
 }
-
 
 1;    # Magic true value required at end of module
 

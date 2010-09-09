@@ -419,7 +419,7 @@ sub load_so {
 
 }
 
-sub load_journal_data_config {
+sub load_journal_data {
     my ($self) = @_;
     $self->ontology_namespace('publication');
     my $file = $self->data_config->pub->journal_file;
@@ -654,7 +654,8 @@ sub load_typedef {
     $namespace = $self->ontology_namespace if !$namespace;
 
     my $def_elem = $node->first_child('def');
-    my $definition = $def_elem->first_child_text('defstr') if $def_elem;
+    my $definition;
+    $definition = $def_elem->first_child_text('defstr') if $def_elem;
 
     my $schema = $self->schema;
     my $cvterm_row;
@@ -701,7 +702,8 @@ sub load_term {
     $namespace = $self->ontology_namespace if !$namespace;
 
     my $def_elem = $node->first_child('def');
-    my $definition = $def_elem->first_child_text('defstr') if $def_elem;
+    my $definition;
+    $definition = $def_elem->first_child_text('defstr') if $def_elem;
 
     my $schema = $self->schema;
     my $cvterm_row;

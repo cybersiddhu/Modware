@@ -11,13 +11,12 @@ use FindBin qw/$Bin/;
 use File::Spec::Functions;
 use Test::Chado::Handler;
 use Test::Chado::Config::Database;
-use Test::Chado::Config::Fixture;
+use Test::Chado::Config::DataFile;
 use namespace::autoclean;
 
 # Module implementation
 #
 with 'Test::Chado::Role::Config';
-
 
 before 'handler_from_build' => sub {
     my $self = shift;
@@ -28,42 +27,44 @@ sub handler_from_build {
     my $self = shift;
     my ($builder) = pos_validated_list( \@_, { isa => 'Module::Build' } );
     my $data_conf = Test::Chado::Config::DataFile->new(
-        base_path => $builder->base_dir,
-        config    => $self->file_config
+        base_path   => $builder->base_dir,
+        append_path => $builder->args('append_path'),
+        file_config => $self->file_config
     );
     my $handler = Test::Chado::Handler->new( data_config => $data_conf );
     $handler->$_( $builder->args($_) ) for qw/dsn user password name loader/;
     $handler;
 }
 
-
 before 'handler_from_profile' => sub {
     my $self = shift;
-    for my $conf (qw/db file/) {
+    for my $conf (qw/file db/) {
         my $method = 'has_' . $conf . '_config';
         if ( !$self->$method ) {
-            croak "data config file location is not set\n";
+            confess "$conf config file location is not set with $method\n";
         }
     }
-    croak "base_path for Build file location is not set\n" if !$self->base_path;
+    croak "base_path for Build file location is not set\n"
+        if !$self->base_path;
+    croak "append_path for Build file location is not set\n"
+        if !$self->append_path;
 };
 
 sub handler_from_profile {
     my $self = shift;
     my ($name) = pos_validated_list( \@_, { isa => 'Str' } );
 
-    my $data_conf = Test::Chado::Config::DataFile->new(
-        base_path => $self->base_path,
-        config    => $self->file_config
-    );
+    my $data_conf
+        = Test::Chado::Config::DataFile->new( base_path => $self->base_path );
+    $data_conf->file_config( $self->file_config );
+    $data_conf->append_path($self->append_path);
     my $db_str = $self->db_config;
 
-    my $handler = Test::Chado::Handler->new(data_config => $data_conf);
+    my $handler = Test::Chado::Handler->new( data_config => $data_conf );
     $handler->name($name);
-    $handler->$_($db_str->{$name}->{$_}) for qw/dsn user password loader/;
+    $handler->$_( $db_str->{$name}->{$_} ) for qw/dsn user password loader/;
     $handler;
 }
-
 
 1;    # Magic true value required at end of module
 

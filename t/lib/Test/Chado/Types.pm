@@ -7,6 +7,7 @@ use MooseX::Types -declare => [qw/ExistingFile FileClass ModConfig/];
 use MooseX::Types::Moose qw/Int Str Any Object ArrayRef HashRef/;
 use Path::Class::File;
 use YAML qw/LoadFile/;
+use namespace::autoclean;
 
 # Module implementation
 #
@@ -29,7 +30,6 @@ coerce ModConfig,
 from Str, 
 via { LoadFile($_) };
 
-no Moose;
 
 1;    # Magic true value required at end of module
 

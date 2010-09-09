@@ -1,13 +1,12 @@
 package Modware::Build;
 use base qw/Module::Build/;
+use lib 'blib/lib';
 use Test::Chado;
 use File::Spec::Functions;
 use Module::Load;
-use File::Path qw/make_path/;
-use lib 'blib/lib';
+use File::Path qw/make_path remove_tree/;
 
 __PACKAGE__->add_property('chado');
-__PACKAGE__->add_property('action_profile');
 __PACKAGE__->add_property('handler');
 
 my @feature_list = qw/setup_done is_db_created is_schema_loaded
@@ -18,15 +17,14 @@ sub db_handler {
     my $handler;
     my $chado = Test::Chado->new( file_config => $self->args('file_config') );
 
-    if ( $self->args('dsn') )
+    if ( my $dsn = $self->args('dsn') )
     {    #means the db credentials are passed on the command line
         $handler = $chado->handler_from_build($self);
     }
-    elsif ( $self->action_profile ) {
-        $handler = $chado->handler_from_profile( $self->action_profile );
-    }
     else {    # db crendentials should be loaded from database profile
         $chado->db_config( $self->args('db_config') );
+        $chado->base_path( $self->base_dir );
+        $chado->append_path( $self->args('append_path') );
         $handler = $chado->handler_from_profile( $self->args('profile') );
     }
     $self->config_data( dsn      => $handler->dsn );
@@ -45,8 +43,7 @@ sub check_and_setup {
 
 sub common_setup {
     my ($self) = @_;
-    $self->action_profile( $self->args('name') ) if $self->args('name');
-    my $path = catfile( $self->base_dir, 't', 'tmp' );
+    my $path = catdir( $self->base_dir, 't', 'tmp' );
     make_path($path) if !-e $path;
 }
 
@@ -122,7 +119,7 @@ sub ACTION_load_pub {
 sub ACTION_load_publication {
     my ($self) = @_;
     $self->depends_on('load_pub');
-    $self->handler->load_journal_fixture;
+    $self->handler->load_journal_data;
 }
 
 sub ACTION_load_fixture {
@@ -133,7 +130,7 @@ sub ACTION_load_fixture {
         $self->handler->load_rel;
         $self->handler->load_so;
         $self->handler->load_pub;
-        $self->handler->load_journal_fixture;
+        $self->handler->load_journal_data;
         $self->feature( 'is_fixture_loaded' => 1 );
         print "loaded fixture\n" if $self->args('test_debug');
     }
@@ -196,6 +193,8 @@ sub ACTION_test {
 
     $self->SUPER::ACTION_test(@_);
     $self->depends_on('drop') if $self->args('drop');
+    my $dir = catdir( 't', 'tmp' );
+    remove_tree( $dir ) if -e $dir;
 }
 
 sub ACTION_unload_organism {
@@ -209,8 +208,13 @@ sub ACTION_drop {
     my ($self) = @_;
     $self->depends_on('setup');
     $self->handler->drop_db;
-    $self->feature( 'is_schema_loaded' => 0 );
-    $self->feature( 'is_db_created'    => 0 );
+
+    #cleanup all the setup values if any
+    for my $name (@feature_list) {
+        print "cleaning $name\n" if $self->args('test_debug');
+        $self->feature( $name => 0 ) if $self->args($name);
+    }
+
     print "dropped the database\n" if $self->args('test_debug');
 }
 
@@ -221,83 +225,13 @@ sub ACTION_drop_schema {
     $self->feature( 'is_schema_loaded' => 0 );
 }
 
-sub ACTION_list_fixture {
+sub ACTION_list_fixtures {
     my ($self) = @_;
     $self->depends_on('setup');
     my $fixture = $self->handler->fixture;
     print ref $fixture->organism, "\n";
     print $fixture->organism->taxon_file, "\n";
     print $fixture->pub->journal_file,    "\n";
-}
-
-sub ACTION_list_profiles {
-    my ($self) = @_;
-    $self->db_handler;
-    my $chado = $self->chado;
-    for my $key ( $chado->sections ) {
-        my $section = $chado->get_value($key);
-        print "\nsection name:  $key\n--------\n";
-        print "\tdsn: ",    $section->{dsn},    "\n";
-        print "\tloader: ", $section->{loader}, "\n";
-        print "\tuser: ",   $section->{user},   "\n"
-            if defined $section->{user};
-        print "\tpassword ", $section->{password}, "\n"
-            if defined $section->{password};
-    }
-    print "\n";
-}
-
-sub ACTION_add_profile {
-    my ($self) = @_;
-    $self->check_and_setup;
-    my $config
-        = $self->args('config_file')
-        ? $self->args('config_file')
-        : $self->dbconfig;
-    my $chado = Test::Chado->new( config => $config );
-    $chado->add_to_config(
-        $self->args('action_profile'),
-        {   dsn           => $self->args('dsn'),
-            user          => $self->args('user'),
-            password      => $self->args('password'),
-            superuser     => $self->args('superuser'),
-            superpassword => $self->args('superpassword'),
-        }
-    );
-    $chado->save_config;
-}
-
-sub ACTION_remove_profile {
-    my ($self) = @_;
-    $self->common_profile;
-    my $config
-        = $self->args('config_file')
-        ? $self->args('config_file')
-        : $self->dbconfig;
-    my $chado = Test::Chado->new( config => $config );
-    $chado->delete_config( $self->action_profile );
-    $chado->save_config;
-}
-
-sub ACTION_show_profile {
-    my ($self) = @_;
-    $self->check_and_setup;
-    my $config
-        = $self->args('config_file')
-        ? $self->args('config_file')
-        : $self->dbconfig;
-    my $chado = Test::Chado->new( config => $config );
-    my $profile = $chado->get_value( $self->action_profile );
-    if ( !$profile ) {
-        print "no profile with", $self->action_profile, "\n";
-        return;
-    }
-    print "\tdsn: ",    $profile->{dsn},    "\n";
-    print "\tloader: ", $profile->{loader}, "\n";
-    print "\tuser: ",   $profile->{user},   "\n"
-        if defined $profile->{user};
-    print "\tpassword ", $profile->{password}, "\n"
-        if defined $profile->{password};
 }
 
 1;    # Magic true value required at end of module

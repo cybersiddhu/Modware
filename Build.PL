@@ -3,6 +3,7 @@ use strict;
 use inc::latest 'Module::Build';
 use File::Spec::Functions;
 use FindBin qw/$Bin/;
+use File::Spec::Functions;
 use lib 'lib/';
 use lib 't/lib/';
 use Modware::Build;
@@ -51,11 +52,12 @@ my $build = Modware::Build->new(
         test_debug    => { type    => '!', default => 0 },
         db_config     => { default => $db_config, type => ':s' },
         file_config   => { default => $file_config, type => ':s' },
+        append_path   => { default => catfile('t', 'data',  'original'), type => ':s' },
         default => {},
     }
 );
 
-#$build->config_data( 'base_dir' => $build->base_dir );
+$build->config_data( 'best' => 'custom' );
 $build->create_build_script;
 
 1;
