@@ -20,9 +20,6 @@ my $build = Modware::Build->new(
     requires => {
         'Try::Tiny'                   => '0.03',
         'Bio::Chado::Schema'          => '0.05800',
-        'Log::Log4perl'               => '1.21',
-        'YAML'                        => '0.70',
-        'local::lib'                  => '1.004008',
         'Bio::Root::Version'          => '1.0050021',
         'Module::Load::Conditional'   => '',
         'MooseX::Singleton'           => '0.22',
@@ -32,8 +29,12 @@ my $build = Modware::Build->new(
         'Path::Class'                 => '0.18',
         'aliased'                     => '0.30',
         'File::Path'                  => '2.08',
-        'Test::Most'                  => '0.22',
         'MooseX::Role::Parameterized' => '0.19'
+    },
+    build_requires => {
+        'Test::Most'            => '0.22',
+        'DBIx::Class::Fixtures' => '1.001010',
+        'YAML'                  => '0.70',
     },
     add_to_cleanup => ['Modware-*'],
     get_options    => {
@@ -52,12 +53,13 @@ my $build = Modware::Build->new(
         test_debug    => { type    => '!', default => 0 },
         db_config     => { default => $db_config, type => ':s' },
         file_config   => { default => $file_config, type => ':s' },
-        append_path   => { default => catfile('t', 'data',  'original'), type => ':s' },
+        append_path =>
+            { default => catfile( 't', 'data', 'original' ), type => ':s' },
         default => {},
     }
 );
 
-$build->config_data( 'best' => 'custom' );
+$build->config_data( 'config' => 'custom' );
 $build->create_build_script;
 
 1;
