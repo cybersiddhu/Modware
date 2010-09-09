@@ -276,92 +276,79 @@ $build->create_build_script;
 
 ./Build drop_schema;
 
-#Setup with a profile 
-
- perl Build.PL --profile myprofile --dsn "dbi:Oracle:sid=mysid" --user user --password mypass --default;
-
- ./Build list_profiles;
-
- ./Build show_profile; 
-
- ./Build deploy_schema;
-
- ./Build load_fixture;
-
- ./Build drop_schema;
-
- ./Build add_profile --name mymod --dsn "dbi:Pg:database=mygmod" --user myuser --password mypassword;
-
- ./Build deploy_schema --name mygmod;
-
-
- #setup with custom config file and profiles
- 
- perl Build.PL --config_file "~/.myconfig.yaml" --profile myprofile --default;
-
-
-=for author to fill in:
-Brief code example(s) here showing commonest usage(s).
-This section will be as far as many users bother reading
-so make it as educational and exeplary as possible.
-
 
 =head1 DESCRIPTION
 
-=for author to fill in:
-Write a full description of the module and its features here.
-Use subsections (=head2, =head3) as appropriate.
+It is a L<Module::Build> subclass which provides and overrides some default action to load
+predefined text fixtures to a test chado instances. At this point it is designed to work
+with testing setup of L<Modware> distribution.
+
+=head2 How it works
+
+By default,  just an B<./Build test> is sufficient. It deploys a sqlite instance of
+chado database,  load the text fixture,  run the tests and drop it afterwards.
+
+=head3 Test data
+
+There are two forms of identical test dataset that could be loaded. One is the preset
+fixtures created by B<DBIx::Class::Fixtures> and the other is the original data files. The
+fixtures are actually created by loading those data files in the database and then dumping
+them in the prescribed format by B<DBIx::Class::Fixtures>. Default is to load from the
+preset fixtures.
+
+=head3 Test dataset location
+
+
+=head3 Test database target
+
+The default is sqlite,  however other RDBMS Oracle,  MySQL and PostgreSQL are also tested
+and could be used for testing. They can be specified in the command line in any of the
+B<Build> target. In that case three options are mandatory ....
+
+=over
+
+=item * dsn
+
+=item * user
+
+=item * password
+
+=back
+
+Do make sure the credentials should have enough privileges to create and drop the
+test database from the specified target.
 
 
 =head1 INTERFACE 
 
-=for author to fill in:
-Write a separate section listing the public components of the modules
-interface. These normally consist of either subroutines that may be
-exported, or methods that may be called on objects belonging to the
-classes provided by the module.
-
-=head2 <METHOD NAME>
+=head2 ACTION_test
 
 =over
 
-=item B<Use:> <Usage>
+=item B<Use:> ./Build test
 
-[Detail text here]
+=item B<Functions:> Runs the tests. Overall,  it deploys a test database,  loads the test
+fixture,  runs the test on it and then wipe out the database.
 
-=item B<Functions:> [What id does]
+It implies the following sequential Build action before the tests are run....
 
-[Details if neccessary]
+=over
 
-=item B<Return:> [Return type of value]
+=item create
 
-[Details]
+=item deploy
 
-=item B<Args:> [Arguments passed]
-
-[Details]
+=item load_fixture
 
 =back
 
-=head2 <METHOD NAME>
+After the tests were run,  it executes the B<drop> action.
 
-=over
+=item B<Args:> 
 
-=item B<Use:> <Usage>
+Look at L<Test database target> section. 
 
-[Detail text here]
-
-=item B<Functions:> [What id does]
-
-[Details if neccessary]
-
-=item B<Return:> [Return type of value]
-
-[Details]
-
-=item B<Args:> [Arguments passed]
-
-[Details]
+B<--test_debug>: Prints completion of various Build action. 
 
 =back
 
@@ -374,21 +361,6 @@ generate (even the ones that will "never happen"), with a full
 explanation of each problem, one or more likely causes, and any
 suggested remedies.
 
-=over
-
-=item C<< Error message here, perhaps with %s placeholders >>
-
-[Description of error here]
-
-=item C<< Another error message here >>
-
-[Description of error here]
-
-[Et cetera, et cetera]
-
-=back
-
-
 =head1 CONFIGURATION AND ENVIRONMENT
 
 =for author to fill in:
@@ -398,35 +370,10 @@ files, and the meaning of any environment variables or properties
 that can be set. These descriptions must also include details of any
 configuration language used.
 
-<MODULE NAME> requires no configuration files or environment variables.
 
-
-=head1 DEPENDENCIES
+=head1 BUGS AND LIMITATIONS
 
 =for author to fill in:
-A list of all the other modules that this module relies upon,
-  including any restrictions on versions, and an indication whether
-  the module is part of the standard Perl distribution, part of the
-  module's distribution, or must be installed separately. ]
-
-  None.
-
-
-  =head1 INCOMPATIBILITIES
-
-  =for author to fill in:
-  A list of any modules that this module cannot be used in conjunction
-  with. This may be due to name conflicts in the interface, or
-  competition for system or program resources, or due to internal
-  limitations of Perl (for example, many modules that use source code
-		  filters are mutually incompatible).
-
-  None reported.
-
-
-  =head1 BUGS AND LIMITATIONS
-
-  =for author to fill in:
   A list of known problems with the module, together with some
   indication Whether they are likely to be fixed in an upcoming
   release. Also a list of restrictions on the features the module
@@ -435,40 +382,29 @@ A list of all the other modules that this module relies upon,
   limitations on the size of data sets, special cases that are not
   (yet) handled, etc.
 
-  No bugs have been reported.Please report any bugs or feature requests to
-  dictybase@northwestern.edu
+No bugs have been reported.Please report any bugs or feature requests to
+dictybase@northwestern.edu
+
+
+=head1 TODO
+
+=over
+
+=item *
+
+Allow to setup a profile for multiple test databases.
 
 
 
-  =head1 TODO
+=head1 LICENCE AND COPYRIGHT
 
-  =over
-
-  =item *
-
-  [Write stuff here]
-
-  =item *
-
-  [Write stuff here]
-
-  =back
-
-
-  =head1 AUTHOR
-
-  I<Siddhartha Basu>  B<siddhartha-basu@northwestern.edu>
-
-
-  =head1 LICENCE AND COPYRIGHT
-
-  Copyright (c) B<2003>, Siddhartha Basu C<<siddhartha-basu@northwestern.edu>>. All rights reserved.
+ Copyright (c) B<2003>, Siddhartha Basu C<<siddhartha-basu@northwestern.edu>>. All rights reserved.
 
   This module is free software; you can redistribute it and/or
   modify it under the same terms as Perl itself. See L<perlartistic>.
 
 
-  =head1 DISCLAIMER OF WARRANTY
+=head1 DISCLAIMER OF WARRANTY
 
   BECAUSE THIS SOFTWARE IS LICENSED FREE OF CHARGE, THERE IS NO WARRANTY
   FOR THE SOFTWARE, TO THE EXTENT PERMITTED BY APPLICABLE LAW. EXCEPT WHEN
