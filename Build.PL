@@ -37,6 +37,7 @@ my $build = Modware::Build->new(
         'Test::Most'            => '0.22',
         'DBIx::Class::Fixtures' => '1.001010',
         'YAML'                  => '0.70',
+        'Archive::Tar'          => '1.66'
     },
     add_to_cleanup => ['Modware-*'],
     get_options    => {
@@ -63,7 +64,8 @@ my $build = Modware::Build->new(
     }
 );
 
-$build->args('ddl_dir',  catdir($build->base_dir,  't',  'data',  'ddl'));
+$build->args( 'ddl_dir', catdir( $build->base_dir, 't', 'data', 'ddl' ) );
+$build->args( 'preset_file', catdir( $build->base_dir, 't', 'data', 'preset.tar.gz' ) );
 $build->config_data( 'config' => 'custom' );
 $build->create_build_script;
 

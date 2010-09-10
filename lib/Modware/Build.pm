@@ -5,10 +5,13 @@ use Test::Chado;
 use File::Spec::Functions;
 use Module::Load;
 use Data::Dumper;
+use Archive::Tar;
 use File::Path qw/make_path remove_tree/;
+use File::Basename;
 
 __PACKAGE__->add_property('chado');
 __PACKAGE__->add_property('handler');
+__PACKAGE__->add_property('tar' => Archive::Tar->new);
 
 my @feature_list = qw/setup_done is_db_created is_schema_loaded
     is_fixture_loaded/;
@@ -140,6 +143,11 @@ sub ACTION_load_fixture {
     my ($self) = @_;
     if ( $self->args('preset') ) {
         $self->depends_on('setup');
+        my $dir = dirname($self->args('preset_file'));
+        $self->tar->read($self->args('preset_file'));
+        chdir $dir;
+        $self->tar->extract;
+        chdir $self->base_dir;
         $self->handler->load_fixture;
         $self->feature( 'is_fixture_loaded' => 1 );
         print "loaded fixture\n" if $self->args('test_debug');
