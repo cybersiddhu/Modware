@@ -1,7 +1,5 @@
 package Modware::Collection::Iterator::BCS::ResultSet;
 
-use version; our $VERSION = qv('1.0.0');
-
 # Other modules:
 use Moose;
 
@@ -9,8 +7,9 @@ use Moose;
 #
 
 has 'collection' => (
-    is  => 'rw',
-    isa => 'DBIx::Class::ResultSet'
+    is        => 'rw',
+    isa       => 'DBIx::Class::ResultSet',
+    predicate => 'has_collection'
 );
 
 has 'count' => (
@@ -23,10 +22,30 @@ has 'count' => (
     }
 );
 
-has [qw/data_access_class search_class/] => (
-    is => 'rw',
-    isa => 'Str'
+before 'count' => sub {
+    my $self = shift;
+    confess "no collection is defined for counting\n"
+        if !$self->has_collection;
+};
+
+
+has 'data_access_class' => (
+    is        => 'rw',
+    isa       => 'Str',
+    predicate => 'has_data_access_class'
 );
+
+has 'search_class' => (
+    is        => 'rw',
+    isa       => 'Str',
+    predicate => 'has_search_class'
+);
+
+before 'next' => sub {
+	my $self = shift;
+    confess "data access class name is not set\n"
+        if !$self->has_data_access_class;
+};
 
 sub next {
     my ($self) = @_;
@@ -36,11 +55,15 @@ sub next {
 
 }
 
-sub search {
-	my ($self, %arg) = @_;
-	$self->search_class->search(%arg);
-}
+before 'find' => sub {
+	my $self = shift;
+    confess "search class name is not set\n" if !$self->has_search_class;
+};
 
+sub find {
+    my ( $self, %arg ) = @_;
+    $self->search_class->find(%arg);
+}
 
 1;    # Magic true value required at end of module
 
@@ -48,22 +71,24 @@ __END__
 
 =head1 NAME
 
-<MODULE NAME> - [One line description of module's purpose here]
-
-
-=head1 VERSION
-
-This document describes <MODULE NAME> version 0.0.1
+B<Modware::Collection::Iterator::BCS::ResultSet> - [Generic iterator module for search
+resultset using BCS]
 
 
 =head1 SYNOPSIS
 
-use <MODULE NAME>;
+ use aliased 'Modware::Collection::Iterator::BCS::ResultSet';
 
-=for author to fill in:
-Brief code example(s) here showing commonest usage(s).
-This section will be as far as many users bother reading
-so make it as educational and exeplary as possible.
+ #get a BCS resultset somehow
+
+ my $rs = ....
+
+ my $itr = ResultSet->new(
+        collection        => $rs,
+        data_access_class => $class->data_class,
+        search_class      => $class
+  );
+
 
 
 =head1 DESCRIPTION

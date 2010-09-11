@@ -6,16 +6,24 @@ use version; our $VERSION = qv('1.0.0');
 use Moose;
 use MooseX::ClassAttribute;
 use Module::Load;
-use Data::Dumper;
 use namespace::autoclean;
 use aliased 'Modware::Collection::Iterator::BCS::ResultSet';
 extends 'Modware::Chado::Query::BCS';
 
 # Module implementation
 #
-
-class_has '+allowed_params' =>
-    ( default => sub { [qw/author journal title year/] } );
+class_has '+params_map' => (
+    default => sub {
+        {   author =>
+                [ map { 'pubauthors.' . $_ } qw/givennames surname suffix/ ],
+            journal   => 'series_name',
+            title     => 'title',
+            year      => 'pyear',
+            pubmed_id => 'uniquename',
+            id        => 'pub_id'
+        };
+    },
+);
 
 class_has '+data_class' =>
     ( default => 'Modware::Publication::JournalArticle' );
@@ -28,22 +36,20 @@ sub find {
     my ( $nested, $where, $query, $attrs );
     my $options = {};
 
-    for my $param ( @{ $class->allowed_params } ) {
+PARAM:
+    for my $param ( $class->allowed_params ) {
         next if not defined $arg{$param};
         if ( $param eq 'author' ) {
-            my $author_attr;
-            $author_attr->{'pubauthors.givennames'} = $arg{$param};
-            $author_attr->{'pubauthors.surname'}    = $arg{$param};
-            $author_attr->{'pubauthors.suffix'}     = $arg{$param};
+            my $author_attr = { map { $_ => $arg{$param} }
+                    @{ $class->get_value($param) } };
             $nested = $class->rearrange_nested_query( $author_attr, 'or',
                 $match_type );
             $options->{join}     = 'pubauthors';
             $options->{cache}    = 1;
             $options->{prefetch} = 'pubauthors';
+            next PARAM;
         }
-        $attrs->{series_name} = $arg{$param} if $param eq 'journal';
-        $attrs->{pyear}       = $arg{$param} if $param eq 'year';
-        $attrs->{$param}      = $arg{$param} if $param eq 'title';
+        $attrs->{ $class->get_value($param) } = $arg{$param};
     }
     $where = $class->rearrange_query( $attrs, $clause, $match_type );
     if ( $nested and $where ) {
@@ -78,11 +84,6 @@ __END__
 =head1 NAME
 
 <MODULE NAME> - [One line description of module's purpose here]
-
-
-=head1 VERSION
-
-This document describes <MODULE NAME> version 0.0.1
 
 
 =head1 SYNOPSIS

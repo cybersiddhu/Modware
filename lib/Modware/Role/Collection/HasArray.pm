@@ -1,9 +1,8 @@
 package Modware::Role::Collection::HasArray;
 
-use version; our $VERSION = qv('0.1');
-
 # Other modules:
 use MooseX::Role::Parameterized;
+use namespace::autoclean;
 
 # Module implementation
 #
