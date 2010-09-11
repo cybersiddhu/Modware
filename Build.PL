@@ -21,9 +21,9 @@ my $build = Modware::Build->new(
         'A GMOD L<http://gmod.org> middleware toolkit for Chado L<http://gmod.org/wiki/Chado> relational database.',
     requires => {
         'Try::Tiny'                   => '0.03',
-        'Bio::Chado::Schema'          => '0.05800',
+        'Bio::Chado::Schema'          => '>= 0.05703,  <= 0.05801',
         'Bio::Root::Version'          => '1.0050021',
-        'Module::Load::Conditional'   => '',
+        'Module::Load::Conditional'   => '0.38',
         'MooseX::Singleton'           => '0.22',
         'MooseX::Params::Validate'    => '0.14',
         'MooseX::Aliases'             => '0.08',
@@ -66,6 +66,7 @@ my $build = Modware::Build->new(
 
 $build->args( 'ddl_dir', catdir( $build->base_dir, 't', 'data', 'ddl' ) );
 $build->args( 'preset_file', catdir( $build->base_dir, 't', 'data', 'preset.tar.gz' ) );
+$build->args( 'tmp_dir', catdir( 't', 'tmp' ) );
 $build->config_data( 'config' => 'custom' );
 $build->create_build_script;
 

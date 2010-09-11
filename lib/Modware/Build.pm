@@ -11,7 +11,7 @@ use File::Basename;
 
 __PACKAGE__->add_property('chado');
 __PACKAGE__->add_property('handler');
-__PACKAGE__->add_property('tar' => Archive::Tar->new);
+__PACKAGE__->add_property( 'tar' => Archive::Tar->new );
 
 my @feature_list = qw/setup_done is_db_created is_schema_loaded
     is_fixture_loaded/;
@@ -58,10 +58,16 @@ sub check_and_setup {
     $self->action_profile($name) if $name;
 }
 
-sub common_setup {
+sub ACTION_create_tmp {
     my ($self) = @_;
-    my $path = catdir( $self->base_dir, 't', 'tmp' );
+    my $path = $self->args('tmp_dir');
     make_path($path) if !-e $path;
+}
+
+sub ACTION_cleanup_tmp {
+    my $self = shift;
+    my $path = $self->args('tmp_dir');
+    remove_tree( $path ) if -e $path;
 }
 
 sub ACTION_setup {
@@ -72,7 +78,7 @@ sub ACTION_setup {
         return;
     }
     print "running setup\n" if $self->args('test_debug');
-    $self->common_setup;
+    $self->depends_on('create_tmp');
     $self->db_handler;
     $self->feature( 'setup_done' => 1 );
     print "done with setup\n" if $self->args('test_debug');
@@ -143,9 +149,8 @@ sub ACTION_load_fixture {
     my ($self) = @_;
     if ( $self->args('preset') ) {
         $self->depends_on('setup');
-        my $dir = dirname($self->args('preset_file'));
-        $self->tar->read($self->args('preset_file'));
-        chdir $dir;
+        $self->tar->read( $self->args('preset_file') );
+        chdir $self->args('tmp_dir');
         $self->tar->extract;
         chdir $self->base_dir;
         $self->handler->load_fixture;
@@ -168,21 +173,18 @@ sub ACTION_load_fixture {
 
 sub ACTION_unload_rel {
     my ($self) = @_;
-    $self->common_setup;
     $self->db_handler;
     $self->handler->unload_rel;
 }
 
 sub ACTION_unload_pub {
     my ($self) = @_;
-    $self->common_setup;
     $self->db_handler;
     $self->handler->unload_pub;
 }
 
 sub ACTION_unload_so {
     my ($self) = @_;
-    $self->common_setup;
     $self->db_handler;
     $self->handler->unload_so;
 }
@@ -227,13 +229,11 @@ sub ACTION_test {
 
     $self->SUPER::ACTION_test(@_);
     $self->depends_on('drop') if $self->args('drop');
-    my $dir = catdir( 't', 'tmp' );
-    remove_tree($dir) if -e $dir;
+    $self->depends_on('cleanup_tmp');
 }
 
 sub ACTION_unload_organism {
     my ($self) = @_;
-    $self->common_setup;
     $self->db_handler;
     $self->handler->unload_organism;
 }
