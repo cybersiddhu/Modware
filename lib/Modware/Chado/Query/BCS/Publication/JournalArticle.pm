@@ -16,10 +16,10 @@ class_has '+params_map' => (
     default => sub {
         {   author =>
                 [ map { 'pubauthors.' . $_ } qw/givennames surname suffix/ ],
-            journal   => 'series_name',
-            title     => 'title',
-            year      => 'pyear',
-            id        => 'pub_id'
+            journal => 'series_name',
+            title   => 'title',
+            year    => 'pyear',
+            id      => 'pub_id'
         };
     },
 );
@@ -27,7 +27,9 @@ class_has '+params_map' => (
 class_has '+data_class' =>
     ( default => 'Modware::Publication::JournalArticle' );
 
-sub find {
+class_has '+resultset_name' => ( default => 'Pub::Pub' );
+
+sub where {
     my ( $class, %arg ) = @_;
     my $clause = $arg{cond}->{clause} ? lc $arg{cond}->{clause} : 'and';
     my $match_type = $arg{cond}->{match} ? lc $arg{cond}->{match} : 'partial';

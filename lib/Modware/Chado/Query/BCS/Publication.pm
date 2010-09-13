@@ -12,17 +12,9 @@ extends 'Modware::Chado::Query::BCS';
 #
 
 #this should be defined for the find method to work
-class_has 'resultset_name' => (
-    is        => 'ro',
-    isa       => 'Str',
-    default   => 'Pub::Pub',
-    predicate => 'has_resultset_name'
-);
+class_has '+resultset_name' => ( default => 'Pub::Pub', );
 
-class_has 'params_map' => (
-    is      => 'rw',
-    isa     => 'HashRef',
-    traits  => [qw/Hash/],
+class_has '+params_map' => (
     default => sub {
         {   author =>
                 [ map { 'pubauthors.' . $_ } qw/givennames surname suffix/ ],
@@ -31,15 +23,9 @@ class_has 'params_map' => (
             year    => 'pyear',
         };
     },
-    lazy    => 1,
-    handles => {
-        allowed_params => 'keys',
-        get_value      => 'get'
-    }
 );
 
-class_has 'data_class' =>
-    ( is => 'rw', isa => 'Str', default => 'Modware::Publication' );
+class_has '+data_class' => ( default => 'Modware::Publication' );
 
 sub where {
     my ( $class, %arg ) = @_;

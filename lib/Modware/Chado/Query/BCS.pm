@@ -32,6 +32,24 @@ class_has 'source' => (
     predicate => 'has_source'
 );
 
+class_has 'params_map' => (
+    is      => 'rw',
+    isa     => 'HashRef',
+    traits  => [qw/Hash/],
+    lazy    => 1,
+    default => sub { {} }
+);
+
+class_has 'data_class' => (
+    is  => 'rw',
+    isa => 'Str'
+);
+
+class_has 'resultset_name' => (
+    is        => 'rw',
+    isa       => 'Str',
+    predicate => 'has_resultset_name'
+);
 
 sub rearrange_nested_query {
     my ( $class, $attrs, $clause, $match_type ) = @_;
