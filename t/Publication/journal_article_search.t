@@ -22,6 +22,7 @@ my $pub_itr = $Pub->find( journal => 'Text' );
 isa_ok( $pub_itr, 'Modware::Collection::Iterator::BCS::ResultSet' );
 is( $pub_itr->count, 3,
     'has journal articles with partial match in journal name' );
+is($Pub->count(journal => 'Text'),  3,  'has journal articles from direct counting');
 
 $pub_itr = $Pub->find(
     journal => 'Text7',

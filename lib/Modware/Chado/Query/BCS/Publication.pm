@@ -13,7 +13,7 @@ extends 'Modware::Chado::Query::BCS';
 class_has '+params_map' => (
     default => sub {
         {   author =>
-                [ map { 'pubauthor' . $_ } qw/givennames surname suffix/ ],
+                [ map { 'pubauthors.' . $_ } qw/givennames surname suffix/ ],
             journal   => 'series_name',
             title     => 'title',
             year      => 'pyear',
@@ -33,7 +33,8 @@ sub find {
     my ( $nested, $where, $query, $attrs );
     my $options = {};
 
-    for my $param ( @{ $class->allowed_params } ) {
+PARAM:
+    for my $param ( $class->allowed_params ) {
         next if not defined $arg{$param};
         if ( $param eq 'author' ) {
             my $author_attr = { map { $_ => $arg{$param} }
@@ -43,6 +44,7 @@ sub find {
             $options->{join}     = 'pubauthors';
             $options->{cache}    = 1;
             $options->{prefetch} = 'pubauthors';
+            next PARAM;
         }
         $attrs->{ $class->get_value($param) } = $arg{$param};
     }

@@ -19,7 +19,6 @@ class_has '+params_map' => (
             journal   => 'series_name',
             title     => 'title',
             year      => 'pyear',
-            pubmed_id => 'uniquename',
             id        => 'pub_id'
         };
     },

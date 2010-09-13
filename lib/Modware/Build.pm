@@ -246,7 +246,7 @@ sub ACTION_drop {
     #cleanup all the setup values if any
     for my $name (@feature_list) {
         print "cleaning $name\n" if $self->args('test_debug');
-        $self->feature( $name => 0 ) if $self->args($name);
+        $self->feature( $name => 0 );
     }
     print "dropped the database\n" if $self->args('test_debug');
 }

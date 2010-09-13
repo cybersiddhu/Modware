@@ -1,0 +1,641 @@
+<?xml version="1.0"?>
+<!DOCTYPE PubmedArticleSet PUBLIC "-//NLM//DTD PubMedArticle, 1st January 2010//EN" "http://www.ncbi.nlm.nih.gov/corehtml/query/DTD/pubmed_100301.dtd">
+<PubmedArticleSet>
+<PubmedArticle>
+    <MedlineCitation Owner="NLM" Status="Publisher">
+        <PMID>20830463</PMID>
+        <DateCreated>
+            <Year>2010</Year>
+            <Month>9</Month>
+            <Day>10</Day>
+        </DateCreated>
+        <Article PubModel="Print-Electronic">
+            <Journal>
+                <ISSN IssnType="Electronic">1432-1440</ISSN>
+                <JournalIssue CitedMedium="Internet">
+                    <PubDate>
+                        <Year>2010</Year>
+                        <Month>Sep</Month>
+                        <Day>10</Day>
+                    </PubDate>
+                </JournalIssue>
+                <Title>Journal of molecular medicine (Berlin, Germany)</Title>
+            </Journal>
+            <ArticleTitle>Anticancer efficacy of 5F in NNK-induced lung cancer development of A/J mice and human lung cancer cells.</ArticleTitle>
+            <Pagination>
+                <MedlinePgn/>
+            </Pagination>
+            <Abstract>
+                <AbstractText>The mechanism responsible for the apoptotic effect induced by ent-11α-hydroxy-15-oxo-kaur-16-en-19-oic-acid (5F) is not fully understood and its in vivo effect has not been tested. In this study, the effect and mechanism of 5F was investigated in cigarette smoking carcinogen 4-methylnitrosamino-1-3-pyridyl-butanone (NNK)-induced mouse lung tumor model and in cultured lung cancer cells NCI-H23 and CRL-2066. 5F were given to mice after they were treated with NNK for 18 weeks. The effect of 5F on the lung tumor formation was examined, and its side effect was monitored. Cell proliferation and apoptosis were determined through expression of PCNA, Bcl-2, Bax, and TUNEL assay in in vivo animal model. 5F significantly inhibited the NNK-induced lung tumors by inducing apoptosis and suppressing cell proliferation in vivo with minimal side effects. Cell culture experiments showed that 5F translocated Bax into the mitochondria, downregulated Bcl-2, activated caspase-9 and caspase-3, released cytochrome c into the cytosol, and translocated AIF from the mitochondria to the nucleus, which leading to G2-M cell cycle arrest and cell apoptosis. 5F also activated ERK1/2 and the inhibition of ERK1/2 suppressed 5F-mediated changes in apoptotic molecules. In addition to ERK1/2, 5F activated Akt. The inhibition of Akt further facilitated the apoptosis induced, suggesting that Akt activation was anti-apoptotic rather than pro-apoptotic. Collectively, 5F is effective against lung cancer in vivo with minimal side effects. It induces apoptosis in lung cancer through the mitochondrial-mediated pathway, in which the activation of ERK is critical.</AbstractText>
+            </Abstract>
+            <Affiliation>Department of Surgery, The Chinese University of Hong Kong, Prince of Wales Hospital, Shatin, New Territories, Hong Kong.</Affiliation>
+            <AuthorList>
+                <Author>
+                    <LastName>Li</LastName>
+                    <ForeName>Ming-Yue</ForeName>
+                    <Initials>MY</Initials>
+                </Author>
+                <Author>
+                    <LastName>Leung</LastName>
+                    <ForeName>Jackie</ForeName>
+                    <Initials>J</Initials>
+                </Author>
+                <Author>
+                    <LastName>Kong</LastName>
+                    <ForeName>Angel W Y</ForeName>
+                    <Initials>AW</Initials>
+                </Author>
+                <Author>
+                    <LastName>Liang</LastName>
+                    <ForeName>Nian Ci</ForeName>
+                    <Initials>NC</Initials>
+                </Author>
+                <Author>
+                    <LastName>Wu</LastName>
+                    <ForeName>Kefeng</ForeName>
+                    <Initials>K</Initials>
+                </Author>
+                <Author>
+                    <LastName>Hsin</LastName>
+                    <ForeName>Michael K Y</ForeName>
+                    <Initials>MK</Initials>
+                </Author>
+                <Author>
+                    <LastName>Deng</LastName>
+                    <ForeName>Yi Feng</ForeName>
+                    <Initials>YF</Initials>
+                </Author>
+                <Author>
+                    <LastName>Gong</LastName>
+                    <ForeName>Xianling</ForeName>
+                    <Initials>X</Initials>
+                </Author>
+                <Author>
+                    <LastName>Lv</LastName>
+                    <ForeName>Yingnian</ForeName>
+                    <Initials>Y</Initials>
+                </Author>
+                <Author>
+                    <LastName>Mok</LastName>
+                    <ForeName>Tony S K</ForeName>
+                    <Initials>TS</Initials>
+                </Author>
+                <Author>
+                    <LastName>Underwood</LastName>
+                    <ForeName>Malcolm J</ForeName>
+                    <Initials>MJ</Initials>
+                </Author>
+                <Author>
+                    <LastName>Chen</LastName>
+                    <ForeName>George G</ForeName>
+                    <Initials>GG</Initials>
+                </Author>
+            </AuthorList>
+            <Language>ENG</Language>
+            <PublicationTypeList>
+                <PublicationType>JOURNAL ARTICLE</PublicationType>
+            </PublicationTypeList>
+            <ArticleDate DateType="Electronic">
+                <Year>2010</Year>
+                <Month>9</Month>
+                <Day>10</Day>
+            </ArticleDate>
+        </Article>
+        <MedlineJournalInfo>
+            <MedlineTA>J Mol Med</MedlineTA>
+            <NlmUniqueID>9504370</NlmUniqueID>
+            <ISSNLinking>0946-2716</ISSNLinking>
+        </MedlineJournalInfo>
+    </MedlineCitation>
+    <PubmedData>
+        <History>
+            <PubMedPubDate PubStatus="received">
+                <Year>2010</Year>
+                <Month>6</Month>
+                <Day>25</Day>
+            </PubMedPubDate>
+            <PubMedPubDate PubStatus="accepted">
+                <Year>2010</Year>
+                <Month>8</Month>
+                <Day>13</Day>
+            </PubMedPubDate>
+            <PubMedPubDate PubStatus="revised">
+                <Year>2010</Year>
+                <Month>7</Month>
+                <Day>29</Day>
+            </PubMedPubDate>
+            <PubMedPubDate PubStatus="aheadofprint">
+                <Year>2010</Year>
+                <Month>9</Month>
+                <Day>10</Day>
+            </PubMedPubDate>
+            <PubMedPubDate PubStatus="entrez">
+                <Year>2010</Year>
+                <Month>9</Month>
+                <Day>11</Day>
+                <Hour>6</Hour>
+                <Minute>0</Minute>
+            </PubMedPubDate>
+            <PubMedPubDate PubStatus="pubmed">
+                <Year>2010</Year>
+                <Month>9</Month>
+                <Day>11</Day>
+                <Hour>6</Hour>
+                <Minute>0</Minute>
+            </PubMedPubDate>
+            <PubMedPubDate PubStatus="medline">
+                <Year>2010</Year>
+                <Month>9</Month>
+                <Day>11</Day>
+                <Hour>6</Hour>
+                <Minute>0</Minute>
+            </PubMedPubDate>
+        </History>
+        <PublicationStatus>aheadofprint</PublicationStatus>
+        <ArticleIdList>
+            <ArticleId IdType="doi">10.1007/s00109-010-0676-4</ArticleId>
+            <ArticleId IdType="pubmed">20830463</ArticleId>
+        </ArticleIdList>
+    </PubmedData>
+</PubmedArticle>
+
+
+<PubmedArticle>
+    <MedlineCitation Owner="NLM" Status="In-Data-Review">
+        <PMID>20830296</PMID>
+        <DateCreated>
+            <Year>2010</Year>
+            <Month>09</Month>
+            <Day>10</Day>
+        </DateCreated>
+        <Article PubModel="Electronic">
+            <Journal>
+                <ISSN IssnType="Electronic">1932-6203</ISSN>
+                <JournalIssue CitedMedium="Internet">
+                    <Volume>5</Volume>
+                    <Issue>9</Issue>
+                    <PubDate>
+                        <Year>2010</Year>
+                    </PubDate>
+                </JournalIssue>
+                <Title>PloS one</Title>
+                <ISOAbbreviation>PLoS ONE</ISOAbbreviation>
+            </Journal>
+            <ArticleTitle>Long-term igf-I exposure decreases autophagy and cell viability.</ArticleTitle>
+            <ELocationID EIdType="pii" ValidYN="Y">e12592</ELocationID>
+            <Abstract>
+                <AbstractText>A reduction in IGF-I signaling has been found to increase lifespan in multiple organisms despite the fact that IGF-I is a trophic factor for many cell types and has been found to have protective effects against multiple forms of damage in acute settings. The increase in longevity seen in response to reduced IGF-I signaling suggests that there may be differences between the acute and chronic impact of IGF-I signaling. We have examined the possibility that long-term stimulation with IGF-I may have a negative impact at the cellular level using quiescent human fibroblasts. We find that fibroblast cells exposed to IGF-I for 14 days have reduced long-term viability as judged by colony forming assays, which is accompanied by an accumulation of senescent cells. In addition we observe an accumulation of cells with depolarized mitochondria and a reduction in autophagy in the long-term IGF-I treated cultures. An examination of mice with reduced IGF-I levels reveals evidence of enhanced autophagy and fibroblast cells derived from these mice have a larger mitochondrial mass relative to controls indicating that changes in mitochondrial turnover occurs in animals with reduced IGF-I. The results indicate that chronic IGF-I stimulation leads to mitochondrial dysfunction and reduced cell viability.</AbstractText>
+            </Abstract>
+            <Affiliation>Department of Pathology, Drexel University College of Medicine, Philadelphia, Pennsylvania, United States of America.</Affiliation>
+            <AuthorList CompleteYN="Y">
+                <Author ValidYN="Y">
+                    <LastName>Bitto</LastName>
+                    <ForeName>Alessandro</ForeName>
+                    <Initials>A</Initials>
+                </Author>
+                <Author ValidYN="Y">
+                    <LastName>Lerner</LastName>
+                    <ForeName>Chad</ForeName>
+                    <Initials>C</Initials>
+                </Author>
+                <Author ValidYN="Y">
+                    <LastName>Torres</LastName>
+                    <ForeName>Claudio</ForeName>
+                    <Initials>C</Initials>
+                </Author>
+                <Author ValidYN="Y">
+                    <LastName>Roell</LastName>
+                    <ForeName>Michaela</ForeName>
+                    <Initials>M</Initials>
+                </Author>
+                <Author ValidYN="Y">
+                    <LastName>Malaguti</LastName>
+                    <ForeName>Marco</ForeName>
+                    <Initials>M</Initials>
+                </Author>
+                <Author ValidYN="Y">
+                    <LastName>Perez</LastName>
+                    <ForeName>Viviana</ForeName>
+                    <Initials>V</Initials>
+                </Author>
+                <Author ValidYN="Y">
+                    <LastName>Lorenzini</LastName>
+                    <ForeName>Antonello</ForeName>
+                    <Initials>A</Initials>
+                </Author>
+                <Author ValidYN="Y">
+                    <LastName>Hrelia</LastName>
+                    <ForeName>Silvana</ForeName>
+                    <Initials>S</Initials>
+                </Author>
+                <Author ValidYN="Y">
+                    <LastName>Ikeno</LastName>
+                    <ForeName>Yuji</ForeName>
+                    <Initials>Y</Initials>
+                </Author>
+                <Author ValidYN="Y">
+                    <LastName>Matzko</LastName>
+                    <ForeName>Michelle Elizabeth</ForeName>
+                    <Initials>ME</Initials>
+                </Author>
+                <Author ValidYN="Y">
+                    <LastName>McCarter</LastName>
+                    <ForeName>Roger</ForeName>
+                    <Initials>R</Initials>
+                </Author>
+                <Author ValidYN="Y">
+                    <LastName>Sell</LastName>
+                    <ForeName>Christian</ForeName>
+                    <Initials>C</Initials>
+                </Author>
+            </AuthorList>
+            <Language>eng</Language>
+            <PublicationTypeList>
+                <PublicationType>Journal Article</PublicationType>
+            </PublicationTypeList>
+            <ArticleDate DateType="Electronic">
+                <Year>2010</Year>
+                <Month>09</Month>
+                <Day>07</Day>
+            </ArticleDate>
+        </Article>
+        <MedlineJournalInfo>
+            <Country>United States</Country>
+            <MedlineTA>PLoS One</MedlineTA>
+            <NlmUniqueID>101285081</NlmUniqueID>
+            <ISSNLinking>1932-6203</ISSNLinking>
+        </MedlineJournalInfo>
+        <CitationSubset>IM</CitationSubset>
+    </MedlineCitation>
+    <PubmedData>
+        <History>
+            <PubMedPubDate PubStatus="received">
+                <Year>2010</Year>
+                <Month>7</Month>
+                <Day>9</Day>
+            </PubMedPubDate>
+            <PubMedPubDate PubStatus="accepted">
+                <Year>2010</Year>
+                <Month>8</Month>
+                <Day>10</Day>
+            </PubMedPubDate>
+            <PubMedPubDate PubStatus="epublish">
+                <Year>2010</Year>
+                <Month>9</Month>
+                <Day>7</Day>
+            </PubMedPubDate>
+            <PubMedPubDate PubStatus="entrez">
+                <Year>2010</Year>
+                <Month>9</Month>
+                <Day>11</Day>
+                <Hour>6</Hour>
+                <Minute>0</Minute>
+            </PubMedPubDate>
+            <PubMedPubDate PubStatus="pubmed">
+                <Year>2010</Year>
+                <Month>9</Month>
+                <Day>11</Day>
+                <Hour>6</Hour>
+                <Minute>0</Minute>
+            </PubMedPubDate>
+            <PubMedPubDate PubStatus="medline">
+                <Year>2010</Year>
+                <Month>9</Month>
+                <Day>11</Day>
+                <Hour>6</Hour>
+                <Minute>0</Minute>
+            </PubMedPubDate>
+        </History>
+        <PublicationStatus>epublish</PublicationStatus>
+        <ArticleIdList>
+            <ArticleId IdType="doi">10.1371/journal.pone.0012592</ArticleId>
+            <ArticleId IdType="pubmed">20830296</ArticleId>
+        </ArticleIdList>
+    </PubmedData>
+</PubmedArticle>
+
+
+<PubmedArticle>
+    <MedlineCitation Owner="NLM" Status="In-Data-Review">
+        <PMID>20830294</PMID>
+        <DateCreated>
+            <Year>2010</Year>
+            <Month>09</Month>
+            <Day>10</Day>
+        </DateCreated>
+        <Article PubModel="Electronic">
+            <Journal>
+                <ISSN IssnType="Electronic">1932-6203</ISSN>
+                <JournalIssue CitedMedium="Internet">
+                    <Volume>5</Volume>
+                    <Issue>9</Issue>
+                    <PubDate>
+                        <Year>2010</Year>
+                    </PubDate>
+                </JournalIssue>
+                <Title>PloS one</Title>
+                <ISOAbbreviation>PLoS ONE</ISOAbbreviation>
+            </Journal>
+            <ArticleTitle>Protective Role of Taurine against Arsenic-Induced Mitochondria-Dependent Hepatic Apoptosis via the Inhibition of PKCδ-JNK Pathway.</ArticleTitle>
+            <ELocationID EIdType="pii" ValidYN="Y">e12602</ELocationID>
+            <Abstract>
+                <AbstractText>BACKGROUND: Oxidative stress-mediated hepatotoxic effect of arsenic (As) is mainly due to the depletion of glutathione (GSH) in liver. Taurine, on the other hand, enhances intracellular production of GSH. Little is known about the mechanism of the beneficial role of taurine in As-induced hepatic pathophysiology. Therefore, in the present study we investigated its beneficial role in As-induced hepatic cell death via mitochondria-mediated pathway. METHODOLOGY/PRINCIPAL FINDINGS: Rats were exposed to NaAsO(2) (2 mg/kg body weight for 6 months) and the hepatic tissue was used for oxidative stress measurements. In addition, the pathophysiologic effect of NaAsO(2) (10 µM) on hepatocytes was evaluated by determining cell viability, mitochondrial membrane potential and ROS generation. As caused mitochondrial injury by increased oxidative stress and reciprocal regulation of Bcl-2, Bcl-xL/Bad, Bax, Bim in association with increased level of Apaf-1, activation of caspase 9/3, cleavage of PARP protein and ultimately led to apoptotic cell death. In addition, As markedly increased JNK and p38 phosphorylation with minimal disturbance of ERK. Pre-exposure of hepatocytes to a JNK inhibitor SP600125 prevented As-induced caspase-3 activation, ROS production and loss in cell viability. Pre-exposure of hepatocytes to a p38 inhibitor SB2035, on the other hand, had practically no effect on these events. Besides, As activated PKCδ and pre-treatment of hepatocytes with its inhibitor, rottlerin, suppressed the activation of JNK indicating that PKCδ is involved in As-induced JNK activation and mitochondrial dependent apoptosis. Oral administration of taurine (50 mg/kg body weight for 2 weeks) both pre and post to NaAsO(2) exposure or incubation of the hepatocytes with taurine (25 mM) were found to be effective in counteracting As-induced oxidative stress and apoptosis. CONCLUSIONS/SIGNIFICANCE: Results indicate that taurine treatment improved As-induced hepatic damages by inhibiting PKCδ-JNK signalling pathways. Therefore taurine supplementation could provide a new approach for the reduction of hepatic complication due to arsenic poisoning.</AbstractText>
+            </Abstract>
+            <Affiliation>Division of Molecular Medicine, Bose Institute, Kolkata, India.</Affiliation>
+            <AuthorList CompleteYN="Y">
+                <Author ValidYN="Y">
+                    <LastName>Das</LastName>
+                    <ForeName>Joydeep</ForeName>
+                    <Initials>J</Initials>
+                </Author>
+                <Author ValidYN="Y">
+                    <LastName>Ghosh</LastName>
+                    <ForeName>Jyotirmoy</ForeName>
+                    <Initials>J</Initials>
+                </Author>
+                <Author ValidYN="Y">
+                    <LastName>Manna</LastName>
+                    <ForeName>Prasenjit</ForeName>
+                    <Initials>P</Initials>
+                </Author>
+                <Author ValidYN="Y">
+                    <LastName>Sil</LastName>
+                    <ForeName>Parames C</ForeName>
+                    <Initials>PC</Initials>
+                </Author>
+            </AuthorList>
+            <Language>eng</Language>
+            <PublicationTypeList>
+                <PublicationType>Journal Article</PublicationType>
+            </PublicationTypeList>
+            <ArticleDate DateType="Electronic">
+                <Year>2010</Year>
+                <Month>09</Month>
+                <Day>07</Day>
+            </ArticleDate>
+        </Article>
+        <MedlineJournalInfo>
+            <Country>United States</Country>
+            <MedlineTA>PLoS One</MedlineTA>
+            <NlmUniqueID>101285081</NlmUniqueID>
+            <ISSNLinking>1932-6203</ISSNLinking>
+        </MedlineJournalInfo>
+        <CitationSubset>IM</CitationSubset>
+    </MedlineCitation>
+    <PubmedData>
+        <History>
+            <PubMedPubDate PubStatus="received">
+                <Year>2010</Year>
+                <Month>6</Month>
+                <Day>9</Day>
+            </PubMedPubDate>
+            <PubMedPubDate PubStatus="accepted">
+                <Year>2010</Year>
+                <Month>8</Month>
+                <Day>6</Day>
+            </PubMedPubDate>
+            <PubMedPubDate PubStatus="epublish">
+                <Year>2010</Year>
+                <Month>9</Month>
+                <Day>7</Day>
+            </PubMedPubDate>
+            <PubMedPubDate PubStatus="entrez">
+                <Year>2010</Year>
+                <Month>9</Month>
+                <Day>11</Day>
+                <Hour>6</Hour>
+                <Minute>0</Minute>
+            </PubMedPubDate>
+            <PubMedPubDate PubStatus="pubmed">
+                <Year>2010</Year>
+                <Month>9</Month>
+                <Day>11</Day>
+                <Hour>6</Hour>
+                <Minute>0</Minute>
+            </PubMedPubDate>
+            <PubMedPubDate PubStatus="medline">
+                <Year>2010</Year>
+                <Month>9</Month>
+                <Day>11</Day>
+                <Hour>6</Hour>
+                <Minute>0</Minute>
+            </PubMedPubDate>
+        </History>
+        <PublicationStatus>epublish</PublicationStatus>
+        <ArticleIdList>
+            <ArticleId IdType="doi">10.1371/journal.pone.0012602</ArticleId>
+            <ArticleId IdType="pubmed">20830294</ArticleId>
+        </ArticleIdList>
+    </PubmedData>
+</PubmedArticle>
+
+
+<PubmedArticle>
+    <MedlineCitation Owner="NLM" Status="In-Data-Review">
+        <PMID>20829642</PMID>
+        <DateCreated>
+            <Year>2010</Year>
+            <Month>09</Month>
+            <Day>10</Day>
+        </DateCreated>
+        <Article PubModel="Print-Electronic">
+            <Journal>
+                <ISSN IssnType="Electronic">1423-0259</ISSN>
+                <JournalIssue CitedMedium="Internet">
+                    <Volume>44</Volume>
+                    <Issue>3</Issue>
+                    <PubDate>
+                        <Year>2010</Year>
+                    </PubDate>
+                </JournalIssue>
+                <Title>Ophthalmic research</Title>
+                <ISOAbbreviation>Ophthalmic Res.</ISOAbbreviation>
+            </Journal>
+            <ArticleTitle>The importance of mitochondria in age-related and inherited eye disorders.</ArticleTitle>
+            <Pagination>
+                <MedlinePgn>179-90</MedlinePgn>
+            </Pagination>
+            <Abstract>
+                <AbstractText>Mitochondria are critical for ocular function as they represent the major source of a cell's supply of energy and play an important role in cell differentiation and survival. Mitochondrial dysfunction can occur as a result of inherited mitochondrial mutations (e.g. Leber's hereditary optic neuropathy and chronic progressive external ophthalmoplegia) or stochastic oxidative damage which leads to cumulative mitochondrial damage and is an important factor in age-related disorders (e.g. age-related macular degeneration, cataract and diabetic retinopathy). Mitochondrial DNA (mtDNA) instability is an important factor in mitochondrial impairment culminating in age-related changes and pathology, and in all regions of the eye mtDNA damage is increased as a consequence of aging and age-related disease. It is now apparent that the mitochondrial genome is a weak link in the defenses of ocular cells since it is susceptible to oxidative damage and it lacks some of the systems that protect the nuclear genome, such as nucleotide excision repair. Accumulation of mitochondrial mutations leads to cellular dysfunction and increased susceptibility to adverse events which contribute to the pathogenesis of numerous sporadic and chronic disorders in the eye.</AbstractText>
+                <CopyrightInformation>Copyright © 2010 S. Karger AG, Basel.</CopyrightInformation>
+            </Abstract>
+            <Affiliation>Department of Molecular and Biomedical Pharmacology, College of Medicine, University of Kentucky, Lexington, Ky., USA.</Affiliation>
+            <AuthorList CompleteYN="Y">
+                <Author ValidYN="Y">
+                    <LastName>Jarrett</LastName>
+                    <ForeName>Stuart G</ForeName>
+                    <Initials>SG</Initials>
+                </Author>
+                <Author ValidYN="Y">
+                    <LastName>Lewin</LastName>
+                    <ForeName>Alfred S</ForeName>
+                    <Initials>AS</Initials>
+                </Author>
+                <Author ValidYN="Y">
+                    <LastName>Boulton</LastName>
+                    <ForeName>Michael E</ForeName>
+                    <Initials>ME</Initials>
+                </Author>
+            </AuthorList>
+            <Language>eng</Language>
+            <PublicationTypeList>
+                <PublicationType>Journal Article</PublicationType>
+            </PublicationTypeList>
+            <ArticleDate DateType="Electronic">
+                <Year>2010</Year>
+                <Month>09</Month>
+                <Day>09</Day>
+            </ArticleDate>
+        </Article>
+        <MedlineJournalInfo>
+            <Country>Switzerland</Country>
+            <MedlineTA>Ophthalmic Res</MedlineTA>
+            <NlmUniqueID>0267442</NlmUniqueID>
+            <ISSNLinking>0030-3747</ISSNLinking>
+        </MedlineJournalInfo>
+        <CitationSubset>IM</CitationSubset>
+    </MedlineCitation>
+    <PubmedData>
+        <History>
+            <PubMedPubDate PubStatus="aheadofprint">
+                <Year>2010</Year>
+                <Month>9</Month>
+                <Day>09</Day>
+            </PubMedPubDate>
+            <PubMedPubDate PubStatus="entrez">
+                <Year>2010</Year>
+                <Month>9</Month>
+                <Day>11</Day>
+                <Hour>6</Hour>
+                <Minute>0</Minute>
+            </PubMedPubDate>
+            <PubMedPubDate PubStatus="pubmed">
+                <Year>2010</Year>
+                <Month>9</Month>
+                <Day>11</Day>
+                <Hour>6</Hour>
+                <Minute>0</Minute>
+            </PubMedPubDate>
+            <PubMedPubDate PubStatus="medline">
+                <Year>2010</Year>
+                <Month>9</Month>
+                <Day>11</Day>
+                <Hour>6</Hour>
+                <Minute>0</Minute>
+            </PubMedPubDate>
+        </History>
+        <PublicationStatus>ppublish</PublicationStatus>
+        <ArticleIdList>
+            <ArticleId IdType="pii">000316480</ArticleId>
+            <ArticleId IdType="doi">10.1159/000316480</ArticleId>
+            <ArticleId IdType="pubmed">20829642</ArticleId>
+        </ArticleIdList>
+    </PubmedData>
+</PubmedArticle>
+
+
+<PubmedArticle>
+    <MedlineCitation Owner="NLM" Status="In-Data-Review">
+        <PMID>20829641</PMID>
+        <DateCreated>
+            <Year>2010</Year>
+            <Month>09</Month>
+            <Day>10</Day>
+        </DateCreated>
+        <Article PubModel="Print-Electronic">
+            <Journal>
+                <ISSN IssnType="Electronic">1423-0259</ISSN>
+                <JournalIssue CitedMedium="Internet">
+                    <Volume>44</Volume>
+                    <Issue>3</Issue>
+                    <PubDate>
+                        <Year>2010</Year>
+                    </PubDate>
+                </JournalIssue>
+                <Title>Ophthalmic research</Title>
+                <ISOAbbreviation>Ophthalmic Res.</ISOAbbreviation>
+            </Journal>
+            <ArticleTitle>Mechanisms of retinal ganglion cell injury in aging and glaucoma.</ArticleTitle>
+            <Pagination>
+                <MedlinePgn>173-8</MedlinePgn>
+            </Pagination>
+            <Abstract>
+                <AbstractText>Aging is the greatest risk factor for glaucoma, implying that intrinsic age-related changes to retinal ganglion cells, their supporting tissue or both make retinal ganglion cells susceptible to injury. Changes to the ocular vasculature, connective tissue of the optic nerve head and mitochondria, which have been documented with advancing age and shown to be exacerbated in glaucoma, may predispose to glaucomatous injury. When considering such age-related changes, it is difficult to separate pathological change from physiological change, and cause from consequence. The insults that predispose aged retinal ganglion cells to injury are likely to be varied and multiple; therefore, it may be more relevant to identify and treat common mechanisms that predispose to retinal ganglion cell failure and/or death. We suggest that mitochondrial dysfunction, as either a cause or consequence of injury, renders retinal ganglion cells sensitive to degeneration. Therapeutic approaches that target mitochondria and promote energy production may provide a general means of protecting aged retinal ganglion cells from degeneration, regardless of the etiology.</AbstractText>
+                <CopyrightInformation>Copyright © 2010 S. Karger AG, Basel.</CopyrightInformation>
+            </Abstract>
+            <Affiliation>Centre for Eye Research Australia, Department of Ophthalmology, University of Melbourne, Royal Victorian Eye and Ear Hospital, East Melbourne, Vic., Australia.</Affiliation>
+            <AuthorList CompleteYN="Y">
+                <Author ValidYN="Y">
+                    <LastName>Chrysostomou</LastName>
+                    <ForeName>Vicki</ForeName>
+                    <Initials>V</Initials>
+                </Author>
+                <Author ValidYN="Y">
+                    <LastName>Trounce</LastName>
+                    <ForeName>Ian A</ForeName>
+                    <Initials>IA</Initials>
+                </Author>
+                <Author ValidYN="Y">
+                    <LastName>Crowston</LastName>
+                    <ForeName>Jonathan G</ForeName>
+                    <Initials>JG</Initials>
+                </Author>
+            </AuthorList>
+            <Language>eng</Language>
+            <PublicationTypeList>
+                <PublicationType>Journal Article</PublicationType>
+            </PublicationTypeList>
+            <ArticleDate DateType="Electronic">
+                <Year>2010</Year>
+                <Month>09</Month>
+                <Day>09</Day>
+            </ArticleDate>
+        </Article>
+        <MedlineJournalInfo>
+            <Country>Switzerland</Country>
+            <MedlineTA>Ophthalmic Res</MedlineTA>
+            <NlmUniqueID>0267442</NlmUniqueID>
+            <ISSNLinking>0030-3747</ISSNLinking>
+        </MedlineJournalInfo>
+        <CitationSubset>IM</CitationSubset>
+    </MedlineCitation>
+    <PubmedData>
+        <History>
+            <PubMedPubDate PubStatus="aheadofprint">
+                <Year>2010</Year>
+                <Month>9</Month>
+                <Day>09</Day>
+            </PubMedPubDate>
+            <PubMedPubDate PubStatus="entrez">
+                <Year>2010</Year>
+                <Month>9</Month>
+                <Day>11</Day>
+                <Hour>6</Hour>
+                <Minute>0</Minute>
+            </PubMedPubDate>
+            <PubMedPubDate PubStatus="pubmed">
+                <Year>2010</Year>
+                <Month>9</Month>
+                <Day>11</Day>
+                <Hour>6</Hour>
+                <Minute>0</Minute>
+            </PubMedPubDate>
+            <PubMedPubDate PubStatus="medline">
+                <Year>2010</Year>
+                <Month>9</Month>
+                <Day>11</Day>
+                <Hour>6</Hour>
+                <Minute>0</Minute>
+            </PubMedPubDate>
+        </History>
+        <PublicationStatus>ppublish</PublicationStatus>
+        <ArticleIdList>
+            <ArticleId IdType="pii">000316478</ArticleId>
+            <ArticleId IdType="doi">10.1159/000316478</ArticleId>
+            <ArticleId IdType="pubmed">20829641</ArticleId>
+        </ArticleIdList>
+    </PubmedData>
+</PubmedArticle>
+
+
+</PubmedArticleSet>

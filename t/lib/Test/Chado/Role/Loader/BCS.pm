@@ -433,10 +433,9 @@ sub load_journal_data {
         -result => 'medline2ref'
     );
 
-
     while ( my $citation = $biblio->next_bibref ) {
         my $count = 1;
-    	my $authors;
+        my $authors;
         for my $person ( @{ $citation->authors } ) {
             push @$authors,
                 {
@@ -485,10 +484,73 @@ sub load_journal_data {
                         }
                     }
                 );
-                $row;
             }
         );
     }
+
+    $file   = $self->data_config->pub->pubmed_file;
+    $source = 'Pubmed';
+    $type   = 'pubmed_journal_article';
+
+    $biblio = Bio::Biblio::IO->new(
+        -file   => $file,
+        -format => 'pubmedxml',
+    );
+
+    while ( my $citation = $biblio->next_bibref ) {
+        my $count = 1;
+        my $authors;
+        for my $person ( @{ $citation->authors } ) {
+            push @$authors,
+                {
+                suffix     => $person->suffix,
+                surname    => $person->lastname,
+                givennames => $person->initials . ' ' . $person->forename,
+                rank       => $count++
+                };
+        }
+        $count = 0;
+
+        $self->schema->txn_do(
+            sub {
+                my $row = $self->schema->resultset('Pub::Pub')->create(
+                    {   uniquename => $citation->pmid,
+                        type_id    => $self->cvterm_id_by_name($type),
+                        pubplace   => $source,
+                        title      => $citation->title,
+                        pyear      => $citation->date,
+                        series_name => $citation->journal->name,
+                        issue       => $citation->issue,
+                        volume      => $citation->volume,
+                        pubauthors  => $authors,
+                        pubprops    => [
+                            {   type_id => $self->cvterm_id_by_name('status'),
+                                value   => $citation->status,
+
+                            },
+                            {   type_id =>
+                                    $self->cvterm_id_by_name('abstract'),
+                                value => $citation->abstract
+                            },
+                            {   type_id => $self->cvterm_id_by_name(
+                                    'journal_abbreviation'),
+                                value => $citation->journal->abbreviation
+                                    || $citation->journal->name
+                            }
+                        ]
+                    }
+                );
+                $row->add_to_pub_dbxrefs(
+                    {   dbxref => {
+                            accession => $citation->journal->issn,
+                            db_id     => $self->lookup_db_id('issn')
+                        }
+                    }
+                );
+            }
+        );
+    }
+
     $self->schema->txn_commit;
 }
 

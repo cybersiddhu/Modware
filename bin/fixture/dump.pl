@@ -21,7 +21,7 @@ GetOptions(
     'p|pass:s'   => \$pass
 );
 
-die "no sqlite file name given\n" if !$dsn;
+die "no dsn given\n" if !$dsn;
 my $config_dir  = $data_dir->subdir('config');
 my $fixture_dir = $data_dir->subdir('preset');
 

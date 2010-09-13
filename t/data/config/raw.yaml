@@ -14,3 +14,5 @@ cv:
 pub:
    journal:
        file: "journal_articles.xml"
+   pubmed:
+       file: "mitopub.xml"
