@@ -3,6 +3,7 @@ package Modware::Publication;
 
 # Other modules:
 use Moose;
+use MooseX::ClassAttribute;
 use namespace::autoclean;
 
 # Module implementation
@@ -16,9 +17,23 @@ with 'Modware::Role::Publication::HasAuthors';
 with 'Modware::Role::HasPublication';
 with 'Modware::Role::Publication::HasJournalArticle';
 with 'Modware::Role::Publication::HasPubmed';
-extends 'Modware::Chado::Query::BCS::Publication';
 
 has '+type' => (default => 'pubmed_journal_article');
+
+class_has 'query_class' => (
+	is => 'rw', 
+	isa => 'Str', 
+	default => 'Modware::Chado::Query::BCS::Publication'
+);
+
+class_has 'query' => (
+    default => sub { $_[0]->query_class },
+    isa => 'Str', 
+    is      => 'rw',
+    lazy => 1, 
+    handles => [qw/find count/]
+);
+
 
 1;    # Magic true value required at end of module
 

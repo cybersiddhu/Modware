@@ -55,14 +55,14 @@ sub next {
 
 }
 
-before 'find' => sub {
+before 'where' => sub {
 	my $self = shift;
     confess "search class name is not set\n" if !$self->has_search_class;
 };
 
-sub find {
+sub where {
     my ( $self, %arg ) = @_;
-    $self->search_class->find(%arg);
+    $self->search_class->where(%arg);
 }
 
 1;    # Magic true value required at end of module

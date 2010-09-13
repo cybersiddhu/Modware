@@ -2,7 +2,7 @@ package Modware::Publication::JournalArticle;
 
 # Other modules:
 use Moose;
-#use MooseX::ClassAttribute;
+use MooseX::ClassAttribute;
 use namespace::autoclean;
 
 # Module implementation
@@ -14,21 +14,22 @@ with 'Modware::Role::Chado::Helper::BCS::Dbxref';
 with 'Modware::Role::Publication::HasAuthors';
 with 'Modware::Role::HasPublication';
 with 'Modware::Role::HasJournalArticle';
-extends 'Modware::Chado::Query::BCS::Publication::JournalArticle';
 
 has '+type' => ( default => 'journal_article' );
 
-#class_has 'query_class' => (
-#	is => 'rw', 
-#	isa => 'Str', 
-#	default => 'Modware::Chado::Query::BCS::Publication::JournalArticle'
-#);
-#class_has 'query' => (
-#    default => sub { $_[0]->query_class },
-#    isa => 'Str', 
-#    is      => 'rw',
-#    handles => [qw/source find count/]
-#);
+class_has 'query_class' => (
+    is      => 'rw',
+    isa     => 'Str',
+    default => 'Modware::Chado::Query::BCS::Publication::JournalArticle'
+);
+
+class_has 'query' => (
+    default => sub { $_[0]->query_class },
+    isa     => 'Str',
+    is      => 'rw',
+    lazy    => 1,
+    handles => [qw/find count/]
+);
 
 __PACKAGE__->meta->make_immutable;
 

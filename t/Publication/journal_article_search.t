@@ -1,6 +1,5 @@
 use Test::Most qw/no_plan die/;
 use aliased 'Modware::DataSource::Chado';
-use aliased 'Modware::ConfigData';
 use Modware::Build;
 
 BEGIN {
@@ -42,7 +41,7 @@ is( $pub_itr->count, 1,
     'has journal article with exact match in title field' );
 
 $pub_itr = $Pub->find( title => '5', );
-is( $pub_itr->count, 2,
+is( $pub_itr->count, 3,
     'has journal articles with partial match in title field' );
 
 $pub_itr = $Pub->find( author => 'Text2', );

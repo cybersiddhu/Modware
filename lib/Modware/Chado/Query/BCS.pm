@@ -3,6 +3,8 @@ package Modware::Chado::Query::BCS;
 # Other modules:
 use Moose;
 use MooseX::ClassAttribute;
+use MooseX::Params::Validate;
+use Module::Load;
 use namespace::autoclean;
 use aliased 'Modware::DataSource::Chado';
 
@@ -30,22 +32,6 @@ class_has 'source' => (
     predicate => 'has_source'
 );
 
-class_has 'params_map' => (
-    is      => 'rw',
-    isa     => 'HashRef',
-    traits  => [qw/Hash/],
-    default => sub { {} },
-    lazy    => 1,
-    handles => {
-        allowed_params => 'keys',
-        get_value      => 'get'
-    }
-);
-
-class_has 'data_class' => (
-    is  => 'rw',
-    isa => 'Str',
-);
 
 sub rearrange_nested_query {
     my ( $class, $attrs, $clause, $match_type ) = @_;
@@ -92,8 +78,24 @@ sub rearrange_query {
 
 sub count {
     my ( $class, %arg ) = @_;
-    $class->find(%arg)->count;
+    $class->where(%arg)->count;
 }
+
+sub find {
+    my $class = shift;
+    my ($id) = pos_validated_list( \@_, { isa => 'Int' } );
+    my $row = $class->chado->resultset( $class->resultset_name )->find($id);
+    if ($row) {
+        load $class->data_class;
+        return $class->data_class->new( dbrow => $row );
+    }
+}
+
+before 'find' => sub {
+    my $class = shift;
+    confess "resultset_name must be defined in your query class\n"
+        if !$class->has_resultset_name;
+};
 
 __PACKAGE__->meta->make_immutable;
 

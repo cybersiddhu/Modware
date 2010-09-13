@@ -4,28 +4,44 @@ package Modware::Chado::Query::BCS::Publication;
 use Moose;
 use MooseX::ClassAttribute;
 use Module::Load;
+use MooseX::Params::Validate;
 use aliased 'Modware::Collection::Iterator::BCS::ResultSet';
 extends 'Modware::Chado::Query::BCS';
 
 # Module implementation
 #
 
-class_has '+params_map' => (
+#this should be defined for the find method to work
+class_has 'resultset_name' => (
+    is        => 'ro',
+    isa       => 'Str',
+    default   => 'Pub::Pub',
+    predicate => 'has_resultset_name'
+);
+
+class_has 'params_map' => (
+    is      => 'rw',
+    isa     => 'HashRef',
+    traits  => [qw/Hash/],
     default => sub {
         {   author =>
                 [ map { 'pubauthors.' . $_ } qw/givennames surname suffix/ ],
-            journal   => 'series_name',
-            title     => 'title',
-            year      => 'pyear',
-            pubmed_id => 'uniquename',
-            id        => 'pub_id'
+            journal => 'series_name',
+            title   => 'title',
+            year    => 'pyear',
         };
     },
+    lazy    => 1,
+    handles => {
+        allowed_params => 'keys',
+        get_value      => 'get'
+    }
 );
 
-class_has '+data_class' => ( default => 'Modware::Publication' );
+class_has 'data_class' =>
+    ( is => 'rw', isa => 'Str', default => 'Modware::Publication' );
 
-sub find {
+sub where {
     my ( $class, %arg ) = @_;
     my $clause = $arg{cond}->{clause} ? lc $arg{cond}->{clause} : 'and';
     my $match_type = $arg{cond}->{match} ? lc $arg{cond}->{match} : 'partial';
@@ -70,6 +86,17 @@ PARAM:
         data_access_class => $class->data_class,
         search_class      => $class
     );
+}
+
+sub find_by_pubmed_id {
+    my $class = shift;
+    my ($id) = pos_validated_list( \@_, { isa => 'Int' } );
+    my $row
+        = $class->chado->resultset('Pub::Pub')->find( { uniquename => $id } );
+    if ($row) {
+        load $class->data_class;
+        return $class->data_class->new( dbrow => $row );
+    }
 }
 
 1;    # Magic true value required at end of module
