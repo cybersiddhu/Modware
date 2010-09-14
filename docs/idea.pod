@@ -8,7 +8,7 @@ ModwareX::DataSource::Chado->connect(
  dsn => '....',  
  user => '....',  
  password => '....'
- );
+);
 
 The above become default repository for fetching/storing the data.
 
@@ -43,7 +43,7 @@ ModwareX::DataSource::Chado->connect(
   source_name => 'beermod'
  );
 
-=head3 Take a bread with software testing
+=head3 Take a break with software testing
 
 =over
 
@@ -96,12 +96,12 @@ B<The following implementations will be left out from the first version>
 
 =head3 Preamble
 
-ModwareX borrowed ideas from datamapper pattern. The adapter represents the datamapper
+Modware borrowed ideas from datamapper pattern. The adapter represents the datamapper
 layer which moves the data between chado and data objects. The data objetcs are decoupled,
 it does not have any knowledge of chado schema. The default adaptor layer is build on
-Bio::Chado::Schema. It is splitted into two groups,  reader and writer. Using Moose,
+Bio::Chado::Schema. It is splitted into two groups,  query and writer. Using Moose,
 these two layers are combined thereby providing a unified layer to end user. Yes,
-ModwareX allows developer to write their own adapter layer. 
+Modware allows developer to write their own adapter layer. 
 
 =head3 Using your own adapter layer
 
@@ -116,21 +116,21 @@ want it for Publication module.Do the following steps ...
 
 =item 
 
-Figure out the interface you have to implement for the adaptor. The default reader and
-writer for Publication module is under ModwareX::Chado::Reader::BCS::Publiction and
+Figure out the interface you have to implement for the adaptor. The default query and
+writer for Publication module is under Modware::Chado::Query::BCS::Publiction and
 ModwareX::Chado::Writer::BCS::Publiction. BCS is the short name of the adaptor. It follows
-the format [Module base namespace]::[Reader|Writer]::[Short adaptor name]::[Data module name]
+the format [Module base namespace]::[Query|Writer]::[Short adaptor name]::[Data module name]
 
 =item 
 
-Implement the interface as Moose::Role for writer and regular perl class for reader. For
-reader the methods are class based.
+Implement the interface as Moose::Role for writer and regular perl class for query. For
+query the methods are class based.
 
 =item
 
-Pass the information to the connector. Now,  assuming you have a reader adapter under
+Pass the information to the connector. Now,  assuming you have a query adapter under
 MyBest::Adapter namespace using DBI for publication data module. You would then keep it under ...
-MyBest::Adapter::Reader::DBI::Publiction. Then you could set it up like this....
+MyBest::Adapter::Query::DBI::Publiction. Then you could set it up like this....
 
 
 Chado->connect(
@@ -163,8 +163,6 @@ where the custom one do not exist.
 =back 
 
 =back
-
-
 
 
 =back

@@ -14,15 +14,15 @@ Chado->connect(
     password => $build->config_data('password')
 );
 
-my $itr = Publication->where( author => 'Ian' );
+my $itr = Publication->search( author => 'Ian' );
 isa_ok( $itr, 'Modware::Collection::Iterator::BCS::ResultSet' );
-is( $itr->count, 3, 'it can where publications with author name' );
+is( $itr->count, 3, 'it can search publications with author name' );
 is( Publication->count( author => 'Ian' ),
-    3, 'it can where no of publications by an author' );
+    3, 'it can search no of publications by an author' );
 is( Publication->count( journal => 'PloS' ),
     2, 'it can count publications by journal name' );
-is( Publication->where( journal => 'Ophthalmic' )->count, 2,
-    'it can where publications by journal name'
+is( Publication->search( journal => 'Ophthalmic' )->count, 2,
+    'it can search publications by journal name'
 );
 
 my $pub = Publication->find_by_pubmed_id(20830294);

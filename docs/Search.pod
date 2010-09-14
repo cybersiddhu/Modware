@@ -1,0 +1,91 @@
+
+=head1 Searching
+
+Modware chado search module provides method to retrieve data object from chado database.
+They expect to have at least two query methods to retrieve the data object(s).
+
+=head2 Retreive multiple objects
+
+Using B<search> method.
+
+=head3 search(%params)
+
+%params : It can be split into two parts,  list of keys that is defined by the search
+%module. The optional <%cond> key that takes and hashref with two defined keys B<clause> and
+B<match>. B<clause> could be either of B<and> or B<or> and match could be B<exact> or
+B<partial>.
+
+=head4 Example
+
+my $itr = Modware::Publication->search(author => 'Me');
+
+  while(my $pub = $itr->next) {
+    ......
+  }
+
+$itr = Modware::Publication->search(author => 'Them', 
+                             journal => 'best',  
+                             cond => {clause => 'OR',  
+                                      match => 'exact' 
+                          });
+
+my @pubs = Modware::Publication->search(title => 'my title');
+
+=head3 count(%params)
+
+Modware::Publication->count(author => 'Me');
+
+Count no of data objects,  parameters are the same as search method.
+
+=head3 Other features
+
+=head4 Chainable search
+
+search(%params)->search(%params)
+
+search(%params)->search(%params)->count
+
+=head4 Other chainable methods (Not implemented)
+
+=over
+
+=item search(%params)->limit(10)
+
+=item search(%params)->offset(10)
+
+=item search(%params)->sort_by('author')
+
+=item search(%params)->first
+
+=item search(%params)->last
+
+=back
+
+=head4 search_all [Not implemented]
+
+=head4 exclude(%params) [Not implemented]
+
+Same params as search method
+
+
+=head3 Note
+
+Of source,  search modules are encouraged to add their own method in addition to this
+basic one.
+
+=head2 Retrieve single object
+
+It is done using B<find> method which argument are passed as an primay_key of the table 
+which is central to search module.
+
+=head3 find($key)
+
+my $pub = Modware::Publication->find(23);
+
+=head3 find_by....
+
+Finder implemented by specific search module,  for example ...
+
+my $pub = Modware::Publication->find_by_pubmed_id($pubmed_id);
+
+

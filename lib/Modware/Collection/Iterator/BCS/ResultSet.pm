@@ -65,6 +65,12 @@ sub where {
     $self->search_class->where(%arg);
 }
 
+sub search {
+    my ( $self, %arg ) = @_;
+    $self->search_class->search(%arg);
+}
+
+
 1;    # Magic true value required at end of module
 
 __END__

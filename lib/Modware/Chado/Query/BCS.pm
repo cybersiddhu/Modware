@@ -37,7 +37,11 @@ class_has 'params_map' => (
     isa     => 'HashRef',
     traits  => [qw/Hash/],
     lazy    => 1,
-    default => sub { {} }
+    default => sub { {} }, 
+    handles => {
+    	allowed_params => 'keys', 
+    	get_value => 'get'
+    }
 );
 
 class_has 'data_class' => (
@@ -96,7 +100,7 @@ sub rearrange_query {
 
 sub count {
     my ( $class, %arg ) = @_;
-    $class->where(%arg)->count;
+    $class->search(%arg)->count;
 }
 
 sub find {
