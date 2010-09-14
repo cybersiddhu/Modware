@@ -10,12 +10,15 @@ Using B<search> method.
 
 =head3 search(%params)
 
+
 %params : It can be split into two parts,  list of keys that is defined by the search
 %module. The optional <%cond> key that takes and hashref with two defined keys B<clause> and
 B<match>. B<clause> could be either of B<and> or B<or> and match could be B<exact> or
 B<partial>.
 
-=head4 Example
+=over
+
+=item B<Example>
 
 my $itr = Modware::Publication->search(author => 'Me');
 
@@ -31,6 +34,8 @@ $itr = Modware::Publication->search(author => 'Them',
 
 my @pubs = Modware::Publication->search(title => 'my title');
 
+=back
+
 =head3 count(%params)
 
 Modware::Publication->count(author => 'Me');
@@ -39,33 +44,48 @@ Count no of data objects,  parameters are the same as search method.
 
 =head3 Other features
 
-=head4 Chainable search
+=over
+
+=item B<Chainable search>
 
 search(%params)->search(%params)
 
 search(%params)->search(%params)->count
 
-=head4 Other chainable methods (Not implemented)
+=item B<Other chainable methods> (Not implemented)
 
 =over
 
-=item search(%params)->limit(10)
+=item 
 
-=item search(%params)->offset(10)
+search(%params)->limit(10)
 
-=item search(%params)->sort_by('author')
+=item 
 
-=item search(%params)->first
+search(%params)->offset(10)
 
-=item search(%params)->last
+=item 
+
+search(%params)->sort_by('author')
+
+=item 
+
+search(%params)->first
+
+=item 
+
+search(%params)->last
 
 =back
 
-=head4 search_all [Not implemented]
+=item B<search_all> [Not implemented]
 
-=head4 exclude(%params) [Not implemented]
+
+=item B<exclude(%params)> [Not implemented]
 
 Same params as search method
+
+=back
 
 
 =head3 Note
