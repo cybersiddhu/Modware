@@ -2823,4 +2823,6 @@ CREATE INDEX elementresult_relationship_idx_type_id ON elementresult_relationshi
 
 CREATE UNIQUE INDEX elementresult_relationship_c1 ON elementresult_relationship (subject_id, object_id, type_id, rank);
 
+PRAGMA foreign_keys = ON;
+
 --COMMIT;

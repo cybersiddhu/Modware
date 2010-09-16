@@ -155,7 +155,7 @@ sub ACTION_load_fixture {
         chdir $self->base_dir;
         $self->handler->load_fixture;
         $self->feature( 'is_fixture_loaded' => 1 );
-        print "loaded fixture\n" if $self->args('test_debug');
+        print "loaded preset fixture\n" if $self->args('test_debug');
     }
     else {
         $self->depends_on('deploy');
@@ -165,6 +165,7 @@ sub ACTION_load_fixture {
             $self->handler->load_so;
             $self->handler->load_pub;
             $self->handler->load_journal_data;
+            $self->handler->load_dicty_keywords;
             $self->feature( 'is_fixture_loaded' => 1 );
             print "loaded fixture\n" if $self->args('test_debug');
         }
@@ -201,6 +202,7 @@ sub ACTION_unload_fixture {
         $self->handler->unload_so;
         $self->handler->unload_pub;
         $self->handler->unload_organism;
+        $self->handler->unload_dicty_keywords;
         $self->feature( 'is_fixture_loaded'   => 0 );
         $self->feature( 'is_fixture_unloaded' => 1 );
     }

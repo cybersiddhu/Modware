@@ -22,7 +22,6 @@ requires 'attr_hash';
 has 'client' => (
     is        => 'rw',
     isa       => 'Maybe[Str]',
-    lazy      => 1,
     predicate => 'has_client',
     default   => sub {
         can_run 'sqlite3';
@@ -90,6 +89,7 @@ has 'connection_info' => (
 sub deploy_schema {
     my $self = shift;
     $self->deploy_by_dbi if !$self->deploy_by_client;
+    $self->dbh; #making sure the pragma is run
 }
 
 sub deploy_by_client {

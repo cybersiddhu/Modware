@@ -3,6 +3,8 @@ package Modware::Publication::JournalArticle;
 # Other modules:
 use Moose;
 use MooseX::ClassAttribute;
+use Modware::Chado::Query::BCS::Publication::JournalArticle;
+use Carp::Always;
 use namespace::autoclean;
 
 # Module implementation
@@ -13,7 +15,7 @@ with 'Modware::Role::Chado::Helper::BCS::Cvterm';
 with 'Modware::Role::Chado::Helper::BCS::Dbxref';
 with 'Modware::Role::Publication::HasAuthors';
 with 'Modware::Role::HasPublication';
-with 'Modware::Role::HasJournalArticle';
+with 'Modware::Role::Publication::HasJournalArticle';
 
 has '+type' => ( default => 'journal_article' );
 
@@ -24,11 +26,11 @@ class_has 'query_class' => (
 );
 
 class_has 'query' => (
-    default => sub { $_[0]->query_class },
+    default => sub { 'Modware::Chado::Query::BCS::Publication::JournalArticle' },
     isa     => 'Str',
     is      => 'rw',
     lazy    => 1,
-    handles => [qw/find count/]
+    handles => [qw/find count search/]
 );
 
 __PACKAGE__->meta->make_immutable;

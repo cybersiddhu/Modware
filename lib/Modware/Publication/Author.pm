@@ -1,18 +1,17 @@
 package Modware::Publication::Author;
 
-use version; our $VERSION = qv('0.0.1');
-
 # Other modules:
 use Moose;
-use Modware::Types qw/CleanStr/;
+use MooseX::Types::Moose qw/Int Str Bool/;
+use Modware::Types qw/CleanStr Toggler/;
 
 # Module implementation
 #
 
 has 'id' => (
-	is => 'rw', 
-	isa => 'Int', 
-	predicate => 'has_author_id'
+    is        => 'rw',
+    isa       => Int,
+    predicate => 'has_author_id'
 );
 
 has 'first_name' => (
@@ -31,24 +30,26 @@ has 'initials' => (
 
 has 'last_name' => (
     is        => 'rw',
-    isa       => 'Str',
+    isa       => CleanStr,
+    coerce    => 1,
     predicate => 'has_last_name'
 );
 
 has 'suffix' => (
-    is  => 'rw',
-    isa => 'Str',
+    is     => 'rw',
+    isa    => 'Maybe[Str]',
 );
 
 has 'is_editor' => (
     is      => 'rw',
-    isa     => 'Bool',
+    isa     => Toggler,
+    coerce  => 1,
     default => sub {0}
 );
 
 has 'is_primary' => (
     is      => 'rw',
-    isa     => 'Bool',
+    isa     => Bool,
     default => sub {0}
 );
 

@@ -1,7 +1,5 @@
 package Modware::Role::Chado::Helper::BCS::ResultSet;
 
-use version; our $VERSION = qv('1.0.0');
-
 # Other modules:
 use MooseX::Role::Parameterized;
 use Modware::Types qw/ColumnMap/;
@@ -59,14 +57,14 @@ role {
     ) for @columns;
 
     for my $name (@relations) {
-    	print $name, "\n";
         my $info     = $source->relationship_info($name);
         my $rel_type = $info->{attrs}->{accessor};
         if ( $rel_type eq 'single' ) {
             has $name => (
                 is        => 'rw',
                 isa       => 'HashRef',
-                predicate => 'has_' . $name
+                predicate => 'has_' . $name, 
+                clearer => '_clear_' . $name
             );
         }
         else {
@@ -79,28 +77,29 @@ role {
                     'has_' . $name    => 'count',
                     'all_' . $name    => 'elements'
                 },
-                default => sub { [] }
+                default => sub { [] },
+                lazy => 1, 
+                clearer => '_clear_' . $name
             );
 
             method $name. '_create_hashrefs' => sub {
                 my ($self) = @_;
                 my $method = 'all_' . $name;
-                grep { not defined $_->{pubauthor_id} } $self->$method;
+                return  $self->$method;
             };
 
-			method $name. '_update_hashrefs' => sub {
+            method $name. '_to_hashrefs' => sub {
                 my ($self) = @_;
                 my $method = 'all_' . $name;
-                grep { defined $_->{pubauthor_id} } $self->$method;
+                return $self->$method;
             };
-
         }
     }
 
     method 'reset' => sub {
         my ($self) = @_;
         for my $name ( ( @relations, @columns ) ) {
-            my $method = '_clear_' . $_;
+            my $method = '_clear_' . $name;
             $self->$method;
         }
     };

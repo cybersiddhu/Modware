@@ -12,6 +12,7 @@ use Moose::Util;
 {
 	package MyPub;
 	use Moose;
+	use namespace::autoclean;
 	with 'Modware::Role::HasPublication';
 
 	sub _build_abstract {
@@ -37,7 +38,6 @@ use Moose::Util;
 	   	[qw/hello house hut/];
 	}
 
-	no Moose;
 }
 
 dies_ok { Moose::Util::apply_all_roles(MyBadPub->meta, ('Modware::Role::Publication')) }  'throws without unimplemented methods';

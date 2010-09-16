@@ -4,6 +4,8 @@ use version; our $VERSION = qv('1.0.0');
 
 # Other modules:
 use Moose::Role;
+use Carp;
+use namespace::autoclean;
 
 # Module implementation
 #
@@ -41,8 +43,11 @@ sub db2accession {
 
 before 'create' => sub {
     my ($self) = @_;
+    ## -- data validation
+    carp "pubmed id is not given\n" if !$self->has_pubmed_id;
+
     my $pub = $self->meta->get_attribute('pub');
-    $pub->uniquename( $self->pubmed_id ) if $self->has_pubmed_id;
+    $pub->uniquename( $self->pubmed_id );
     $pub->add_to_pub_dbxrefs(
         {   dbxref => {
                 accession => $self->medline_id,

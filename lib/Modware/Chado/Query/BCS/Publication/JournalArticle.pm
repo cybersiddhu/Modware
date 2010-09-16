@@ -1,6 +1,5 @@
 package Modware::Chado::Query::BCS::Publication::JournalArticle;
 
-use version; our $VERSION = qv('1.0.0');
 
 # Other modules:
 use Moose;
@@ -19,7 +18,6 @@ class_has '+params_map' => (
             journal => 'series_name',
             title   => 'title',
             year    => 'pyear',
-            id      => 'pub_id'
         };
     },
 );

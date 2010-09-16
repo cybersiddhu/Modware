@@ -11,6 +11,9 @@ cv:
    publication: 
         file: "publication.obo_xml"
         namespace: pub_type
+   dicty_literature:
+        file: "dictyBase_literature_topic.obo_xml"
+        namespace: dictyBase_literature_topic
 pub:
    journal:
        file: "journal_articles.xml"

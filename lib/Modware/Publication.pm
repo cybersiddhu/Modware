@@ -31,9 +31,10 @@ class_has 'query' => (
     isa => 'Str', 
     is      => 'rw',
     lazy => 1, 
-    handles => [qw/find count/]
+    handles => [qw/find count search find_by_pubmed_id/]
 );
 
+__PACKAGE__->meta->make_immutable;
 
 1;    # Magic true value required at end of module
 

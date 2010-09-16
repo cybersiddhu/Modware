@@ -1,19 +1,18 @@
 package Modware::Role::Chado::Helper::BCS::Dbxref;
 
-use version; our $VERSION = qv('1.0.0');
-
 # Other modules:
 use Moose::Role;
 use MooseX::Params::Validate;
+use namespace::autoclean;
 
 # Module implementation
 #
 
 requires 'db';
 
-has 'cvrow' => (
+has 'dbrow_map' => (
     is         => 'rw',
-    isa        => 'HashRef[Bio::Chado::Schema::General::DB]',
+    isa        => 'HashRef[Bio::Chado::Schema::General::Db]',
     traits     => ['Hash'],
     lazy_build => 1,
     handles    => {
@@ -23,20 +22,28 @@ has 'cvrow' => (
     }
 );
 
+sub _build_dbrow_map {
+   my ($self) = @_;
+    my $name   = $self->db;
+    my $dbrow  = $self->chado->resultset('General::Db')
+        ->find_or_create( { name => $name } );
+    return { $name => $dbrow };
+}
+
 sub db_id_by_name {
     my $self = shift;
     my ($name) = pos_validated_list( \@_, { isa => 'Str' } );
 
     #check if it is already been cached
-    if ( $self->exist_db_row($name) ) {
-        return $self->get_db_row($name)->db_id;
+    if ( $self->exist_dbrow($name) ) {
+        return $self->get_dbrow($name)->db_id;
     }
 
     #otherwise try to retrieve from database
     my $rs
         = $self->chado->resultset('General::Db')->search( { name => $name } );
     if ( $rs->count > 0 ) {
-        $self->set_db_row( $name => $rs->first );
+        $self->set_dbrow( $name => $rs->first );
         return $rs->first->db_id;
     }
 

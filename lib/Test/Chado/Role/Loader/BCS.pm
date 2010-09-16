@@ -1,6 +1,6 @@
 package Test::Chado::Role::Loader::Bcs;
 
-use version; our $VERSION = qv('0.1');
+use strict;
 use warnings;
 
 # Other modules:
@@ -419,6 +419,17 @@ sub load_so {
 
 }
 
+sub load_dicty_keywords {
+    my ($self) = @_;
+    my $name = 'dicty_literature_topic';
+    $self->ontology_name($name);
+    $self->loader_tag($name);
+    my $method = $name . '_ontology';
+    $self->obo_xml( $self->data_config->cv->dicty_literature_file->stringify );
+    $self->load_ontology;
+
+}
+
 sub load_journal_data {
     my ($self) = @_;
     $self->ontology_namespace('publication');
@@ -587,6 +598,16 @@ sub unload_rel {
 sub unload_so {
     my ($self) = @_;
     my $name = 'sequence';
+    $self->ontology_name($name);
+    $self->loader_tag($name);
+    my $str       = $self->data_config->get_value('ontology');
+    my $namespace = $str->{$name}->{namespace};
+    $self->unload_ontology($namespace);
+}
+
+sub unload_dicty_keywords {
+    my ($self) = @_;
+    my $name = 'dicty_literature_topic';
     $self->ontology_name($name);
     $self->loader_tag($name);
     my $str       = $self->data_config->get_value('ontology');

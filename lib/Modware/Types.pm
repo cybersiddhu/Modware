@@ -1,10 +1,9 @@
 package  Modware::Types;
 
-use version; our $VERSION = qv('0.1');
-
 # Other modules:
-use MooseX::Types -declare => [qw/CleanStr UnCleanStr ColumnMap/];
+use MooseX::Types -declare => [ qw/CleanStr UnCleanStr ColumnMap Toggler/ ];
 use MooseX::Types::Moose qw/Int Str Any Object Bool HashRef ArrayRef/;
+use namespace::autoclean;
 
 # Module implementation
 #
@@ -16,11 +15,14 @@ coerce CleanStr, from UnCleanStr, via { $_ =~ s/^\s+//; $_ =~ s/\s+$//; $_ };
 
 subtype ColumnMap, as HashRef;
 coerce ColumnMap, from ArrayRef, via {
-  my %hash =  map { $_ => 1 } @$_;
-  return \%hash;
+    my %hash = map { $_ => 1 } @$_;
+    return \%hash;
 };
 
-no Moose;
+subtype Toggler, as Bool;
+coerce Toggler, from Str, via {
+    $_ eq 'false' ? 0 : 1;
+};
 
 1;    # Magic true value required at end of module
 

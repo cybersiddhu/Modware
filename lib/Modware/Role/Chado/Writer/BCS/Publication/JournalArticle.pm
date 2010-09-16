@@ -1,9 +1,9 @@
 package Modware::Role::Chado::Writer::BCS::Publication::JournalArticle;
 
-use version; our $VERSION = qv('1.0.0');
-
 # Other modules:
 use Moose::Role;
+use Carp;
+use namespace::autoclean;
 
 # Module implementation
 #
@@ -63,11 +63,19 @@ sub _build_volume {
 
 before 'create' => sub {
     my ($self) = @_;
-    my $pub    = $self->meta->get_attribute('pub');
+
+    # -- Data validation
+    croak "journal name is not given\n" if !$self->has_journal;
+
+    #initialize chado handler first
+    $self->chado if !$self->has_chado;
+
+    my $pub = $self->meta->get_attribute('pub');
+
+    $pub->series_name( $self->journal );
     $pub->pages( $self->first_page . '--' . $self->last_page )
         if $self->has_first_page
             and $self->has_last_page;
-    $pub->series_name( $self->journal ) if $self->has_journal;
     $pub->add_to_pubprops(
         {   type_id => $self->cvterm_id_by_name('journal_abbreviation'),
             value   => $self->abbreviation
@@ -86,8 +94,13 @@ before 'create' => sub {
 };
 
 before 'update' => sub {
-	my $self = shift;
+    my $self = shift;
+
+    #initialize chado handler first
+    my $chado = $self->chado if !$self->has_chado;
+
     my $pub = $self->meta->get_attribute('pub');
+    $pub->reset;
     if ( $self->has_first_page and $self->has_last_page ) {
         my $pages = $self->first_page . '--' . $self->last_page;
         $pub->pages($pages) if $pages ne $self->dbrow->pages;
@@ -98,26 +111,42 @@ before 'update' => sub {
     $pub->volume( $self->volume )
         if $self->has_volume and $self->volume ne $self->dbrow->issue;
 
-    $pub->journal( $self->journal )
-        if $self->has_journal and $self->journal ne $self->dbrow->journal;
+    if ( $self->has_journal and $self->journal ne $self->dbrow->series_name )
+    {
+        $pub->series_name( $self->journal );
+    }
     $pub->add_to_pubprops(
         {   type_id => $self->cvterm_id_by_name('journal_abbreviation'),
-            value   => $self->abbreviation
+            value   => $self->abbreviation,
+            rank    => 0
         }
     ) if $self->has_abbreviation;
+
     $pub->issue( $self->issue )
         if $self->has_issue and $self->issue ne $self->dbrow->issue;
 
     if ( $self->has_issn ) {
-        my $issn = $self->_build_issn;
-
-        $pub->add_to_pub_dbxrefs(
-            {   dbxref => {
-                    accession => $self->issn,
+        my $row = $chado->resultset('General::Dbxref')->search(
+            {   accession => $self->issn,
+                db_id    => $self->db_id_by_name('issn')
+            },
+            { rows => 1 }
+        )->single;
+        if ($row) {    # -- it is present
+            $pub->add_to_pub_dbxrefs(
+                {   accession => $self->issn,
+                    db_id     => $self->db_id_by_name('issn'),
+                    dbxref_id => $row->dbxref_id
+                }
+            );
+        }
+        else {
+            $pub->add_to_pub_dbxrefs(
+                {   accession => $self->issn,
                     db_id     => $self->db_id_by_name('issn')
                 }
-            }
-        ) if $issn ne $self->issn;
+            );
+        }
     }
 };
 

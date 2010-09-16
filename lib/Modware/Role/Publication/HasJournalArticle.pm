@@ -1,9 +1,8 @@
 package Modware::Role::Publication::HasJournalArticle;
 
-use version; our $VERSION = qv('1.0.0');
-
 # Other modules:
 use Moose::Role;
+use namespace::autoclean;
 
 # Module implementation
 #

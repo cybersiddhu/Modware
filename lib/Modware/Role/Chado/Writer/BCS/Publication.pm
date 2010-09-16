@@ -7,6 +7,9 @@ use Moose::Role;
 use aliased 'Modware::DataSource::Chado';
 use aliased 'Modware::Publication::Author';
 use Try::Tiny;
+use Carp;
+use Carp::Always;
+use Data::Dumper::Concise;
 use namespace::autoclean;
 
 # Module implementation
@@ -87,11 +90,11 @@ sub _build_source {
 }
 
 sub _build_authors {
-    my ($self)     = @_;
+    my ($self) = @_;
     my $collection = [];
     return $collection if !$self->has_dbrow;
 
-    my $rs         = $self->dbrow->pubauthors;
+    my $rs = $self->dbrow->pubauthors;
 
     #no authors for you
     return $collection if $rs->count == 0;
@@ -135,14 +138,109 @@ sub _build_keywords_stack {
     return [];
 }
 
+sub create {
+    my ($self) = @_;
+    my $chado  = $self->chado;
+    my $pub    = $self->meta->get_attribute('pub');
+    my $dbrow  = $chado->txn_do(
+        sub {
+            my $value = $chado->resultset('Pub::Pub')
+                ->create( $pub->to_insert_hashref );
+            $value;
+        }
+    );
+    $dbrow;
+}
+
+sub delete {
+    my ( $self, $cascade ) = @_;
+    if ( !$cascade ) {
+        try {
+            $self->chado->txn_do(
+                sub {
+                    $self->chado->resultset('Pub::Pub')
+                        ->search( { pub_id => $self->dbrow->pub_id } )
+                        ->delete_all;
+                }
+            );
+        }
+        catch { confess "Unable to delete $_" };
+    }
+    else {
+        try {
+            $self->chado->txn_do(
+                sub {
+                    my $pub = $self->dbrow;
+                    $pub->pubprops->delete_all;
+                    $pub->pubauthors->delete_all;
+                    $pub->pub_dbxrefs->delete_all;
+                    $pub->pub_relationship_objects->delete_all;
+                    $pub->pub_relationship_subjects->delete_all;
+                    $self->dbrow->delete;
+                }
+            );
+        }
+        catch { confess "Unable to delete $_" };
+    }
+}
+
+sub update {
+    my ($self) = @_;
+    my $chado  = $self->chado;
+    my $dbrow  = $self->dbrow;
+    my $pub    = $self->meta->get_attribute('pub');
+    $chado->txn_do(
+        sub {
+            $dbrow->update( $pub->to_update_hashref )
+                if defined $pub->to_update_hashref;
+            $dbrow->update_or_create_related( 'pubauthors', $_ )
+                for $pub->pubauthors_to_hashrefs;
+            $dbrow->update_or_create_related( 'pubprops', $_ )
+                for $pub->pubprops_to_hashrefs;
+
+            # -- for M2M relationship
+        PUBDBXREF:
+            for my $hashref ( $pub->pub_dbxrefs_to_hashrefs ) {
+                if ( defined $hashref->{dbxref_id} ) {
+                    my $id = $hashref->{dbxref_id};
+                    delete $hashref->{dbxref_id};
+                    $dbrow->pub_dbxrefs( { dbxref_id => $id }, { rows => 1 } )
+                        ->single->update_or_create_related( 'dbxref',
+                        $hashref );
+                    next PUBDBXREF;
+
+                }
+                $dbrow->create_related( 'pub_dbxrefs',
+                    { dbxref => $hashref } );
+            }
+
+        }
+    );
+    $dbrow;
+}
+
 before 'create' => sub {
     my $self = shift;
+
+    # -- Data validation
+    croak "No author given\n" if !$self->has_authors;
 
     #initialize chado handler first
     $self->chado if !$self->has_chado;
 
     my $pub = $self->meta->get_attribute('pub');
-    $pub->uniquename( 'PUB' . int( rand(9999999) ) );
+    while ( my $pubauthor = $self->next_author ) {
+        $pub->add_to_pubauthors(
+            {   rank       => $pubauthor->rank,
+                editor     => $pubauthor->is_editor,
+                surname    => $pubauthor->last_name,
+                givennames => $pubauthor->given_name,
+                suffix     => $pubauthor->suffix
+            }
+        );
+    }
+
+    $pub->uniquename( 'PUB' . int( rand(9999999) ) ) if !$pub->has_uniquename;
     $pub->type_id( $self->cvterm_id_by_name( $self->type ) );
     $pub->title( $self->title )
         if $self->has_title;
@@ -169,9 +267,59 @@ before 'create' => sub {
             );
         }
     }
+};
 
+before 'delete' => sub {
+    my $self = shift;
+    confess "No data being fetched from storage: nothing to delete\n"
+        if !$self->has_dbrow;
+};
+
+before 'update' => sub {
+    my $self = shift;
+    confess "No data being fetched from storage: nothing to update\n"
+        if !$self->has_dbrow;
+
+    my $pub   = $self->meta->get_attribute('pub');
+    my $dbrow = $self->dbrow;
+
+    $pub->title( $self->title )
+        if $self->has_title and $dbrow->title ne $self->title;
+    $pub->pyear( $self->year )
+        if $self->has_year and $dbrow->pyear ne $self->year;
+    $pub->pubplace( $self->source )
+        if $self->has_source
+            and $dbrow->pubplace ne $self->has_source;
+    $pub->type_id( $self->cvterm_id_by_name( $self->type ) )
+        if $dbrow->type_id != $self->cvterm_id_by_name( $self->type );
+
+ #Did not check for changes in the value as it is a blob field in the database
+    $pub->add_to_pubprops(
+        {   type_id => $self->cvterm_id_by_name('abstract'),
+            value   => $self->abstract,
+            rank    => 0
+        }
+    ) if $self->has_abstract;
+    $pub->add_to_pubprops(
+        {   type_id => $self->cvterm_id_by_name('status'),
+            value   => $self->status,
+            rank    => 0
+        }
+    ) if $self->has_status;
+
+    if ( $self->has_keywords_stack ) {
+    KEY:
+        for my $key ( $self->keywords ) {
+            $pub->add_to_pubprops(
+                {   type_id => $self->cvterm_id_by_name( $key->{name} ),
+                    value   => 'true',
+                    rank    => 0
+                }
+            );
+        }
+    }
     if ( $self->has_authors ) {
-        my $authors;
+    AUTHOR:
         while ( my $pubauthor = $self->next_author ) {
             $pub->add_to_pubauthors(
                 {   rank       => $pubauthor->rank,
@@ -183,177 +331,8 @@ before 'create' => sub {
             );
         }
     }
-};
-
-sub create {
-    my ($self) = @_;
-    my $chado  = $self->chado;
-    my $pub    = $self->meta->get_attribute('pub');
-    my $dbrow  = $chado->txn_do(
-        sub {
-            my $value = $chado->resultset('Pub::Pub')
-                ->create( $pub->to_insert_hashref );
-            $value;
-        }
-    );
-    return Modware::Publication->new( dbrow => $dbrow );
-}
-
-before 'delete' => sub {
-    my $self = shift;
-    confess "No data being fetched from storage: nothing to delete\n"
-        if !$self->has_dbrow;
-};
-
-sub delete {
-    my ( $self, $cascade ) = @_;
-    if ( !$cascade ) {
-        try {
-            $self->chado->txn_do(
-                sub {
-                    $self->chado->resultset('Pub::Pub')
-                        ->search( { pub_id => $self->dbrow->pub_id } )
-                        ->delete_all;
-                }
-            );
-        }
-        catch { confess "Unable to delete $_" };
-    }
-    else {
-        try {
-            $self->chado->txn_do(
-                sub {
-                    my $pub = $self->dbrow;
-                    $pub->pubprops->delete_all;
-                    $pub->authors->delete_all;
-                    $pub->pub_dbxrefs->delete_all;
-                    $pub->pub_relationship_objects->delete_all;
-                    $pub->pub_relationship_subjects->delete_all;
-                    $self->dbrow->delete;
-                }
-            );
-        }
-        catch { confess "Unable to delete $_" };
-    }
-}
-
-before 'update' => sub {
-    my $self = shift;
-    confess "No data being fetched from storage: nothing to update\n"
-        if !$self->has_dbrow;
-
-    my $pub = $self->meta->get_attribute('pub');
-    $pub->reset;
-
-    my $dbrow = $self->dbrow;
-
-    $pub->title( $self->title )
-        if $self->has_title and $dbrow->title ne $self->title;
-    $pub->pyear( $self->year )
-        if $self->has_year and $dbrow->pyear ne $self->year;
-    $pub->pubplace( $self->source )
-        if $self->has_source and $dbrow->pubplace ne $self->has_source;
-    $pub->type_id( $self->cvterm_id_by_name( $self->type ) )
-        if $dbrow->type_id != $self->cvterm_id_by_name( $self->type );
-
- #Did not check for changes in the value as it is a blob field in the database
-    $pub->add_to_pubprops(
-        {   type_id => $self->cvterm_id_by_name('status'),
-            value   => $self->status
-        }
-    );
-    $pub->add_to_pubprops(
-        {   type_id => $self->cvterm_id_by_name('abstract'),
-            value   => $self->abstract
-        }
-    );
-
-    #both for authors and keywords get the mapping from database
-    #then compare with the one that exist in the data objects
-    #both for keywords and authors compare their names
-    my $key_rows = {
-        map { $_->pubprop_id => $_->type->name } $self->dbrow->search_related(
-            'pubprops',
-            { 'cv.name' => 'dictyBase_literature_topic' },
-            { join      => { 'type' => 'cv' }, }
-        )
-    };
-
-    if ( $self->has_keywords_stack ) {
-        for my $key ( $self->keywords ) {
-            if ( not defined $key->{id} ) {
-                $pub->add_to_pubprops(
-                    {   type_id => $self->cvterm_id_by_name( $key->{name} ),
-                        value   => 'true'
-                    }
-                );
-                next;
-            }
-            $pub->add_to_pubprops(
-                {   type_id => $self->cvterm_id_by_name( $key->{name} ),
-                    value   => 'true'
-                }
-            ) if $key->{name} ne $key_rows->{ $key->{id} };
-        }
-    }
-
-    if ( $self->has_authors ) {
-        my $author_rows = {
-            map { $_->pubauthor_id => $_->givennames }
-                $self->dbrow->pubauthors
-        };
-
-        while ( my $pubauthor = $self->next_author ) {
-            if ( !$pubauthor->has_id ) {
-                $pub->add_to_pubauthors(
-                    {   rank       => $pubauthor->rank,
-                        editor     => $pubauthor->is_editor,
-                        surname    => $pubauthor->last_name,
-                        givennames => $pubauthor->given_name,
-                        suffix     => $pubauthor->suffix
-                    }
-                );
-                next;
-            }
-            $pub->add_to_pubauthors(
-                {   rank         => $pubauthor->rank,
-                    editor       => $pubauthor->is_editor,
-                    surname      => $pubauthor->last_name,
-                    givennames   => $pubauthor->given_name,
-                    suffix       => $pubauthor->suffix,
-                    pubauthor_id => $pubauthor->id,
-                }
-                )
-                if $pubauthor->given_name ne $author_rows->{ $pubauthor->id };
-        }
-    }
 
 };
-
-sub update {
-    my ($self) = @_;
-    my $chado  = $self->chado;
-    my $pub    = $self->meta->get_attribute('pub');
-    $chado->txn_do(
-        sub {
-            $self->dbrow->update( $pub->to_update_hashref );
-
-            $self->dbrow->create_related( 'pubprops', $_ )
-                for $pub->pubprops_create_hashrefs;
-
-            $self->dbrow->create_related( 'pubauthors', $_ )
-                for $pub->pubauthors_create_hashrefs;
-
-            for my $hashref ( $pub->pubauthors_update_hashrefs ) {
-                my $id = $hashref->{pubauthor_id};
-                delete $hashref->{pubauthor_id};
-                $chado->resultset('Pub::PubAuthor')->find($id)
-                    ->update($hashref);
-            }
-
-        }
-    );
-}
 
 1;    # Magic true value required at end of module
 
