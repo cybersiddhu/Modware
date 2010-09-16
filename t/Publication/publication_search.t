@@ -21,9 +21,6 @@ is( Publication->count( author => 'Ian' ),
     3, 'it can search no of publications by an author' );
 is( Publication->count( journal => 'PloS' ),
     2, 'it can count publications by journal name' );
-is( Publication->search( journal => 'Ophthalmic' )->count, 2,
-    'it can search publications by journal name'
-);
 
 my $pub = Publication->find_by_pubmed_id(20830294);
 isa_ok($pub,  'Modware::Publication');
