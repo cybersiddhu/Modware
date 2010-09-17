@@ -102,12 +102,14 @@ __END__
 
 =head1 NAME
 
-B<Modware::Chado::Query::BCS::Publication> - [Module for searching publications]
+B<Modware::Chado::Query::BCS::Publication> - [Common module for searching publications]
 
 
 =head1 SYNOPSIS
 
-Not to be used directly. It is being used by B<Modware::Publication>
+extends Modware::Chado::Query::BCS::Publication;
+
+Recommended not to be used directly. It is being used by B<Modware::Publication>
 
 =head1 DESCRIPTION
 
