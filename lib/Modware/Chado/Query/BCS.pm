@@ -40,9 +40,24 @@ class_has 'params_map' => (
     default => sub { {} }, 
     handles => {
     	allowed_params => 'keys', 
-    	get_value => 'get'
+    	param_value => 'get', 
+    	has_param_value => 'defined'
     }
 );
+
+class_has 'related_params_map' => (
+    is      => 'rw',
+    isa     => 'HashRef',
+    traits  => [qw/Hash/],
+    lazy    => 1,
+    default => sub { {} }, 
+    handles => {
+    	allowed_related_params => 'keys', 
+    	related_param_value => 'get', 
+    	has_related_param_value => 'defined'
+    }
+);
+
 
 class_has 'data_class' => (
     is  => 'rw',

@@ -97,7 +97,7 @@ before 'update' => sub {
     my $self = shift;
 
     #initialize chado handler first
-    my $chado = $self->chado if !$self->has_chado;
+    my $chado = $self->chado;
 
     my $pub = $self->meta->get_attribute('pub');
     $pub->reset;
@@ -106,10 +106,10 @@ before 'update' => sub {
         $pub->pages($pages) if $pages ne $self->dbrow->pages;
     }
 
-    $pub->issue( $self->issue )
-        if $self->has_issue and $self->issue ne $self->dbrow->issue;
     $pub->volume( $self->volume )
-        if $self->has_volume and $self->volume ne $self->dbrow->issue;
+        if $self->has_volume
+            and
+            ( !$self->dbrow->issue or $self->volume ne $self->dbrow->issue );
 
     if ( $self->has_journal and $self->journal ne $self->dbrow->series_name )
     {
@@ -123,12 +123,14 @@ before 'update' => sub {
     ) if $self->has_abbreviation;
 
     $pub->issue( $self->issue )
-        if $self->has_issue and $self->issue ne $self->dbrow->issue;
+        if $self->has_issue
+            and ( !$self->dbrow->issue
+                or $self->issue ne $self->dbrow->issue );
 
     if ( $self->has_issn ) {
         my $row = $chado->resultset('General::Dbxref')->search(
             {   accession => $self->issn,
-                db_id    => $self->db_id_by_name('issn')
+                db_id     => $self->db_id_by_name('issn')
             },
             { rows => 1 }
         )->single;

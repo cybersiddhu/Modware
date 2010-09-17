@@ -6,10 +6,9 @@ BEGIN {
     use_ok('Modware::Chado::Query::BCS::Publication::JournalArticle');
 }
 
-
 my $build = Modware::Build->current;
 Chado->connect(
-    dsn      => $build->config_data('dsn') ,
+    dsn      => $build->config_data('dsn'),
     user     => $build->config_data('user'),
     password => $build->config_data('password')
 );
@@ -21,7 +20,8 @@ my $pub_itr = $Pub->search( journal => 'Text' );
 isa_ok( $pub_itr, 'Modware::Collection::Iterator::BCS::ResultSet' );
 is( $pub_itr->count, 3,
     'has journal articles with partial match in journal name' );
-is($Pub->count(journal => 'Text'),  3,  'has journal articles from direct counting');
+is( $Pub->count( journal => 'Text' ),
+    3, 'has journal articles from direct counting' );
 
 $pub_itr = $Pub->search(
     journal => 'Text7',
@@ -61,12 +61,11 @@ is( $pub_itr->count, 3,
 
 $pub_itr = $Pub->search(
     journal => 'Text7',
-    author   => 'Text21',
+    author  => 'Text21',
     cond    => { match => 'exact' }
 );
 is( $pub_itr->count, 1,
     'has journal articles with exact matches in author and journal names' );
-
 
 $pub_itr = $Pub->search( journal => '5', title => '5' );
 is( $pub_itr->count, 2,
@@ -82,9 +81,20 @@ is( $pub_itr->count, 1,
 
 $pub_itr = $Pub->search(
     journal => 'Text7',
-    title   => 'none', 
+    title   => 'none',
     cond    => { clause => 'OR' }
 );
 is( $pub_itr->count, 1,
     'has journal articles with exact matches in journal and title fields' );
 
+is( $Pub->search( last_name => 'Underwood', first_name => 'MJ Malcolm J' )
+        ->count, 1, 'has journal articles from first and last name search'
+);
+
+is( $Pub->search( last_name => 'Torres' )
+        ->count, 1, 'has journal articles from last name search'
+);
+
+is( $Pub->search( first_name => 'GG George G' )
+        ->count, 1, 'has journal articles from last name search'
+);

@@ -88,10 +88,6 @@ $pub->add_author(
     }
 );
 
-#while ( my $a = $pub->next_author ) {
-#    diag( $a->first_name, "\t", $a->rank, "\n" );
-#}
-
 lives_ok { $pub->create } 'create another new publication record';
 is( $Pub->count( year => '2010' ), 6, 'got six publications from database' );
 

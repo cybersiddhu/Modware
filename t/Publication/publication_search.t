@@ -1,10 +1,9 @@
 use Test::More qw/no_plan/;
 use aliased 'Modware::DataSource::Chado';
-use aliased 'Modware::Chado::Query::BCS::Publication';
 use Modware::Build;
 
 BEGIN {
-    use_ok('Modware::Chado::Query::BCS::Publication');
+    use_ok('Modware::Chado::Query::BCS::Publication::Pubmed');
 }
 
 my $build = Modware::Build->current;
@@ -14,16 +13,21 @@ Chado->connect(
     password => $build->config_data('password')
 );
 
-my $itr = Publication->search( author => 'Ian' );
+my $Pub = 'Modware::Chado::Query::BCS::Publication::Pubmed';
+my $itr = $Pub->search( author => 'Ian' );
 isa_ok( $itr, 'Modware::Collection::Iterator::BCS::ResultSet' );
 is( $itr->count, 3, 'it can search publications with author name' );
-is( Publication->count( author => 'Ian' ),
+is( $Pub->count( author => 'Ian' ),
     3, 'it can search no of publications by an author' );
-is( Publication->count( journal => 'PloS' ),
+is( $Pub->count( journal => 'PloS' ),
     2, 'it can count publications by journal name' );
 
-my $pub = Publication->find_by_pubmed_id(20830294);
+my $pub = $Pub->find_by_pubmed_id(20830294);
 isa_ok($pub,  'Modware::Publication');
 
-my $pub2 = Publication->find($pub->dbrow->pub_id);
+my $pub2 = $Pub->find($pub->dbrow->pub_id);
 isa_ok($pub2,  'Modware::Publication');
+
+is( $Pub->search( last_name => 'Lewin', first_name => 'AS Alfred S' )
+        ->count, 1, 'has publication from first and last name search'
+);

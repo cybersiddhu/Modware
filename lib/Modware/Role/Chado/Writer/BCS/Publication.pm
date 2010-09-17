@@ -1,14 +1,11 @@
 package Modware::Role::Chado::Writer::BCS::Publication;
 
-use version; our $VERSION = qv('0.1');
-
 # Other modules:
 use Moose::Role;
 use aliased 'Modware::DataSource::Chado';
 use aliased 'Modware::Publication::Author';
 use Try::Tiny;
 use Carp;
-use Carp::Always;
 use Data::Dumper::Concise;
 use namespace::autoclean;
 
@@ -46,7 +43,8 @@ sub _build_chado {
 has 'dbrow' => (
     is        => 'rw',
     isa       => 'DBIx::Class::Row',
-    predicate => 'has_dbrow'
+    predicate => 'has_dbrow',
+    clearer   => '_clear_dbrow'
 );
 
 has 'cv' => (
@@ -57,6 +55,9 @@ has 'cv' => (
 );
 
 has 'db' => ( is => 'rw', isa => 'Str', lazy => 1, default => 'Pubmed' );
+
+has 'dicty_cv' =>
+    ( is => 'rw', isa => 'Str', default => 'dictyBase_literature_topic' );
 
 sub _build_status {
     my $self = shift;
@@ -124,17 +125,10 @@ sub _build_keywords_stack {
     return [] if !$self->has_dbrow;
     my $rs = $self->dbrow->search_related(
         'pubprops',
-        { 'cv.name' => 'dictyBase_literature_topic' },
+        { 'cv.name' => $self->dicty_cv },
         { join      => { 'type' => 'cv' }, cache => 1 }
     );
-    if ( $rs->count > 0 ) {
-        my $terms;
-        while ( my $row = $rs->next ) {
-            push @$terms,
-                { id => $row->pubprop_id, name => $row->type->name };
-        }
-        return $terms;
-    }
+    return [ map { $_->type->name } $rs->all ] if $rs->count > 0;
     return [];
 }
 
@@ -149,6 +143,7 @@ sub create {
             $value;
         }
     );
+    $self->dbrow($dbrow);
     $dbrow;
 }
 
@@ -182,6 +177,7 @@ sub delete {
         }
         catch { confess "Unable to delete $_" };
     }
+    $self->_clear_dbrow;
 }
 
 sub update {
@@ -261,7 +257,7 @@ before 'create' => sub {
     if ( $self->has_keywords_stack ) {
         for my $word ( $self->keywords ) {
             $pub->add_to_pubprops(
-                {   type_id => $self->cvterm_id_by_name( $word->{name} ),
+                {   type_id => $self->cvterm_id_by_name($word),
                     value   => 'true'
                 }
             );

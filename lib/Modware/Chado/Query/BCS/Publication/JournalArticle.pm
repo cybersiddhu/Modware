@@ -4,122 +4,13 @@ package Modware::Chado::Query::BCS::Publication::JournalArticle;
 # Other modules:
 use Moose;
 use MooseX::ClassAttribute;
-use Module::Load;
 use namespace::autoclean;
-use aliased 'Modware::Collection::Iterator::BCS::ResultSet';
-extends 'Modware::Chado::Query::BCS';
+extends 'Modware::Chado::Query::BCS::Publication';
 
 # Module implementation
 #
-class_has '+params_map' => (
-    default => sub {
-        {   author =>
-                [ map { 'pubauthors.' . $_ } qw/givennames surname suffix/ ],
-            journal => 'series_name',
-            title   => 'title',
-            year    => 'pyear',
-        };
-    },
-);
-
 class_has '+data_class' =>
     ( default => 'Modware::Publication::JournalArticle' );
-
-class_has '+resultset_name' => ( default => 'Pub::Pub' );
-
-sub where {
-    my ( $class, %arg ) = @_;
-    my $clause = $arg{cond}->{clause} ? lc $arg{cond}->{clause} : 'and';
-    my $match_type = $arg{cond}->{match} ? lc $arg{cond}->{match} : 'partial';
-
-    my ( $nested, $where, $query, $attrs );
-    my $options = {};
-
-PARAM:
-    for my $param ( $class->allowed_params ) {
-        next if not defined $arg{$param};
-        if ( $param eq 'author' ) {
-            my $author_attr = { map { $_ => $arg{$param} }
-                    @{ $class->get_value($param) } };
-            $nested = $class->rearrange_nested_query( $author_attr, 'or',
-                $match_type );
-            $options->{join}     = 'pubauthors';
-            $options->{cache}    = 1;
-            $options->{prefetch} = 'pubauthors';
-            next PARAM;
-        }
-        $attrs->{ $class->get_value($param) } = $arg{$param};
-    }
-    $where = $class->rearrange_query( $attrs, $clause, $match_type );
-    if ( $nested and $where ) {
-        $query = { %$nested, %$where };
-    }
-    elsif ($nested) {
-        $query = $nested;
-    }
-    else {
-        $query = $where;
-    }
-
-    my $rs = $class->chado->resultset('Pub::Pub')->search( $query, $options );
-    if ( wantarray() ) {
-        load $class->data_class;
-        return map { $class->data_class->new( dbrow => $_ ) } $rs->all;
-    }
-
-    ResultSet->new(
-        collection        => $rs,
-        data_access_class => $class->data_class,
-        search_class      => $class
-    );
-}
-
-sub search {
-    my ( $class, %arg ) = @_;
-    my $clause = $arg{cond}->{clause} ? lc $arg{cond}->{clause} : 'and';
-    my $match_type = $arg{cond}->{match} ? lc $arg{cond}->{match} : 'partial';
-
-    my ( $nested, $where, $query, $attrs );
-    my $options = {};
-
-PARAM:
-    for my $param ( $class->allowed_params ) {
-        next if not defined $arg{$param};
-        if ( $param eq 'author' ) {
-            my $author_attr = { map { $_ => $arg{$param} }
-                    @{ $class->get_value($param) } };
-            $nested = $class->rearrange_nested_query( $author_attr, 'or',
-                $match_type );
-            $options->{join}     = 'pubauthors';
-            $options->{cache}    = 1;
-            $options->{prefetch} = 'pubauthors';
-            next PARAM;
-        }
-        $attrs->{ $class->get_value($param) } = $arg{$param};
-    }
-    $where = $class->rearrange_query( $attrs, $clause, $match_type );
-    if ( $nested and $where ) {
-        $query = { %$nested, %$where };
-    }
-    elsif ($nested) {
-        $query = $nested;
-    }
-    else {
-        $query = $where;
-    }
-
-    my $rs = $class->chado->resultset('Pub::Pub')->search( $query, $options );
-    if ( wantarray() ) {
-        load $class->data_class;
-        return map { $class->data_class->new( dbrow => $_ ) } $rs->all;
-    }
-
-    ResultSet->new(
-        collection        => $rs,
-        data_access_class => $class->data_class,
-        search_class      => $class
-    );
-}
 
 
 __PACKAGE__->meta->make_immutable;

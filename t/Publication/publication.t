@@ -3,6 +3,7 @@ use Test::More qw/no_plan/;
 use Test::Exception;
 use aliased 'Modware::DataSource::Chado';
 use Modware::Build;
+use aliased 'Modware::Publication::Author';
 
 BEGIN {
     use_ok('Modware::Publication');
@@ -18,101 +19,120 @@ Chado->connect(
 my $test_cv = 'Modware-publication-pub_type';
 my $Pub     = 'Modware::Publication';
 
-my $pub = $Pub->new( year => 2004 );
-$pub->title('The best title ever');
-$pub->abstract('One of the best abstract ever');
-$pub->status('unpublished');
+my $pub = $Pub->new( year => 2010 );
+$pub->title('The title for publication');
+$pub->abstract('The abstract that rocked the world');
+$pub->status('published');
 $pub->cv($test_cv);
+$pub->add_author(
+    Author->new(
+        first_name => 'First man',
+        last_name  => 'Last name',
+        initials   => 'Mr.'
+    )
+);
+$pub->add_author(
+    Author->new(
+        first_name => 'Todd',
+        last_name  => 'Gagg',
+        initials   => 'Mr.'
+    )
+);
+$pub->journal('Hungry man');
+dies_ok { $pub->create } 'It cannot create record without pubmed id';
 
-dies_ok { $pub->create }
-'It cannot create record without setting author name';
-
-$pub->add_author( { first_name => 'Mumbo', last_name => 'Jumbo' } );
-
-dies_ok { $pub->create }
-'It cannot create record without setting journal name';
-
-$pub->journal('Modware journal');
-lives_ok { $pub->create }
-'It needs a author and journal names to create a new record';
+$pub->pubmed_id(7865209);
+lives_ok { $pub->create } 'It needs pubmed_id to create a record';
 
 #lets find the record with our cool search API
-is( $Pub->count( title => 'Best title', year => 2004, journal => 'Modware' ),
+is( $Pub->count(
+        title   => 'publication',
+        year    => 2010,
+        journal => 'Hungry',
+        author  => 'Todd'
+    ),
     1,
-    'has got one persisted record from database'
+    'has got the created publication record from database'
 );
 
-my ($pub_from_db) = $Pub->search(
-    title   => 'Best title',
-    year    => 2004,
-    journal => 'Modware'
-);
-is( $pub_from_db->title, $pub->title, 'persisted record matches in title' );
+my $pub_from_db = $Pub->find_by_pubmed_id(7865209);
+is( $pub_from_db->title, $pub->title, 'retrieved record matches in title' );
 is( $pub_from_db->journal, $pub->journal,
-    'persisted record matches in journal name' );
+    'retrieved record matches in journal name' );
 is( $pub_from_db->status, $pub->status,
-    'persisted record matches in status' );
-is( $pub_from_db->total_authors, 1, 'has got one author' );
+    'retrieved record matches in status' );
+is( $pub_from_db->total_authors, 2, 'retrieved record has two authors' );
 
-my $author = $pub_from_db->get_from_authors(0);
+my $author = $pub_from_db->get_from_authors(1);
 isa_ok( $author, 'Modware::Publication::Author' );
-is( $author->first_name,, 'Mumbo', 'has got author first name' );
+is( $author->last_name,, 'Gagg', 'has got author first name' );
 
 $pub_from_db->delete( { cascade => 1 } );
-is( $Pub->count( title => 'Best title', year => 2004, journal => 'Modware' ),
+is( $Pub->count(
+        title   => 'publication',
+        year    => 2010,
+        journal => 'Hungry',
+        author  => 'Todd'
+    ),
     0,
     'got no record from database after deletion'
 );
 
 #another new record
 $pub = $Pub->new(
-    year     => 2010,
-    title    => 'My title',
-    abstract => 'My best abstract',
-    status   => 'In press',
-    cv       => $test_cv,
-    journal  => 'Hideous journal'
+    year      => 2050,
+    title     => 'Single malt whisky',
+    abstract  => 'Drink up!',
+    status    => 'In press',
+    cv        => $test_cv,
+    journal   => 'Liquid journal',
+    pubmed_id => 420
 );
 $pub->add_author(
-    {   first_name => 'James',
-        last_name  => 'Brown',
+    {   first_name => 'Harry',
+        last_name  => 'Potter',
         suffix     => 'Sr.',
-        initials   => 'King'
+        initials   => 'Lt.'
 
     }
 );
 $pub->add_author(
-    {   first_name => 'Tucker',
-        last_name  => 'Brown',
-        initials   => 'Mr.'
+    {   first_name => 'Ron',
+        last_name  => 'Weasly',
+        initials   => 'Jr.'
     }
 );
-
-#while ( my $a = $pub->next_author ) {
-#    diag( $a->first_name, "\t", $a->rank, "\n" );
-#}
 
 lives_ok { $pub->create } 'create another new publication record';
-is( $Pub->count( year => '2010' ), 6, 'got six publications from database' );
+is( $Pub->count(
+        year       => '2050',
+        title      => 'whisky',
+        first_name => 'Harry',
+        last_name  => 'Potter'
+    ),
+    1,
+    'got six publications from database'
+);
 
 ($pub_from_db) = $Pub->search(
-    year    => '2010',
-    title   => 'mitochondria',
-    journal => 'Ophthalmic'
+    year       => '2050',
+    title      => 'whisky',
+    last_name  => 'Potter',
+    first_name => 'Harry'
 );
 
 is( $pub_from_db->journal,
-    'Ophthalmic research',
+    'Liquid journal',
     'got back the journal name from database'
 );
 
 #now lets update and then do a round trip
-$pub_from_db->journal('My journal');
-$pub_from_db->year(2009);
-$pub_from_db->title('Revoked title');
-$pub_from_db->issn('12354-748');
-$pub_from_db->issue(76);
-$pub_from_db->status('underpublished');
+$pub_from_db->journal('Solid journal');
+$pub_from_db->year(2099);
+$pub_from_db->title('Deathly hollow');
+$pub_from_db->issn('22394-748');
+$pub_from_db->issue(56);
+$pub_from_db->status('movie');
 
 lives_ok { $pub_from_db->update } 'updated one publication record';
 
@@ -127,3 +147,35 @@ is( $pub_after_update->issn, $pub_from_db->issn,
     'journal issn matches after update' );
 is( $pub_after_update->issue, $pub_from_db->issue,
     'journal issue matches after update' );
+
+#another new record
+$pub = $Pub->new(
+    year      => 2059,
+    title     => 'Bourbon whisky',
+    abstract  => 'Whisky kill bugs!',
+    status    => 'In a pub',
+    cv        => $test_cv,
+    journal   => 'Bottle journal',
+    pubmed_id => 2000876
+);
+$pub->add_author(
+    {   first_name => 'Bob',
+        last_name  => 'Cobb',
+        suffix     => 'Sr.',
+        initials   => 'Cornell.'
+
+    }
+);
+my @keys = qw/Growth Adhesion Mapping Reviews/;
+$pub->add_keyword($_) for @keys;
+lives_ok { $pub->create } 'created new record with keywords';
+
+my $pub_with_keyw = $Pub->find_by_pubmed_id(2000876);
+$pub_with_keyw->dicty_cv(
+    'Modware-dicty_literature_topic-dictyBase_literature_topic');
+is_deeply(
+    [ $pub_with_keyw->keywords_sorted ],
+    [ sort @keys ],
+    'got all keywords from storage'
+);
+

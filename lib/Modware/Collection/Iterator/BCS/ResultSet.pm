@@ -55,16 +55,6 @@ sub next {
 
 }
 
-before 'where' => sub {
-	my $self = shift;
-    confess "search class name is not set\n" if !$self->has_search_class;
-};
-
-sub where {
-    my ( $self, %arg ) = @_;
-    $self->search_class->where(%arg);
-}
-
 sub search {
     my ( $self, %arg ) = @_;
     $self->search_class->search(%arg);

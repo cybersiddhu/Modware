@@ -10,6 +10,19 @@ use namespace::autoclean;
 # Module implementation
 #
 
+has 'pub_dbxref_map' => (
+    is      => 'ro',
+    isa     => 'HashRef',
+    traits  => [qw/Hash/],
+    handles => {
+        all_pub_dbxrefs => 'keys',
+        get_pub_dbxref  => 'get'
+    },
+    default => sub {
+        { 'Medline' => 'medline_id', 'DOI' => 'doi' };
+    }
+);
+
 sub _build_pubmed_id {
     my ($self) = @_;
     return if !$self->has_dbrow;
@@ -44,58 +57,69 @@ sub db2accession {
 before 'create' => sub {
     my ($self) = @_;
     ## -- data validation
-    carp "pubmed id is not given\n" if !$self->has_pubmed_id;
+    croak "pubmed id is not given\n" if !$self->has_pubmed_id;
+
+    $self->chado if !$self->chado;
 
     my $pub = $self->meta->get_attribute('pub');
     $pub->uniquename( $self->pubmed_id );
-    $pub->add_to_pub_dbxrefs(
-        {   dbxref => {
-                accession => $self->medline_id,
-                db_id     => $self->db_id_by_name('Medline')
-            }
-        }
-    ) if $self->has_medline_id;
 
-    $pub->add_to_pub_dbxrefs(
-        {   dbxref => {
-                accession => $self->doi,
-                db_id     => $self->db_id_by_name('DOI')
+    for my $key ( $self->all_pub_dbxrefs ) {
+        my $val    = $self->get_pub_dbxref($key);
+        my $method = 'has_' . $val;
+        $pub->add_to_pub_dbxrefs(
+            {   dbxref => {
+                    accession => $self->$val,
+                    db_id     => $self->db_id_by_name($key)
+                }
             }
-        }
-    ) if $self->has_doi;
-
+        ) if $self->$method;
+    }
 };
 
 before 'update' => sub {
-	my $self = shift;
+    my $self = shift;
+
+    #initialize chado handler first
+    my $chado = $self->chado if !$self->has_chado;
+
     my $pub = $self->meta->get_attribute('pub');
+    $pub->reset;
     if ( $self->has_pubmed_id
         and ( $self->pubmed_id ne $self->dbrow->uniquename ) )
     {
         $pub->uniquename( $self->pubmed_id );
     }
 
-    if ( $self->has_medline_id ) {
-        my $id = $self->_build_medline_id;
-        $pub->add_to_pub_dbxrefs(
-            {   dbxref => {
-                    accession => $self->medline_id,
-                    db_id     => $self->db_id_by_name('Medline')
-                }
+    for my $key ( $self->all_pub_dbxrefs ) {
+        my $val    = $self->get_pub_dbxref($key);
+        my $method = 'has_' . $val;
+        if ( $self->$method ) {
+            my $row = $chado->resultset('General::Dbxref')->search(
+                {   accession => $self->$val,
+                    db_id     => $self->db_id_by_name($key)
+                },
+                { rows => 1 }
+            )->single;
+            if ($row) {
+                $pub->add_to_pub_dbxref(
+                    {   accession => $self->$val,
+                        dbxref_id => $row->dbxref_id,
+                        db_id     => $self->db_id_by_name($key)
+                    }
+                );
             }
-        ) if $id ne $self->medline_id;
+            else {
+                $pub->add_to_pub_dbxref(
+                    {   accession => $self->$val,
+                        db_id     => $self->db_id_by_name($key)
+                    }
+
+                );
+            }
+        }
     }
 
-    if ( $self->has_doi ) {
-        my $id = $self->_build_doi;
-        $pub->add_to_pub_dbxrefs(
-            {   dbxref => {
-                    accession => $self->doi,
-                    db_id     => $self->db_id_by_name('DOI')
-                }
-            }
-        ) if $id ne $self->doi;
-    }
 };
 
 1;    # Magic true value required at end of module
