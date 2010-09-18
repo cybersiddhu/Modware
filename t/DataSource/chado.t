@@ -1,5 +1,5 @@
 use strict;
-use Test::Most qw/no_plan/;
+use Test::More qw/no_plan/;
 use File::Path;
 use Path::Class::Dir;
 use FindBin qw/$Bin/;

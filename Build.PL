@@ -33,7 +33,7 @@ my $build = Modware::Build->new(
         'MooseX::Role::Parameterized' => '0.19'
     },
     build_requires => {
-        'Test::Most'            => '0.22',
+        'Test::More'            => 0.94,
         'DBIx::Class::Fixtures' => '1.001010',
         'YAML'                  => '0.70',
         'Archive::Tar'          => '1.66'
@@ -64,7 +64,8 @@ my $build = Modware::Build->new(
 );
 
 $build->args( 'ddl_dir', catdir( $build->base_dir, 't', 'data', 'ddl' ) );
-$build->args( 'preset_file', catdir( $build->base_dir, 't', 'data', 'preset.tar.gz' ) );
+$build->args( 'preset_file',
+    catdir( $build->base_dir, 't', 'data', 'preset.tar.gz' ) );
 $build->args( 'tmp_dir', catdir( 't', 'tmp' ) );
 $build->config_data( 'config' => 'custom' );
 $build->create_build_script;

@@ -1,5 +1,5 @@
 use strict;
-use Test::Most qw/no_plan die/;
+use Test::More qw/no_plan/;
 use aliased 'Modware::DataSource::Chado';
 use Modware::Build;
 
