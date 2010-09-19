@@ -1,5 +1,6 @@
 use strict;
 use Test::More qw/no_plan/;
+use Test::Exception;
 use File::Path;
 use Path::Class::Dir;
 use FindBin qw/$Bin/;
@@ -7,8 +8,9 @@ use DBI;
 use Try::Tiny;
 use lib '../lib';
 
-die_on_fail;
-use_ok('Modware::DataSource::Chado');
+BEGIN {
+    use_ok('Modware::DataSource::Chado');
+}
 
 #make the tmp folder if not there
 my $folder = Path::Class::Dir->new($Bin)->parent->subdir('tmp');
@@ -66,7 +68,6 @@ $datasource->connect(
 my $handler  = $datasource->handler;
 my $handler2 = $datasource->handler('beermod');
 
-die_on_fail;
 isa_ok( $handler,  'Bio::Chado::Schema' );
 isa_ok( $handler2, 'Bio::Chado::Schema' );
 
@@ -76,12 +77,9 @@ my $row2 = $handler->resultset('General::Db')->find( { name => 'caboose' } );
 my $row3 = $handler2->resultset('General::Db')->find( { name => 'caboose' } );
 my $row4 = $handler2->resultset('General::Db')->find( { name => 'drago' } );
 
-die_on_fail;
 like( $row->description, qr/tucker/, 'tucker is in default handler' );
-die_on_fail;
 isnt( $row2, 1, 'caboose is not in default handler' );
 
-die_on_fail;
 like( $row3->description, qr/caboose/, 'caboose is in beermod' );
 isnt( $row4, 1, 'drago is not in beermod' );
 
@@ -93,7 +91,6 @@ $datasource->connect(
 
 my $handler3 = $datasource->handler;
 my $row5 = $handler3->resultset('General::Db')->find( { name => 'drago' } );
-die_on_fail;
 like( $row5->description, qr/drago/, 'drago is in default handler now' );
 
 unlink grep {/sqlite$/} map { $_->stringify } $folder->children;
@@ -151,10 +148,3 @@ SQL
     $dbh->disconnect;
 
 }
-
-set_failure_handler(
-    sub {
-        unlink grep {/sqlite$/} map { $_->stringify } $folder->children;
-        exit;
-    }
-);
