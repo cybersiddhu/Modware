@@ -1,11 +1,10 @@
 package Test::Chado::Role::Handler::Oracle;
 
-use version; our $VERSION = qv('1.0.0');
-
 # Other modules:
 use Moose::Role;
 use Try::Tiny;
 use DBI;
+use Carp;
 use Path::Class::File;
 
 # Module implementation
@@ -20,7 +19,7 @@ requires 'password';
 sub create_db {
     my ($self) = @_;
     my $user   = $self->user;
-    my $pass   = $self->pass;
+    my $pass   = $self->password;
     try {
         $self->super_dbh->do("CREATE $user identified by $pass");
     }
@@ -133,6 +132,7 @@ TRIGGER:
 has 'dbh' => (
     is      => 'ro',
     isa     => 'DBI::db',
+    lazy    => 1,
     default => sub {
         my $self = shift;
         DBI->connect( $self->connection_info ) or confess $DBI::errstr;
@@ -142,6 +142,7 @@ has 'dbh' => (
 has 'super_dbh' => (
     is      => 'ro',
     isa     => 'DBI::db',
+    lazy    => 1,
     default => sub {
         my $self = shift;
         $self->add_dbh_attribute( 'LongTruncOk', 1 );
@@ -167,7 +168,7 @@ has 'connection_info' => (
 sub deploy_schema {
     my ($self) = @_;
     my $dbh    = $self->dbh;
-    my $fh     = Path::Class::File->new($self->ddl)->openr;
+    my $fh     = Path::Class::File->new( $self->ddl )->openr;
     my $data = do { local ($/); <$fh> };
     $fh->close();
 LINE:

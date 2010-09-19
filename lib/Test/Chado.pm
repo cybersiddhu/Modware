@@ -41,12 +41,14 @@ sub handler_from_options {
     else {
         $data_conf = Test::Chado::Config::DataFile->new;
     }
-    $data_conf->base_path( $builder->base_path );
+    $data_conf->base_path( $builder->base_dir );
     $data_conf->append_path( $self->append_path );
     $data_conf->file_config( $self->file_config );
-    my $handler = Test::Chado::Handler->new( data_config => $data_conf );
-    $handler->$_( $builder->args($_) )
-        for qw/dsn user password name loader ddl_dir/;
+    my $handler = Test::Chado::Handler->new(
+        data_config => $data_conf,
+        loader      => $builder->args('loader')
+    );
+    $handler->$_( $builder->args($_) ) for qw/user password name ddl_dir dsn/;
     $handler;
 }
 
@@ -78,7 +80,7 @@ sub handler_from_profile {
     }
 
     $data_conf->base_path( $builder->base_dir );
-    $data_conf->db_config($builder->args('db_config'));
+    $data_conf->db_config( $builder->args('db_config') );
     $data_conf->file_config( $self->file_config );
     $data_conf->append_path( $self->append_path );
 
@@ -87,7 +89,7 @@ sub handler_from_profile {
 
     $handler->$_( $builder->args($_) ) for qw/loader ddl_dir/;
     my $db_str = $data_conf->db_config;
-    for my $opt (qw/dsn user password/) {
+    for my $opt (qw/user password dsn/) {
         $handler->$opt( $db_str->{$name}->{$opt} )
             if defined $db_str->{$name}->{$opt};
     }

@@ -18,7 +18,7 @@ use namespace::autoclean;
 #
 
 has 'name' => ( is => 'rw', isa => 'Str' );
-has 'loader' => ( is => 'rw', isa => 'Str', default => 'bcs' );
+has 'loader' => ( is => 'rw', isa => 'Str',  lazy => 1,  default => 'preset');
 has 'section' => (
     is        => 'rw',
     isa       => 'Test::Chado::Config::Database',
