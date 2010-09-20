@@ -49,7 +49,6 @@ is( $Pub->count(
         title   => 'publication',
         year    => 2010,
         journal => 'Hungry',
-        author  => 'Todd'
     ),
     1,
     'has got the created publication record from database'
@@ -63,9 +62,8 @@ is( $pub_from_db->status, $pub->status,
     'retrieved record matches in status' );
 is( $pub_from_db->total_authors, 2, 'retrieved record has two authors' );
 
-my $author = $pub_from_db->get_from_authors(1);
+my $author = $pub_from_db->get_from_authors(0);
 isa_ok( $author, 'Modware::Publication::Author' );
-is( $author->last_name,, 'Gagg', 'has got author first name' );
 
 $pub_from_db->delete( { cascade => 1 } );
 is( $Pub->count(

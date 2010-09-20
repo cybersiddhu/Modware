@@ -1,13 +1,13 @@
 package Modware::DataSource::Chado;
 
-use version;
-our $VERSION = qv('0.1');
+use strict;
 
 # Other modules:
 use MooseX::Singleton;
 use MooseX::Params::Validate;
 use Bio::Chado::Schema;
 use Module::Load;
+use Data::Dumper;
 
 # Module implementation
 #
@@ -16,18 +16,18 @@ sub connect {
     my $class  = shift;
     my %params = validated_hash(
         \@_,
-        dsn              => { isa => 'Str',  optional => 1 },
-        user             => { isa => 'Maybe[Str]', optional => 1 },
-        password         => { isa => 'Maybe[Str]', optional => 1 },
+        dsn              => { isa => 'Str',            optional => 1 },
+        user             => { isa => 'Maybe[Str]',     optional => 1 },
+        password         => { isa => 'Maybe[Str]',     optional => 1 },
         attr             => { isa => 'Maybe[HashRef]', optional => 1 },
         extra            => { isa => 'Maybe[HashRef]', optional => 1 },
-        source_name      => { isa => 'Str', optional => 1 },
-        adapter          => { isa => 'Str', optional => 1 },
-        reader           => { isa => 'Str', optional => 1 },
-        writer           => { isa => 'Str', optional => 1 },
-        reader_namespace => { isa => 'Str', optional => 1 },
-        writer_namespace => { isa => 'Str', optional => 1 },
-        default          => { isa => 'Bool', optional => 1 }
+        source_name      => { isa => 'Str',            optional => 1 },
+        adapter          => { isa => 'Str',            optional => 1 },
+        reader           => { isa => 'Str',            optional => 1 },
+        writer           => { isa => 'Str',            optional => 1 },
+        reader_namespace => { isa => 'Str',            optional => 1 },
+        writer_namespace => { isa => 'Str',            optional => 1 },
+        default          => { isa => 'Bool',           optional => 1 }
     );
 
     for my $args (
@@ -72,7 +72,6 @@ after 'source_name' => sub {
             $class->dsn,  $class->user, $class->password,
             $class->attr, $class->extra
         );
-
         $class->register_handler( $source_name, $handler );
     }
 };
@@ -104,7 +103,6 @@ sub _build_handler_stack {
         $class->dsn,  $class->user, $class->password,
         $class->attr, $class->extra
     );
-
     return {
         'fallback' => $handler,
         $source    => $handler
@@ -180,8 +178,10 @@ has 'source_name_stack' => (
 
 sub handler {
     my ( $class, $source_name ) = @_;
-    $class->get_handler_by_source_name(
+    my $handler = $class->get_handler_by_source_name(
         $source_name ? $source_name : $class->default_source );
+    $handler;
+
 }
 
 1;    # Magic true value required at end of module

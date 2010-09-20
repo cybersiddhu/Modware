@@ -4,7 +4,7 @@ use lib 'blib/lib';
 use Test::Chado;
 use File::Spec::Functions;
 use Module::Load;
-use Data::Dumper;
+use Data::Dumper::Concise;
 use Archive::Tar;
 use File::Path qw/make_path remove_tree/;
 use File::Basename;
@@ -46,8 +46,13 @@ sub db_handler {
     $self->config_data( dsn      => $handler->dsn );
     $self->config_data( user     => $handler->user );
     $self->config_data( password => $handler->password );
+    $self->config_data( db_attr => $handler->attr_hash );
     $self->chado($chado);
     $self->handler($handler);
+    if ($self->args('superuser')) {
+    	$handler->superuser($self->args('superuser'));
+    	$handler->superpassword($self->args('superpassword'));
+    }
 
 }
 
@@ -230,7 +235,7 @@ sub ACTION_test {
     $self->recursive_test_files(1);
 
     $self->SUPER::ACTION_test(@_);
-    $self->depends_on('drop') if $self->args('drop');
+    $self->depends_on('drop');
     $self->depends_on('cleanup_tmp');
 }
 
