@@ -8,59 +8,6 @@ use namespace::autoclean;
 # Module implementation
 #
 
-sub _build_first_page {
-    my ($self) = @_;
-    return if !$self->has_dbrow;
-    my $first = ( ( split /\-\-/, $self->dbrow->pages ) )[0];
-    $first;
-}
-
-sub _build_last_page {
-    my ($self) = @_;
-    return if !$self->has_dbrow;
-    my $last = ( ( split /\-\-/, $self->dbrow->pages ) )[1];
-    $last;
-}
-
-sub _build_abbreviation {
-    my ($self) = @_;
-    return if !$self->has_dbrow;
-    my $rs = $self->dbrow->search_related( 'pubprops',
-        { 'type_id' => $self->cvterm_id_by_name('journal_abbreviation') } );
-    $rs->first->value if $rs->count > 0;
-
-}
-
-sub _build_issn {
-    my ($self) = @_;
-    return if !$self->has_dbrow;
-    my $rs
-        = $self->dbrow->search_related( 'pub_dbxrefs', {} )->search_related(
-        'dbxref',
-        { 'db.name' => 'issn' },
-        { join      => 'db' }
-        );
-    $rs->first->accession if $rs->count > 0;
-}
-
-sub _build_journal {
-    my ($self) = @_;
-    return if !$self->has_dbrow;
-    $self->dbrow->series_name;
-}
-
-sub _build_issue {
-    my ($self) = @_;
-    return if !$self->has_dbrow;
-    $self->dbrow->issue;
-}
-
-sub _build_volume {
-    my ($self) = @_;
-    return if !$self->has_dbrow;
-    $self->dbrow->volume;
-}
-
 before 'create' => sub {
     my ($self) = @_;
 

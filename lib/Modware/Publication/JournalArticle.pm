@@ -11,7 +11,10 @@ use namespace::autoclean;
 #
 with 'Modware::Role::Chado::Builder::BCS::Publication';
 with 'Modware::Role::Chado::Writer::BCS::Publication';
+
+with 'Modware::Role::Chado::Builder::BCS::Publication::JournalArticle';
 with 'Modware::Role::Chado::Writer::BCS::Publication::JournalArticle';
+
 with 'Modware::Role::Chado::Helper::BCS::Cvterm';
 with 'Modware::Role::Chado::Helper::BCS::Dbxref';
 with 'Modware::Role::Publication::HasAuthors';
