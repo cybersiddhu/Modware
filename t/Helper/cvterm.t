@@ -1,6 +1,7 @@
 use strict;
 use Test::More qw/no_plan/;
 use Test::Exception;
+use Data::Dumper::Concise;
 use aliased 'Modware::DataSource::Chado';
 use Modware::Build;
 
@@ -30,7 +31,8 @@ my $build = Modware::Build->current;
 Chado->connect(
     dsn      => $build->config_data('dsn'),
     user     => $build->config_data('user'),
-    password => $build->config_data('password')
+    password => $build->config_data('password'), 
+    attr     => $build->config_data('db_attr')
 );
 
 my $helper = My::Helper::Cv->new;

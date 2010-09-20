@@ -9,6 +9,7 @@ META*
 tmp
 log
 *DS_Store*
+data
 
 #exclude Build.PL
 !Build.PL

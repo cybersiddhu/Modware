@@ -1,6 +1,7 @@
 package Modware::Chado::Query::BCS;
 
 # Other modules:
+use strict;
 use Moose;
 use MooseX::ClassAttribute;
 use MooseX::Params::Validate;
@@ -32,16 +33,31 @@ class_has 'source' => (
     predicate => 'has_source'
 );
 
+class_has 'query_engine' => (
+    is      => 'rw',
+    isa     => 'Str',
+    lazy    => 1,
+    default => sub {
+        my $class     = shift;
+        my $chado    = __PACKAGE__->chado;
+        my $sql_type = ucfirst lc( $chado->storage->sqlt_type );
+        $sql_type = $sql_type eq 'Oracle' ? $sql_type : 'Generic';
+        my $engine = 'Modware::Chado::Query::BCS::Engine::' . $sql_type;
+        load $engine;
+        $engine;
+    }
+);
+
 class_has 'params_map' => (
     is      => 'rw',
     isa     => 'HashRef',
     traits  => [qw/Hash/],
     lazy    => 1,
-    default => sub { {} }, 
+    default => sub { {} },
     handles => {
-    	allowed_params => 'keys', 
-    	param_value => 'get', 
-    	has_param_value => 'defined'
+        allowed_params  => 'keys',
+        param_value     => 'get',
+        has_param_value => 'defined'
     }
 );
 
@@ -50,14 +66,13 @@ class_has 'related_params_map' => (
     isa     => 'HashRef',
     traits  => [qw/Hash/],
     lazy    => 1,
-    default => sub { {} }, 
+    default => sub { {} },
     handles => {
-    	allowed_related_params => 'keys', 
-    	related_param_value => 'get', 
-    	has_related_param_value => 'defined'
+        allowed_related_params  => 'keys',
+        related_param_value     => 'get',
+        has_related_param_value => 'defined'
     }
 );
-
 
 class_has 'data_class' => (
     is  => 'rw',
@@ -72,45 +87,14 @@ class_has 'resultset_name' => (
 
 sub rearrange_nested_query {
     my ( $class, $attrs, $clause, $match_type ) = @_;
-    $clause     = lc $clause;
-    $match_type = lc $match_type;
-
-    my $where;
-    for my $param ( keys %$attrs ) {
-        push @$where,
-            {
-              $param => $match_type eq 'exact'
-            ? $attrs->{$param}
-            : { 'like', '%' . $attrs->{$param} . '%' }
-            };
-    }
-    my $nested_where;
-    $nested_where->{ '-' . $clause } = $where;
-    $nested_where;
+    my $engine = $class->query_engine;
+    $engine->nested_query($attrs, $clause, $match_type);
 }
-
+    
 sub rearrange_query {
     my ( $class, $attrs, $clause, $match_type ) = @_;
-    $clause     = lc $clause;
-    $match_type = lc $match_type;
-
-    my $where;
-    for my $param ( keys %$attrs ) {
-        if ( $clause eq 'and' ) {
-            $where->{$param}
-                = $match_type eq 'exact'
-                ? $attrs->{$param}
-                : { 'like', '%' . $attrs->{$param} . '%' };
-        }
-        else {
-            push @$where,
-                $match_type eq 'exact'
-                ? { $param => $attrs->{$param} }
-                : { $param => { 'like', '%' . $attrs->{$param} . '%' } };
-
-        }
-    }
-    $where;
+    my $engine = $class->query_engine;
+    $engine->query($attrs, $clause, $match_type);
 }
 
 sub count {

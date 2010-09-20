@@ -10,8 +10,10 @@ my $build = Modware::Build->current;
 Chado->connect(
     dsn      => $build->config_data('dsn'),
     user     => $build->config_data('user'),
-    password => $build->config_data('password')
+    password => $build->config_data('password'),
+    attr     => $build->config_data('db_attr')
 );
+
 
 my $Pub = 'Modware::Chado::Query::BCS::Publication::Pubmed';
 my $itr = $Pub->search( author => 'Ian' );
@@ -23,11 +25,12 @@ is( $Pub->count( journal => 'PloS' ),
     2, 'it can count publications by journal name' );
 
 my $pub = $Pub->find_by_pubmed_id(20830294);
-isa_ok($pub,  'Modware::Publication');
+isa_ok( $pub, 'Modware::Publication' );
 
-my $pub2 = $Pub->find($pub->dbrow->pub_id);
-isa_ok($pub2,  'Modware::Publication');
+my $pub2 = $Pub->find( $pub->dbrow->pub_id );
+isa_ok( $pub2, 'Modware::Publication' );
 
-is( $Pub->search( last_name => 'Lewin', first_name => 'AS Alfred S' )
-        ->count, 1, 'has publication from first and last name search'
+is( $Pub->search( last_name => 'Lewin', first_name => 'AS Alfred S' )->count,
+    1,
+    'has publication from first and last name search'
 );

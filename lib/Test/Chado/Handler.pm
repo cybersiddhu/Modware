@@ -55,7 +55,7 @@ for my $attr (qw/driver driver_dsn database ddl_dir/) {
     has $attr => ( is => 'rw', isa => 'Str', predicate => 'has_' . $attr );
 }
 
-for my $attr (qw/user password superuser superpass/) {
+for my $attr (qw/user password superuser superpassword/) {
     has $attr =>
         ( is => 'rw', isa => 'Maybe[Str]', predicate => 'has_' . $attr );
 }
@@ -98,13 +98,7 @@ after 'driver' => sub {
         'Test::Chado::Role::Handler::' . ucfirst $driver );
 };
 
-has 'attr_hash' => (
-    is      => 'rw',
-    isa     => 'HashRef',
-    traits  => ['Hash'],
-    default => sub { { AutoCommit => 0 } },
-    handles => { add_dbh_attribute => 'set' }
-);
+
 
 after 'ddl_dir' => sub {
     my ( $self, $value ) = @_;
@@ -122,8 +116,8 @@ after 'user' => sub {
 
 after 'password' => sub {
     my ( $self, $pass ) = @_;
-    if ( !$self->has_superpass ) {
-        $self->superpass($pass);
+    if ( !$self->has_superpassword ) {
+        $self->superpassword($pass);
     }
 };
 

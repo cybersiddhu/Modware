@@ -4,7 +4,9 @@ package Test::Chado::Role::Handler::Oracle;
 use Moose::Role;
 use Try::Tiny;
 use DBI;
+use DBD::Oracle qw/:ora_session_modes/;
 use Carp;
+use Data::Dumper;
 use Path::Class::File;
 
 # Module implementation
@@ -12,32 +14,21 @@ use Path::Class::File;
 requires 'driver';
 requires 'dsn';
 requires 'superuser';
-requires 'superpass';
+requires 'superpassword';
 requires 'user';
 requires 'password';
 
 sub create_db {
     my ($self) = @_;
-    my $user   = $self->user;
-    my $pass   = $self->password;
-    try {
-        $self->super_dbh->do("CREATE $user identified by $pass");
-    }
-    catch {
-        confess "unable to create database $_\n";
-    };
+    ## -- still not sure how to connect as the user before creating them ... so ...
+    return 1;
 }
 
 sub drop_db {
     my ($self) = @_;
-    my $user   = $self->user;
-    my $pass   = $self->pass;
-    try {
-        $self->super_dbh->do("DROP USER $user CASCADE");
-    }
-    catch {
-        confess "unable to drop database $_\n";
-    };
+    ## -- still not sure how to drop a schema by connecting as same user
+    ## -- so this action actually drop the database structure
+    $self->drop_schema;
 
 }
 
@@ -129,6 +120,14 @@ TRIGGER:
     $dbh->commit;
 }
 
+has 'attr_hash' => (
+    is      => 'rw',
+    isa     => 'HashRef',
+    traits  => ['Hash'],
+    default => sub { { AutoCommit => 0 ,  LongTruncOk => 1} },
+    handles => { add_dbh_attribute => 'set' }
+);
+
 has 'dbh' => (
     is      => 'ro',
     isa     => 'DBI::db',
@@ -145,10 +144,9 @@ has 'super_dbh' => (
     lazy    => 1,
     default => sub {
         my $self = shift;
-        $self->add_dbh_attribute( 'LongTruncOk', 1 );
         DBI->connect(
             $self->dsn,       $self->superuser,
-            $self->superpass, $self->attr_hash
+            $self->superpassword, $self->attr_hash
         ) or confess $DBI::errstr;
     }
 );
@@ -160,7 +158,6 @@ has 'connection_info' => (
     auto_deref => 1,
     default    => sub {
         my ($self) = @_;
-        $self->add_dbh_attribute( 'LongTruncOk', 1 );
         [ $self->dsn, $self->user, $self->password, $self->attr_hash ];
     }
 );
