@@ -7,6 +7,7 @@ use strict;
 use Moose::Role;
 use DBIx::Class::Fixtures;
 use Carp;
+use File::Spec::Functions;
 use namespace::autoclean;
 
 # Module implementation
@@ -32,8 +33,8 @@ sub load_fixture {
     my $self = shift;
     my $conf = $self->data_config;
     $self->loader_instance->populate(
-        {   directory          => $conf->directory,
-            ddl                => $self->ddl,
+        {   directory => $conf->directory,
+            ddl       => $self->ddl, 
             connection_details => [ $self->dsn, $self->user, $self->password ]
         }
     );
@@ -48,7 +49,7 @@ for my $attr (@$unsupported) {
     has $attr => (
         is      => 'ro',
         isa     => 'Str',
-        lazy => 1, 
+        lazy    => 1,
         default => sub {
             carp "method $attr is stub for Preset loader\n";
             carp "Try other loader such as Bcs to use them\n";

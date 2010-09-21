@@ -16,6 +16,20 @@ __PACKAGE__->add_property( 'tar' => Archive::Tar->new );
 my @feature_list = qw/setup_done is_db_created is_schema_loaded
     is_fixture_loaded/;
 
+sub check_oracle {
+    my ($self) = @_;
+    ## -- this whole thing is for working with Oracle
+    ## -- loading preset fixture does not work because of LOB field
+    return if !$self->args('dsn');
+    load DBI;
+    my ( $scheme, $driver ) = DBI->parse_dsn( $self->args('dsn') );
+    if ( $driver eq 'Oracle' ) {
+        $self->args( 'preset', 0 );
+        return 1;
+    }
+
+}
+
 sub db_handler {
     my ($self) = @_;
     my $handler;
@@ -25,16 +39,21 @@ sub db_handler {
     if ( $self->args('preset') ) {    #load from preset fixture - the default
         $chado->file_config( $self->args('fixture_config') );
         $chado->append_path( $self->args('append_path') );
+        $self->feature( preset => 1 );
     }
     else {                            #load from data file
         $chado->file_config( $self->args('file_config') );
         $chado->append_path( catdir( 't', 'data', 'raw' ) );
         $self->args( 'loader', 'bcs' );
-
     }
 
     if ( my $dsn = $self->args('dsn') )
     {    #means the db credentials are passed on the command line
+        if ( $self->check_oracle ) {
+            $chado->file_config( $self->args('file_config') );
+            $chado->append_path( catdir( 't', 'data', 'raw' ) );
+            $self->args( 'loader', 'bcs' );
+        }
         $handler = $chado->handler_from_options;
     }
     else {    # db crendentials should be loaded from database profile
@@ -46,12 +65,12 @@ sub db_handler {
     $self->config_data( dsn      => $handler->dsn );
     $self->config_data( user     => $handler->user );
     $self->config_data( password => $handler->password );
-    $self->config_data( db_attr => $handler->attr_hash );
+    $self->config_data( db_attr  => $handler->attr_hash );
     $self->chado($chado);
     $self->handler($handler);
-    if ($self->args('superuser')) {
-    	$handler->superuser($self->args('superuser'));
-    	$handler->superpassword($self->args('superpassword'));
+    if ( $self->args('superuser') ) {
+        $handler->superuser( $self->args('superuser') );
+        $handler->superpassword( $self->args('superpassword') );
     }
 
 }
@@ -72,7 +91,7 @@ sub ACTION_create_tmp {
 sub ACTION_cleanup_tmp {
     my $self = shift;
     my $path = $self->args('tmp_dir');
-    remove_tree( $path ) if -e $path;
+    remove_tree($path) if -e $path;
 }
 
 sub ACTION_setup {
@@ -152,6 +171,7 @@ sub ACTION_load_publication {
 
 sub ACTION_load_fixture {
     my ($self) = @_;
+    $self->check_oracle;
     if ( $self->args('preset') ) {
         $self->depends_on('setup');
         $self->tar->read( $self->args('preset_file') );

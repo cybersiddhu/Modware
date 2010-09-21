@@ -87,7 +87,7 @@ sub _setup_dsn {
     $self->driver($driver);
     $self->driver_dsn($driver_dsn);
     apply_all_roles( $self,
-        'Test::Chado::Role::Loader::' . ucfirst lc( $self->loader ) );
+        'Test::Chado::Role::Loader::' . ucfirst lc( $self->loader_choice ) );
 }
 
 after 'driver' => sub {
@@ -120,6 +120,12 @@ after 'password' => sub {
         $self->superpassword($pass);
     }
 };
+
+## -- for oracle it will always be loaded from the raw file
+sub loader_choice {
+	my $self = shift;
+	my $loader = $self->driver eq 'Oracle' ? 'bcs' : $self->loader;
+}
 
 1;    # Magic true value required at end of module
 

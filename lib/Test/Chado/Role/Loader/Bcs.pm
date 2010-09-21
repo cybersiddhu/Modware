@@ -575,6 +575,16 @@ sub load_ontology {
 
 }
 
+sub load_fixture {
+	my $self = shift;
+	$self->load_organism;
+	$self->load_rel;
+	$self->load_so;
+	$self->load_pub;
+	$self->load_journal_data;
+	$self->load_dicty_keywords;
+}
+
 sub unload_pub {
     my ($self) = @_;
     my $name = 'publication';
