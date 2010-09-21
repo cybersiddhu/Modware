@@ -1,3 +1,5 @@
+## -- Oracle is not supported here for the time being
+## -- Try to pass in the command line through Build.PL
 fallback:
   dsn: "dbi:SQLite:dbname=t/tmp/chado.db"
   ddl: "t/data/ddl/chado.sqlite"
