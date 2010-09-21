@@ -7,8 +7,13 @@ use version; our $VERSION = qv('0.1');
 # Module implementation
 #
 with 'Modware::Role::DataSource::Util';
+
+with 'Modware::Role::Chado::Builder::BCS::Publication';
 with 'Modware::Role::Chado::Writer::BCS::Publication';
+
+with 'Modware::Role::Chado::Builder::BCS::Publication::Journal';
 with 'Modware::Role::Chado::Writer::BCS::Publication::Journal';
+
 with 'Modware::Role::Chado::Helper::BCS::Cvterm';
 with 'Modware::Role::Chado::Helper::BCS::Dbxref';
 with 'Modware::Role::Publication::HasAuthors';

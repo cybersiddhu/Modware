@@ -8,34 +8,6 @@ use Moose::Role;
 # Module implementation
 #
 
-
-sub _build_abbreviation {
-    my ($self) = @_;
-    return if !$self->has_dbrow;
-    my $rs = $self->dbrow->search_related( 'pubprops',
-        { 'type_id' => $self->cvterm_id_by_name('journal_abbreviation') } );
-    $rs->first->value if $rs->count > 0;
-
-}
-
-sub _build_issn {
-    my ($self) = @_;
-    return if !$self->has_dbrow;
-    my $rs
-        = $self->dbrow->search_related( 'pub_dbxrefs', {} )->search_related(
-        'dbxref',
-        { 'db.name' => 'issn' },
-        { join      => 'db' }
-        );
-    $rs->first->accession if $rs->count > 0;
-}
-
-sub _build_journal {
-    my ($self) = @_;
-    return if !$self->has_dbrow;
-    $self->dbrow->series_name;
-}
-
 before 'create' => sub {
     my ($self) = @_;
     my $pub = $self->meta->get_attribute('pub');

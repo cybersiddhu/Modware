@@ -23,37 +23,6 @@ has 'pub_dbxref_map' => (
     }
 );
 
-sub _build_pubmed_id {
-    my ($self) = @_;
-    return if !$self->has_dbrow;
-    $self->dbrow->uniquename;
-}
-
-sub _build_medline_id {
-    my ($self) = @_;
-    return if !$self->has_dbrow;
-    $self->db2accession('Medline');
-
-}
-
-sub _build_doi {
-    my ($self) = @_;
-    return if !$self->has_dbrow;
-    $self->db2accession('DOI');
-
-}
-
-sub db2accession {
-    my ( $self, $db_name ) = @_;
-    my $rs
-        = $self->dbrow->search_related( 'pub_dbxrefs', {} )->search_related(
-        'dbxref',
-        { 'db.name' => $db_name },
-        { join      => 'db' }
-        );
-    $rs->first->accession if $rs->count > 0;
-}
-
 before 'create' => sub {
     my ($self) = @_;
     ## -- data validation
