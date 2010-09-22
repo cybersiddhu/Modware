@@ -69,7 +69,7 @@ sub cvterm_id_by_name {
         {   name   => $name,
             cv     => $self->cv,
             db     => $self->db,
-            dbxref => $self->cv . ':' . ord($name)
+            dbxref => $self->cv . '-' . $self->db . '-' . $name
         }
     );
     $self->set_cvterm_row( $name, $row );
@@ -92,7 +92,7 @@ sub cvterm_ids_by_namespace {
         my $ids = [ map { $_->cvterm_id } $row->cvterms ];
         return $ids;
     }
-    croak "the given cv namespace $name does not exist : create one \n";
+    croak "the given cv namespace $name does not exist : create one\n";
 }
 
 1;    # Magic true value required at end of module

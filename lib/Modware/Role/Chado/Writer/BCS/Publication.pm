@@ -12,17 +12,117 @@ use namespace::autoclean;
 # Module implementation
 #
 
+has 'datasource' => (
+    is        => 'rw',
+    isa       => 'Str',
+    predicate => 'has_datasource'
+);
+
 has 'chado' => (
     is         => 'rw',
     isa        => 'Bio::Chado::Schema',
     lazy_build => 1
 );
 
+has 'dbrow' => (
+    is        => 'rw',
+    isa       => 'DBIx::Class::Row',
+    predicate => 'has_dbrow',
+    clearer   => '_clear_dbrow'
+);
+
+has 'cv' => (
+    is      => 'rw',
+    isa     => 'Str',
+    lazy    => 1,
+    default => 'pub_type'
+);
+
+has 'db' => ( is => 'rw', isa => 'Str', lazy => 1, default => 'Pubmed' );
+
+has 'dicty_cv' =>
+    ( is => 'rw', isa => 'Str', default => 'dictyBase_literature_topic' );
+
+sub _build_status {
+    my $self = shift;
+    return if !$self->has_dbrow;
+    my $rs = $self->dbrow->search_related( 'pubprops',
+        { 'type_id' => $self->cvterm_id_by_name('status') } );
+    $rs->first->value if $rs;
+}
+
+sub _build_abstract {
+    my ($self) = @_;
+    return if !$self->has_dbrow;
+    my $rs = $self->dbrow->search_related( 'pubprops',
+        { 'type_id' => $self->cvterm_id_by_name('abstract') } );
+    $rs->first->value if $rs->count > 0;
+}
+
+sub _build_title {
+    my ($self) = @_;
+    $self->dbrow->title if $self->has_dbrow;
+}
+
+sub _build_year {
+    my ($self) = @_;
+    $self->dbrow->pyear if $self->has_dbrow;
+}
+
+sub _build_source {
+    my ($self) = @_;
+    $self->dbrow->pubplace if $self->has_dbrow;
+}
+
+sub _build_authors {
+    my ($self) = @_;
+    my $collection = [];
+    return $collection if !$self->has_dbrow;
+
+    my $rs = $self->dbrow->pubauthors;
+
+    #no authors for you
+    return $collection if $rs->count == 0;
+
+    while ( my $row = $rs->next ) {
+        my $author = Author->new(
+            id        => $row->pubauthor_id,
+            rank      => $row->rank,
+            is_editor => $row->editor,
+            last_name => $row->surname,
+            suffix    => $row->suffix
+        );
+        if ( $row->givennames =~ /^(\S+)\s+(\S+)$/ ) {
+            $author->initials($1);
+            $author->first_name($2);
+        }
+        else {
+            $author->first_name( $row->givennames );
+        }
+        push @$collection, $author;
+    }
+    $collection;
+}
+
+sub _build_keywords_stack {
+    my ($self) = @_;
+    return [] if !$self->has_dbrow;
+    my $rs = $self->dbrow->search_related(
+        'pubprops',
+        { 'cv.name' => $self->dicty_cv },
+        { join      => { 'type' => 'cv' }, cache => 1 }
+    );
+    return [ map { $_->type->name } $rs->all ] if $rs->count > 0;
+    return [];
+}
+
+
+
 sub _build_chado {
     my ($self) = @_;
     my $chado
-        = $self->has_source
-        ? Chado->handler( $self->source )
+        = $self->has_datasource
+        ? Chado->handler( $self->datasource )
         : Chado->handler;
     $self->meta->make_mutable;
     $self->meta->add_attribute(
@@ -155,12 +255,12 @@ before 'create' => sub {
         {   type_id => $self->cvterm_id_by_name('status'),
             value   => $self->status
         }
-    );
+    ) if $self->has_status;
     $pub->add_to_pubprops(
         {   type_id => $self->cvterm_id_by_name('abstract'),
             value   => $self->abstract
         }
-    );
+    ) if $self->has_abstract;
 
     if ( $self->has_keywords_stack ) {
         for my $word ( $self->keywords ) {

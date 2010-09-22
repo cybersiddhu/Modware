@@ -8,13 +8,8 @@ use namespace::autoclean;
 
 # Module implementation
 #
-with 'Modware::Role::Chado::Builder::BCS::Publication';
 with 'Modware::Role::Chado::Writer::BCS::Publication';
-
-with 'Modware::Role::Chado::Builder::BCS::Publication::JournalArticle';
 with 'Modware::Role::Chado::Writer::BCS::Publication::JournalArticle';
-
-with 'Modware::Role::Chado::Builder::BCS::Publication::Pubmed';
 with 'Modware::Role::Chado::Writer::BCS::Publication::Pubmed';
 
 with 'Modware::Role::Chado::Helper::BCS::Cvterm';

@@ -21,16 +21,16 @@ class_has 'chado' => (
 sub _build_chado {
     my ($class) = @_;
     my $chado
-        = $class->has_source
-        ? Chado->handler( $class->source )
+        = $class->has_datasource
+        ? Chado->handler( $class->datasource )
         : Chado->handler;
     $chado;
 }
 
-class_has 'source' => (
+class_has 'datasource' => (
     is        => 'rw',
     isa       => 'Str',
-    predicate => 'has_source'
+    predicate => 'has_datasource'
 );
 
 class_has 'query_engine' => (
