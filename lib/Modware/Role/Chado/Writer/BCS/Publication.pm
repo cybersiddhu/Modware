@@ -2,11 +2,12 @@ package Modware::Role::Chado::Writer::BCS::Publication;
 
 # Other modules:
 use Moose::Role;
-use aliased 'Modware::DataSource::Chado';
+use Module::Load;
 use aliased 'Modware::Publication::Author';
 use Try::Tiny;
 use Carp;
 use Data::Dumper::Concise;
+use aliased 'Modware::Chado::BCS::Publication::ColumnMapper';
 use namespace::autoclean;
 
 # Module implementation
@@ -24,6 +25,12 @@ has 'chado' => (
     lazy_build => 1
 );
 
+has 'pub' => (
+	is => 'rw', 
+	isa => 'Modware::Chado::BCS::Publication::ColumnMapper', 
+	lazy_build => 1
+);
+
 has 'dbrow' => (
     is        => 'rw',
     isa       => 'DBIx::Class::Row',
@@ -34,7 +41,6 @@ has 'dbrow' => (
 has 'cv' => (
     is      => 'rw',
     isa     => 'Str',
-    lazy    => 1,
     default => 'pub_type'
 );
 
@@ -42,6 +48,17 @@ has 'db' => ( is => 'rw', isa => 'Str', lazy => 1, default => 'Pubmed' );
 
 has 'dicty_cv' =>
     ( is => 'rw', isa => 'Str', default => 'dictyBase_literature_topic' );
+
+sub to_hashref {
+    my $self = shift;
+    $self->create(dry_run => 1);
+    $self->pub->to_insert_hashref;
+}
+
+sub _build_pub {
+	my $self = shift;
+	ColumnMapper->new();
+}
 
 sub _build_status {
     my $self = shift;
@@ -116,34 +133,23 @@ sub _build_keywords_stack {
     return [];
 }
 
-
-
 sub _build_chado {
     my ($self) = @_;
+    load 'Modware::DataSource::Chado';
     my $chado
         = $self->has_datasource
-        ? Chado->handler( $self->datasource )
-        : Chado->handler;
-    $self->meta->make_mutable;
-    $self->meta->add_attribute(
-        'pub' => (
-            is     => 'ro',
-            traits => [
-                'Modware::Role::Chado::Helper::BCS::ResultSet' => {
-                    resultset => $chado->resultset('Pub::Pub')->new( {} ),
-                    relationships => [qw/pubprops pubauthors pub_dbxrefs/],
-                }
-            ]
-        )
-    );
-    $self->meta->make_immutable;
+        ? Modware::DataSource::Chado->handler( $self->datasource )
+        : Modware::DataSource::Chado->handler;
     $chado;
 }
 
 sub create {
-    my ($self) = @_;
+    my ($self, %opt) = @_;
+    if (defined $opt{dry_run}) {
+    	return;
+    }
+    my $pub    = $self->pub;
     my $chado  = $self->chado;
-    my $pub    = $self->meta->get_attribute('pub');
     my $dbrow  = $chado->txn_do(
         sub {
             my $value = $chado->resultset('Pub::Pub')
@@ -192,7 +198,7 @@ sub update {
     my ($self) = @_;
     my $chado  = $self->chado;
     my $dbrow  = $self->dbrow;
-    my $pub    = $self->meta->get_attribute('pub');
+    my $pub    = $self->pub;
     $chado->txn_do(
         sub {
             $dbrow->update( $pub->to_update_hashref )
@@ -230,9 +236,9 @@ before 'create' => sub {
     croak "No author given\n" if !$self->has_authors;
 
     #initialize chado handler first
-    $self->chado if !$self->has_chado;
+    #$self->chado if !$self->has_chado;
 
-    my $pub = $self->meta->get_attribute('pub');
+    my $pub = $self->pub;
     while ( my $pubauthor = $self->next_author ) {
         $pub->add_to_pubauthors(
             {   rank       => $pubauthor->rank,
@@ -266,7 +272,8 @@ before 'create' => sub {
         for my $word ( $self->keywords ) {
             $pub->add_to_pubprops(
                 {   type_id => $self->cvterm_id_by_name($word),
-                    value   => 'true'
+                    value   => 'true',
+                    rank    => 0
                 }
             );
         }
@@ -284,7 +291,7 @@ before 'update' => sub {
     confess "No data being fetched from storage: nothing to update\n"
         if !$self->has_dbrow;
 
-    my $pub   = $self->meta->get_attribute('pub');
+    my $pub   = $self->pub;
     my $dbrow = $self->dbrow;
 
     $pub->title( $self->title )

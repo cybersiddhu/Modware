@@ -7,11 +7,11 @@ use FindBin qw/$Bin/;
 use lib ( "$Bin/../../lib", "$ENV{HOME}/dictyBase/Libs/dictylegacy/lib" );
 use dicty::Legacy::Search::Reference;
 use Path::Class;
+use aliased 'Modware::DataSource::Chado';
 use aliased 'Modware::Publication';
 use aliased 'Modware::Publication::JournalArticle';
-use aliased 'Modware::DataSource::Chado';
 use aliased 'Modware::Publication::Author';
-use Carp::Always;
+use Devel::Size qw/total_size/;
 
 my $file = Path::Class::Dir->new($Bin)->parent->parent->subdir('data')
     ->file('pub_dump.txt')->openw;
@@ -27,7 +27,10 @@ GetOptions(
 
 die "no dsn given\n" if !$dsn;
 
-my $attr = $dsn =~ /Oracle/i ? { LongTruncOk => 1 } : {};
+my $attr
+    = $dsn =~ /Oracle/i
+    ? { LongTruncOk => 1, AutoCommit => 1 }
+    : { AutoCommit => 1 };
 
 Chado->connect(
     dsn      => $dsn,
@@ -37,10 +40,15 @@ Chado->connect(
 );
 
 my $count = 0;
-my $limit = $ARGV[0] || 10;
+my $limit = $ARGV[0] || 'all';
 print "journal to be loaded: $limit\n";
 
-my $itr = dicty::Legacy::Search::Reference->Search_all($limit);
+my $itr
+    = $limit eq 'all'
+    ? dicty::Legacy::Search::Reference->Search_all()
+    : dicty::Legacy::Search::Reference->Search_all($limit);
+
+my $cache;
 REFERENCE:
 while ( my $ref = $itr->next ) {
     my $pub;
@@ -64,8 +72,9 @@ while ( my $ref = $itr->next ) {
 
     if ( $ref->page ) {
         my ( $first_page, $last_page ) = split /\-/, $ref->page;
-        $pub->first_page($first_page);
-        $pub->last_page($last_page);
+        $pub->first_page($first_page) if $first_page;
+        $pub->last_page($last_page)   if $last_page;
+        $file->print( 'page: ', $ref->page, "\n" );
     }
     $pub->type('journal_article') if $ref->type eq 'Journal Article';
 
@@ -76,6 +85,7 @@ while ( my $ref = $itr->next ) {
     }
     else {
         $not_loaded->print( $ref->reference_no, "\n" );
+        undef $pub;
         next REFERENCE;
     }
 
@@ -85,12 +95,19 @@ while ( my $ref = $itr->next ) {
         $pub->abstract( $ref->abstract );
     }
 
-    for my $name ( @{ $ref->authors } ) {
+    my @authors = @{ $ref->authors };
+    if ( !@authors ) {
+        $not_loaded->print( $ref->reference_no, "\tno author\n" );
+        undef $pub;
+        next REFERENCE;
+    }
+
+    for my $name (@authors) {
         if ( $name =~ /^([^,.]+)(.+)$/ ) {
-            my $first_name = $1;
-            my $last_name  = $2;
-            $last_name =~ s/\,//;
-            $last_name =~ s/^s+//;
+            my $last_name  = $1;
+            my $first_name = $2;
+            $first_name =~ s/\,//;
+            $first_name =~ s/^s+//;
             $pub->add_author(
                 Author->new(
                     first_name => $first_name,
@@ -105,23 +122,32 @@ while ( my $ref = $itr->next ) {
         $pub->add_keyword($word);
         $file->print( "topic: ", $word, "\n" );
     }
-    if ( $ref->not_curated ) {
-        $pub->add_keyword('Not yet curated');
-        $file->print("topic: Not yet curated\n");
-    }
 
-    $pub->create;
-    $count++;
+    #if ( $ref->not_curated ) {
+    #    $pub->add_keyword('Not yet curated');
+    #    $file->print("topic: Not yet curated\n");
+    #}
 
-    $file->print( "Short Citation :: ", $ref->short_citation, "\n" );
-    $file->print( "Citation :: ",       $ref->writeCitation,  "\n" );
-    $file->print( "CitationAuthString :: ",
-        $ref->writeCitationAuthorString, "\n" );
-    $file->print( "Formatted Citation :: ", $ref->formatted_citation, "\n" );
     $file->print("\n =========== \n");
+    push @$cache, $pub->to_hashref;
+    if ( @$cache >= 200 ) {
+        print "total size of arrayref: ", total_size($cache) / 1024.0, "\n";
+        print "start commiting\n";
+        Chado->handler->resultset('Pub::Pub')->populate($cache);
+        print "commited 200 entries\n";
+        $count += 200;
+        undef $cache;
+    }
 }
 
-print "journal loaded: $count\n";
+if ( defined @$cache ) {
+    print "commiting rest of the entries\n";
+    Chado->handler->resultset('Pub::Pub')->populate($cache);
+    print "done\n";
+    $count += scalar @$cache;
+}
+
+print "loaded $count entries\n";
 $file->close;
 $not_loaded->close;
 

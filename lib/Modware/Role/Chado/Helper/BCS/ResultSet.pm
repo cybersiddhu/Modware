@@ -3,12 +3,14 @@ package Modware::Role::Chado::Helper::BCS::ResultSet;
 # Other modules:
 use MooseX::Role::Parameterized;
 use Modware::Types qw/ColumnMap/;
+use Bio::Chado::Schema;
+use namespace::autoclean;
 
 # Module implementation
 #
 
 parameter resultset => (
-    isa      => 'DBIx::Class',
+    isa      => 'Str',
     required => 1
 );
 
@@ -25,9 +27,10 @@ parameter 'columns' => (
 );
 
 role {
-    my $p = shift;
-
-    my $source  = $p->resultset->result_source;
+    my $p       = shift;
+    my $schema  = Bio::Chado::Schema->connect;
+    my $rs      = $schema->resultset( $p->resultset )->new( {} );
+    my $source  = $rs->result_source;
     my $primary = { map { $_ => 1 } $source->primary_columns };
     my $rels    = { map { $_ => 1 } $source->relationships };
     my $cols    = { map { $_ => 1 } $source->columns };
@@ -63,8 +66,8 @@ role {
             has $name => (
                 is        => 'rw',
                 isa       => 'HashRef',
-                predicate => 'has_' . $name, 
-                clearer => '_clear_' . $name
+                predicate => 'has_' . $name,
+                clearer   => '_clear_' . $name
             );
         }
         else {
@@ -78,14 +81,14 @@ role {
                     'all_' . $name    => 'elements'
                 },
                 default => sub { [] },
-                lazy => 1, 
+                lazy    => 1,
                 clearer => '_clear_' . $name
             );
 
             method $name. '_create_hashrefs' => sub {
                 my ($self) = @_;
                 my $method = 'all_' . $name;
-                return  $self->$method;
+                return $self->$method;
             };
 
             method $name. '_to_hashrefs' => sub {

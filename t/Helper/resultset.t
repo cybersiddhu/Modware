@@ -1,18 +1,13 @@
 use strict;
 use Test::More qw/no_plan/;
-use Data::Dumper;
-use Bio::Chado::Schema;
 
 {
 
     package My::Cv::Resultset;
     use Moose;
 
-    use Bio::Chado::Schema;
-    my $schema = Bio::Chado::Schema->connect;
-
     with 'Modware::Role::Chado::Helper::BCS::ResultSet' => {
-        resultset     => $schema->resultset('Cv::Cv')->new( {} ),
+        resultset     => 'Cv::Cv',
         relationships => [qw/cvterms cvtermpaths/]
     };
 
@@ -23,11 +18,8 @@ use Bio::Chado::Schema;
     package My::Feature::Resultset;
     use Moose;
 
-    use Bio::Chado::Schema;
-    my $schema = Bio::Chado::Schema->connect;
-
     with 'Modware::Role::Chado::Helper::BCS::ResultSet' => {
-        resultset => $schema->resultset('Sequence::Feature')->new( {} ),
+        resultset => 'Sequence::Feature',
         relationships =>
             [qw/feature_pubs analysisfeatures featureprops type dbxref/],
         columns => [qw/name uniquename residues seqlen dbxref_id/]
@@ -98,14 +90,11 @@ is_deeply( $feat->to_insert_hashref, $hash,
 
     package My::Pub::Resultset;
     use Moose;
-    use Bio::Chado::Schema;
-
-    my $schema = Bio::Chado::Schema->connect;
     has 'pub' => (
         is     => 'ro',
         traits => [
             'Modware::Role::Chado::Helper::BCS::ResultSet' => {
-                resultset     => $schema->resultset('Pub::Pub')->new( {} ),
+                resultset     => 'Pub::Pub',
                 relationships => [qw/pubprops pubauthors/]
             }
         ]
@@ -120,13 +109,12 @@ can_ok(
         pubprops pubauthors add_to_pubprops add_to_pubauthors)
 );
 
-my $schema = Bio::Chado::Schema->connect;
 $pub->meta->add_attribute(
     'superpub' => (
         is     => 'ro',
         traits => [
             'Modware::Role::Chado::Helper::BCS::ResultSet' => {
-                resultset     => $schema->resultset('Pub::Pub')->new( {} ),
+                resultset     => 'Pub::Pub',
                 relationships => [qw/pubprops pubauthors/]
             }
         ]

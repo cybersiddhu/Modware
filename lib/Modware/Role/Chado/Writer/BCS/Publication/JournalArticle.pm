@@ -68,10 +68,7 @@ before 'create' => sub {
     # -- Data validation
     croak "journal name is not given\n" if !$self->has_journal;
 
-    #initialize chado handler first
-    $self->chado if !$self->has_chado;
-
-    my $pub = $self->meta->get_attribute('pub');
+    my $pub = $self->pub;
 
     $pub->series_name( $self->journal );
     $pub->pages( $self->first_page . '--' . $self->last_page )
@@ -100,7 +97,7 @@ before 'update' => sub {
     #initialize chado handler first
     my $chado = $self->chado;
 
-    my $pub = $self->meta->get_attribute('pub');
+    my $pub = $self->pub;
     $pub->reset;
     if ( $self->has_first_page and $self->has_last_page ) {
         my $pages = $self->first_page . '--' . $self->last_page;

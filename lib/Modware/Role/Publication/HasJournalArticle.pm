@@ -19,7 +19,7 @@ has [qw/abbreviation issn journal/] => (
 
 has $_ => (
     is         => 'rw',
-    isa        => 'Maybe[Int]',
+    isa        => 'Maybe[Int]|Maybe[Str]',
     lazy_build => 1
 ) for qw(first_page last_page);
 

@@ -16,10 +16,14 @@ sub connect {
     my $class  = shift;
     my %params = validated_hash(
         \@_,
-        dsn              => { isa => 'Str',            optional => 1 },
-        user             => { isa => 'Maybe[Str]',     optional => 1 },
-        password         => { isa => 'Maybe[Str]',     optional => 1 },
-        attr             => { isa => 'Maybe[HashRef]', optional => 1 },
+        dsn      => { isa => 'Str',        optional => 1 },
+        user     => { isa => 'Maybe[Str]', optional => 1 },
+        password => { isa => 'Maybe[Str]', optional => 1 },
+        attr     => {
+            isa      => 'Maybe[HashRef]',
+            optional => 1,
+            default  => { AutoCommit => 0 }
+        },
         extra            => { isa => 'Maybe[HashRef]', optional => 1 },
         source_name      => { isa => 'Str',            optional => 1 },
         adapter          => { isa => 'Str',            optional => 1 },
@@ -27,7 +31,7 @@ sub connect {
         writer           => { isa => 'Str',            optional => 1 },
         reader_namespace => { isa => 'Str',            optional => 1 },
         writer_namespace => { isa => 'Str',            optional => 1 },
-        default          => { isa => 'Bool',           optional => 1 }
+        default          => { isa => 'Bool',           optional => 1 },
     );
 
     for my $args (

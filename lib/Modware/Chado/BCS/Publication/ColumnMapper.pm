@@ -1,125 +1,21 @@
-package Modware::Role::Chado::Writer::BCS::Publication::Pubmed;
-
-use version; our $VERSION = qv('1.0.0');
+package Modware::Chado::BCS::Publication::ColumnMapper;
 
 # Other modules:
-use Moose::Role;
-use Carp;
+use Moose;
 use namespace::autoclean;
 
 # Module implementation
 #
+with 'Modware::Role::Chado::Helper::BCS::ResultSet' => {
+    resultset     => 'Pub::Pub',
+    relationships => [qw/pubprops pubauthors pub_dbxrefs/]
+};
 
-has 'pub_dbxref_map' => (
-    is      => 'ro',
-    isa     => 'HashRef',
-    traits  => [qw/Hash/],
-    handles => {
-        all_pub_dbxrefs => 'keys',
-        get_pub_dbxref  => 'get'
-    },
-    default => sub {
-        { 'Medline' => 'medline_id', 'DOI' => 'doi' };
-    }
+has 'data_object' => (
+	is => 'rw', 
+	isa => 'Object'
 );
-
-sub _build_pubmed_id {
-    my ($self) = @_;
-    return if !$self->has_dbrow;
-    $self->dbrow->uniquename;
-}
-
-sub _build_medline_id {
-    my ($self) = @_;
-    return if !$self->has_dbrow;
-    $self->db2accession('Medline');
-
-}
-
-sub _build_doi {
-    my ($self) = @_;
-    return if !$self->has_dbrow;
-    $self->db2accession('DOI');
-
-}
-
-sub db2accession {
-    my ( $self, $db_name ) = @_;
-    my $rs
-        = $self->dbrow->search_related( 'pub_dbxrefs', {} )->search_related(
-        'dbxref',
-        { 'db.name' => $db_name },
-        { join      => 'db' }
-        );
-    $rs->first->accession if $rs->count > 0;
-}
-
-
-before 'create' => sub {
-    my ($self) = @_;
-    ## -- data validation
-    croak "pubmed id is not given\n" if !$self->has_pubmed_id;
-
-    my $pub = $self->pub;
-    $pub->uniquename( $self->pubmed_id );
-
-    for my $key ( $self->all_pub_dbxrefs ) {
-        my $val    = $self->get_pub_dbxref($key);
-        my $method = 'has_' . $val;
-        $pub->add_to_pub_dbxrefs(
-            {   dbxref => {
-                    accession => $self->$val,
-                    db_id     => $self->db_id_by_name($key)
-                }
-            }
-        ) if $self->$method;
-    }
-};
-
-before 'update' => sub {
-    my $self = shift;
-
-    #initialize chado handler first
-    my $chado = $self->chado if !$self->has_chado;
-
-    my $pub = $self->pub;
-    $pub->reset;
-    if ( $self->has_pubmed_id
-        and ( $self->pubmed_id ne $self->dbrow->uniquename ) )
-    {
-        $pub->uniquename( $self->pubmed_id );
-    }
-
-    for my $key ( $self->all_pub_dbxrefs ) {
-        my $val    = $self->get_pub_dbxref($key);
-        my $method = 'has_' . $val;
-        if ( $self->$method ) {
-            my $row = $chado->resultset('General::Dbxref')->search(
-                {   accession => $self->$val,
-                    db_id     => $self->db_id_by_name($key)
-                },
-                { rows => 1 }
-            )->single;
-            if ($row) {
-                $pub->add_to_pub_dbxref(
-                    {   accession => $self->$val,
-                        dbxref_id => $row->dbxref_id,
-                        db_id     => $self->db_id_by_name($key)
-                    }
-                );
-            }
-            else {
-                $pub->add_to_pub_dbxref(
-                    {   accession => $self->$val,
-                        db_id     => $self->db_id_by_name($key)
-                    }
-
-                );
-            }
-        }
-    }
-
-};
+	
 
 1;    # Magic true value required at end of module
 
