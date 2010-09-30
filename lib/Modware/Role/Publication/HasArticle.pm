@@ -13,7 +13,7 @@ requires '_build_last_page';
 
 has $_ => (
     is  => 'rw',
-    isa => 'Maybe[Int],  lazy_build => 1) 
+    isa => 'Maybe[Int]|Maybe[Str],  lazy_build => 1) 
     for qw(first_page last_page);
 
 1;    # Magic true value required at end of module

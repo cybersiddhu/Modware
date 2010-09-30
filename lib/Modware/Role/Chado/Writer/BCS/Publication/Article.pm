@@ -1,23 +1,28 @@
 package Modware::Role::Chado::Writer::BCS::Publication::Article;
 
-use version; our $VERSION = qv('1.0.0');
 
 # Other modules:
 use Moose::Role;
+use Carp;
+use namespace::autoclean;
 
 # Module implementation
 #
 
 before 'create' => sub {
     my ($self) = @_;
-    my $pub = $self->meta->get_attribute('pub');
+
+    croak "first page is not given\n" if !$self->first_page;
+    croak "last page is not given\n" if !$self->last_page;
+
+    my $pub = $self->pub;
     $pub->pages( $self->first_page . '--' . $self->last_page )
         if $self->has_first_page
             and $self->has_last_page;
 };
 
 before 'update' => sub {
-    my $pub = $self->meta->get_attribute('pub');
+    my $pub = $self->pub;
     if ( $self->has_first_page and $self->has_last_page ) {
         my $pages = $self->first_page . '--' . $self->last_page;
         $pub->pages($pages) if $pages ne $self->dbrow->pages;

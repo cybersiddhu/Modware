@@ -26,9 +26,9 @@ has 'chado' => (
 );
 
 has 'pub' => (
-	is => 'rw', 
-	isa => 'Modware::Chado::BCS::Publication::ColumnMapper', 
-	lazy_build => 1
+    is         => 'rw',
+    isa        => 'Modware::Chado::BCS::Publication::ColumnMapper',
+    lazy_build => 1
 );
 
 has 'dbrow' => (
@@ -51,13 +51,18 @@ has 'dicty_cv' =>
 
 sub to_hashref {
     my $self = shift;
-    $self->create(dry_run => 1);
+    $self->create( dry_run => 1 );
     $self->pub->to_insert_hashref;
 }
 
+sub _build_id {
+    my ($self) = @_;
+    $self->dbrow->uniquename if $self->has_dbrow;
+}
+
 sub _build_pub {
-	my $self = shift;
-	ColumnMapper->new();
+    my $self = shift;
+    ColumnMapper->new();
 }
 
 sub _build_status {
@@ -144,13 +149,13 @@ sub _build_chado {
 }
 
 sub create {
-    my ($self, %opt) = @_;
-    if (defined $opt{dry_run}) {
-    	return;
+    my ( $self, %opt ) = @_;
+    if ( defined $opt{dry_run} ) {
+        return;
     }
-    my $pub    = $self->pub;
-    my $chado  = $self->chado;
-    my $dbrow  = $chado->txn_do(
+    my $pub   = $self->pub;
+    my $chado = $self->chado;
+    my $dbrow = $chado->txn_do(
         sub {
             my $value = $chado->resultset('Pub::Pub')
                 ->create( $pub->to_insert_hashref );
@@ -229,16 +234,23 @@ sub update {
     $dbrow;
 }
 
+sub generate_uniquename {
+    my $self = shift;
+    return 'PUB' . int( rand(9999999) );
+
+}
+
 before 'create' => sub {
     my $self = shift;
 
     # -- Data validation
     croak "No author given\n" if !$self->has_authors;
 
-    #initialize chado handler first
-    #$self->chado if !$self->has_chado;
-
     my $pub = $self->pub;
+    if ( !$pub->has_uniquename ) {
+        $pub->uniquename(
+            $self->has_id ? $self->id : $self->generate_uniquename );
+    }
     while ( my $pubauthor = $self->next_author ) {
         $pub->add_to_pubauthors(
             {   rank       => $pubauthor->rank,
@@ -250,7 +262,6 @@ before 'create' => sub {
         );
     }
 
-    $pub->uniquename( 'PUB' . int( rand(9999999) ) ) if !$pub->has_uniquename;
     $pub->type_id( $self->cvterm_id_by_name( $self->type ) );
     $pub->title( $self->title )
         if $self->has_title;

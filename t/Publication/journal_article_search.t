@@ -13,7 +13,6 @@ Chado->connect(
     password => $build->config_data('password')
 );
 
-#Chado->handler->storage->debug(1);
 
 my $Pub = 'Modware::Chado::Query::BCS::Publication::JournalArticle';
 my $pub_itr = $Pub->search( journal => 'Text' );
@@ -43,6 +42,7 @@ is( $pub_itr->count, 1,
 $pub_itr = $Pub->search( title => '5', );
 is( $pub_itr->count, 3,
     'has journal articles with partial match in title field' );
+
 
 $pub_itr = $Pub->search( author => 'Text2', );
 is( $pub_itr->count, 2,

@@ -38,6 +38,10 @@ use Moose::Util;
 	   	[qw/hello house hut/];
 	}
 
+	sub _build_id {
+		return 10;
+	}
+
 }
 
 dies_ok { Moose::Util::apply_all_roles(MyBadPub->meta, ('Modware::Role::Publication')) }  'throws without unimplemented methods';

@@ -12,6 +12,13 @@ use aliased 'Modware::DataSource::Chado';
 # Module implementation
 #
 
+class_has 'related_query' => (
+    is      => 'rw',
+    isa     => 'Bool',
+    lazy    => 1,
+    default => sub {0}
+);
+
 class_has 'chado' => (
     is         => 'ro',
     isa        => 'Bio::Chado::Schema',
@@ -38,7 +45,6 @@ class_has 'query_engine' => (
     isa     => 'Str',
     lazy    => 1,
     default => sub {
-        my $class     = shift;
         my $chado    = __PACKAGE__->chado;
         my $sql_type = ucfirst lc( $chado->storage->sqlt_type );
         $sql_type = $sql_type eq 'Oracle' ? $sql_type : 'Generic';
@@ -55,9 +61,10 @@ class_has 'params_map' => (
     lazy    => 1,
     default => sub { {} },
     handles => {
-        allowed_params  => 'keys',
-        param_value     => 'get',
-        has_param_value => 'defined'
+        allowed_params       => 'keys',
+        param_value          => 'get',
+        has_param_value      => 'defined',
+        allowed_param_values => 'values'
     }
 );
 
@@ -88,13 +95,13 @@ class_has 'resultset_name' => (
 sub rearrange_nested_query {
     my ( $class, $attrs, $clause, $match_type ) = @_;
     my $engine = $class->query_engine;
-    $engine->nested_query($attrs, $clause, $match_type);
+    $engine->nested_query( $attrs, $clause, $match_type );
 }
-    
+
 sub rearrange_query {
     my ( $class, $attrs, $clause, $match_type ) = @_;
     my $engine = $class->query_engine;
-    $engine->query($attrs, $clause, $match_type);
+    $engine->query( $attrs, $clause, $match_type );
 }
 
 sub count {

@@ -1,18 +1,13 @@
 package Modware::Role::HasPublication;
 
-use version; our $VERSION = qv('0.1');
-
 # Other modules:
 use Moose::Role;
+use namespace::autoclean;
 
 #module implementation
 
-requires '_build_abstract';
-requires '_build_title';
-requires '_build_year';
-requires '_build_source';
-requires '_build_status';
-requires '_build_keywords_stack';
+requires '_build_abstract','_build_title', '_build_year','_build_source';
+requires '_build_status',  '_build_keywords_stack', '_build_id';
 
 has 'abstract' => (
     is         => 'rw',
@@ -62,6 +57,13 @@ has 'type' => (
     lazy    => 1,
     default => 'paper'
 );
+
+has 'id' => (
+	isa => 'Maybe[Int]', 
+	is => 'rw', 
+	lazy_build => 1
+);
+
 
 1;    # Magic true value required at end of module
 

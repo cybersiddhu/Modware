@@ -10,6 +10,17 @@ extends 'Modware::Chado::Query::BCS';
 
 # Module implementation
 #
+class_has 'distinct_columns' => (
+    isa        => 'ArrayRef',
+    is         => 'ro',
+    lazy_build => 1
+);
+
+sub _build_distinct_columns {
+    my $class  = shift;
+    my $source = $class->chado->source( $class->resultset_name );
+    return [ $source->primary_columns ];
+}
 
 #this should be defined for the find method to work
 class_has '+resultset_name' => ( default => 'Pub::Pub' );
@@ -50,10 +61,12 @@ PARAM:
 
         ## -- code block for joining the pubauthor table
         if ( $class->has_related_param_value($param) ) {
+            $class->related_query(1);
             if ( not defined $options->{join} ) {
                 $options->{join}     = 'pubauthors';
                 $options->{cache}    = 1;
-                $options->{prefetch} = 'pubauthors';
+                $options->{columns}  = $class->distinct_columns;
+                $options->{distinct} = 1;
             }
             if ( $param eq 'author' ) {
                 my $author_attr = { map { $_ => $arg{$param} }
@@ -81,7 +94,21 @@ PARAM:
 
 # - If you want to know what's being done for building the query hash ,  please do a dump
 # - of the structure and also read the query syntax for DBIx::Class module
-    my $rs = $class->chado->resultset('Pub::Pub')->search( $query, $options );
+    my $rs;
+    if ( $class->related_query ) {
+        my $inside_rs = $class->chado->resultset('Pub::Pub')
+            ->search( $query, $options );
+        $rs = $class->chado->resultset('Pub::Pub')->search(
+            {   pub_id =>
+                    { 'IN' => $inside_rs->get_column('pub_id')->as_query }
+            }
+        );
+    }
+    else {
+        $rs = $class->chado->resultset('Pub::Pub')
+            ->search( $query, $options );
+    }
+
     if ( wantarray() ) {
         load $class->data_class;
         return map { $class->data_class->new( dbrow => $_ ) } $rs->all;

@@ -177,3 +177,20 @@ is_deeply(
     'got all keywords from storage'
 );
 
+my ($pub_from_search) = $Pub->search(
+    journal => 'Ophthalmic',
+    title   => 'mitochondria',
+    year    => '2010'
+);
+
+is($pub_from_search->total_authors, 3,  'it has three authors');
+
+($pub_from_search) = $Pub->search(
+	last_name => 'Boulton', 
+	first_name => 'Michael'
+);
+
+is($pub_from_search->total_authors, 3,  'it has three authors');
+
+
+

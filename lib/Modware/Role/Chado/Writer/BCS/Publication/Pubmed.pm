@@ -1,10 +1,9 @@
 package Modware::Role::Chado::Writer::BCS::Publication::Pubmed;
 
-use version; our $VERSION = qv('1.0.0');
-
 # Other modules:
 use Moose::Role;
 use Carp;
+use MooseX::Aliases;
 use namespace::autoclean;
 
 # Module implementation
@@ -25,8 +24,7 @@ has 'pub_dbxref_map' => (
 
 sub _build_pubmed_id {
     my ($self) = @_;
-    return if !$self->has_dbrow;
-    $self->dbrow->uniquename;
+    $self->_build_id if $self->has_dbrow;
 }
 
 sub _build_medline_id {

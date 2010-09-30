@@ -14,6 +14,7 @@ Chado->connect(
     attr     => $build->config_data('db_attr')
 );
 
+#Chado->handler->storage->debug(1);
 
 my $Pub = 'Modware::Chado::Query::BCS::Publication::Pubmed';
 my $itr = $Pub->search( author => 'Ian' );
@@ -34,3 +35,5 @@ is( $Pub->search( last_name => 'Lewin', first_name => 'AS Alfred S' )->count,
     1,
     'has publication from first and last name search'
 );
+
+

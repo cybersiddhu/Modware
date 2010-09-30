@@ -1,28 +1,21 @@
-package Modware::Role::Publication::HasPubmed;
+package Modware::Chado::Query::BCS::Publication::Unpublished;
 
-use version; our $VERSION = qv('0.1');
+use strict;
+use Carp;
 
 # Other modules:
-use Moose::Role;
+use Moose;
+use MooseX::ClassAttribute;
+use namespace::autoclean;
+
+extends 'Modware::Chado::Query::BCS::Publication';
 
 # Module implementation
 #
-requires '_build_medline_id', '_build_doi',  '_build_pubmed_id';
 
-has 'doi' => ( is => 'rw', isa => 'Str', lazy_build => 1 );
-has [qw/pubmed_id medline_id/] =>
-    ( is => 'rw', isa => 'Int', lazy_build => 1 );
+class_has '+data_class' => ( default => 'Modware::Publication::Unpublished' );
 
-has 'mesh_terms_stack' => (
-    is         => 'rw',
-    isa        => 'ArrayRef',
-    traits     => [qw/Array/],
-    lazy_build => 1,
-    handles    => {
-        add_meshterm => 'push',
-        meshterms    => 'elements',
-    }
-);
+
 
 1;    # Magic true value required at end of module
 
@@ -30,18 +23,17 @@ __END__
 
 =head1 NAME
 
-B<Modware::Role::Publication::Pubmed> - [Moose role for handling pubmed metadata
-associated that is with publication]
+<MODULE NAME> - [One line description of module's purpose here]
 
 
 =head1 VERSION
 
-This document describes B<Modware::Role::Publication::Pubmed> version 0.1
+This document describes <MODULE NAME> version 0.0.1
 
 
 =head1 SYNOPSIS
 
-use Modware::Role::Publication::Pubmed;
+use <MODULE NAME>;
 
 =for author to fill in:
 Brief code example(s) here showing commonest usage(s).
@@ -58,15 +50,55 @@ Use subsections (=head2, =head3) as appropriate.
 
 =head1 INTERFACE 
 
-=head2 pubmed_id
+=for author to fill in:
+Write a separate section listing the public components of the modules
+interface. These normally consist of either subroutines that may be
+exported, or methods that may be called on objects belonging to the
+classes provided by the module.
 
-=head2 medline_id
+=head2 <METHOD NAME>
 
-=head2 doi
+=over
 
-=head2 mesh_terms
+=item B<Use:> <Usage>
 
-For additional info about pubmed,  visit L<http://pubmed.gov> 
+[Detail text here]
+
+=item B<Functions:> [What id does]
+
+[Details if neccessary]
+
+=item B<Return:> [Return type of value]
+
+[Details]
+
+=item B<Args:> [Arguments passed]
+
+[Details]
+
+=back
+
+=head2 <METHOD NAME>
+
+=over
+
+=item B<Use:> <Usage>
+
+[Detail text here]
+
+=item B<Functions:> [What id does]
+
+[Details if neccessary]
+
+=item B<Return:> [Return type of value]
+
+[Details]
+
+=item B<Args:> [Arguments passed]
+
+[Details]
+
+=back
 
 
 =head1 DIAGNOSTICS
@@ -101,10 +133,21 @@ files, and the meaning of any environment variables or properties
 that can be set. These descriptions must also include details of any
 configuration language used.
 
-B<Modware::Role::Publication::Pubmed> requires no configuration files or environment variables.
+<MODULE NAME> requires no configuration files or environment variables.
 
 
-=head1 INCOMPATIBILITIES
+=head1 DEPENDENCIES
+
+=for author to fill in:
+A list of all the other modules that this module relies upon,
+  including any restrictions on versions, and an indication whether
+  the module is part of the standard Perl distribution, part of the
+  module's distribution, or must be installed separately. ]
+
+  None.
+
+
+  =head1 INCOMPATIBILITIES
 
   =for author to fill in:
   A list of any modules that this module cannot be used in conjunction
@@ -116,7 +159,7 @@ B<Modware::Role::Publication::Pubmed> requires no configuration files or environ
   None reported.
 
 
-=head1 BUGS AND LIMITATIONS
+  =head1 BUGS AND LIMITATIONS
 
   =for author to fill in:
   A list of known problems with the module, together with some
@@ -132,7 +175,7 @@ B<Modware::Role::Publication::Pubmed> requires no configuration files or environ
 
 
 
-=head1 TODO
+  =head1 TODO
 
   =over
 
@@ -147,7 +190,7 @@ B<Modware::Role::Publication::Pubmed> requires no configuration files or environ
   =back
 
 
-=head1 AUTHOR
+  =head1 AUTHOR
 
   I<Siddhartha Basu>  B<siddhartha-basu@northwestern.edu>
 
@@ -160,7 +203,7 @@ B<Modware::Role::Publication::Pubmed> requires no configuration files or environ
   modify it under the same terms as Perl itself. See L<perlartistic>.
 
 
-=head1 DISCLAIMER OF WARRANTY
+  =head1 DISCLAIMER OF WARRANTY
 
   BECAUSE THIS SOFTWARE IS LICENSED FREE OF CHARGE, THERE IS NO WARRANTY
   FOR THE SOFTWARE, TO THE EXTENT PERMITTED BY APPLICABLE LAW. EXCEPT WHEN
