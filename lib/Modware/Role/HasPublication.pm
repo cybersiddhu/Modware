@@ -59,7 +59,7 @@ has 'type' => (
 );
 
 has 'id' => (
-	isa => 'Maybe[Int]', 
+	isa => 'Maybe[Int]|Maybe[Str]', 
 	is => 'rw', 
 	lazy_build => 1
 );

@@ -3,7 +3,6 @@ package Modware::Role::Chado::Writer::BCS::Publication::Pubmed;
 # Other modules:
 use Moose::Role;
 use Carp;
-use MooseX::Aliases;
 use namespace::autoclean;
 
 # Module implementation
@@ -38,6 +37,14 @@ sub _build_doi {
     my ($self) = @_;
     return if !$self->has_dbrow;
     $self->db2accession('DOI');
+}
+
+sub _build_full_text_url {
+    my ($self) = @_;
+    return if !$self->has_dbrow;
+    my $rs = $self->dbrow->search_related( 'pubprops',
+        { 'type_id' => $self->cvterm_id_by_name('website') } );
+    $rs->first->value if $rs->count > 0;
 
 }
 
@@ -52,7 +59,6 @@ sub db2accession {
     $rs->first->accession if $rs->count > 0;
 }
 
-
 before 'create' => sub {
     my ($self) = @_;
     ## -- data validation
@@ -60,6 +66,14 @@ before 'create' => sub {
 
     my $pub = $self->pub;
     $pub->uniquename( $self->pubmed_id );
+
+    if ( $self->has_full_text_url ) {
+        $pub->add_to_pubprops(
+            {   type_id => $self->cvterm_id_by_name('website'),
+                value   => $self->full_text_url
+            }
+        );
+    }
 
     for my $key ( $self->all_pub_dbxrefs ) {
         my $val    = $self->get_pub_dbxref($key);
@@ -115,6 +129,15 @@ before 'update' => sub {
                 );
             }
         }
+    }
+
+    if ( $self->has_full_text_url ) {
+        $pub->add_to_pubprops(
+            {   type_id => $self->cvterm_id_by_name('website'),
+                value   => $self->full_text_url,
+                rank    => 0
+            }
+        );
     }
 
 };

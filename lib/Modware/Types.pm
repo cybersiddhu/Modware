@@ -1,8 +1,9 @@
 package  Modware::Types;
 
 # Other modules:
-use MooseX::Types -declare => [ qw/CleanStr UnCleanStr ColumnMap Toggler/ ];
+use MooseX::Types -declare => [qw/CleanStr UnCleanStr ColumnMap Toggler URI/];
 use MooseX::Types::Moose qw/Int Str Any Object Bool HashRef ArrayRef/;
+use Regexp::Common qw/URI/;
 use namespace::autoclean;
 
 # Module implementation
@@ -22,6 +23,10 @@ coerce ColumnMap, from ArrayRef, via {
 subtype Toggler, as Bool;
 coerce Toggler, from Str, via {
     $_ eq 'false' ? 0 : 1;
+};
+
+subtype URI, as Str, where { $RE{URI}{HTTP}{-scheme => 'https?'}->matches($_) }, message {
+    "$_ is not a HTTP URL";
 };
 
 1;    # Magic true value required at end of module

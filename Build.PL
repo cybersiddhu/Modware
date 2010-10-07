@@ -30,7 +30,8 @@ my $build = Modware::Build->new(
         'Path::Class'                 => '0.18',
         'aliased'                     => '0.30',
         'File::Path'                  => '2.08',
-        'MooseX::Role::Parameterized' => '0.19'
+        'MooseX::Role::Parameterized' => '0.19',
+        'Regexp::Common'              => '2.122'
     },
     build_requires => {
         'Test::More'            => 0.94,

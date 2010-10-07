@@ -4,6 +4,8 @@ use version; our $VERSION = qv('0.1');
 
 # Other modules:
 use Moose::Role;
+use Modware::Types qw/URI/;
+use namespace::autoclean;
 
 # Module implementation
 #
@@ -13,16 +15,18 @@ has 'doi' => ( is => 'rw', isa => 'Str', lazy_build => 1 );
 has [qw/pubmed_id medline_id/] =>
     ( is => 'rw', isa => 'Int', lazy_build => 1 );
 
-has 'mesh_terms_stack' => (
-    is         => 'rw',
-    isa        => 'ArrayRef',
-    traits     => [qw/Array/],
-    lazy_build => 1,
-    handles    => {
-        add_meshterm => 'push',
-        meshterms    => 'elements',
-    }
-);
+has 'full_text_url' => (is => 'rw',  isa => URI,  lazy_build => 1);
+
+#has 'mesh_terms_stack' => (
+#    is         => 'rw',
+#    isa        => 'ArrayRef',
+#    traits     => [qw/Array/],
+#    lazy_build => 1,
+#    handles    => {
+#        add_meshterm => 'push',
+#        meshterms    => 'elements',
+#    }
+#);
 
 1;    # Magic true value required at end of module
 

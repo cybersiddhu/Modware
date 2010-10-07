@@ -10,19 +10,22 @@ use Path::Class;
 use aliased 'Modware::DataSource::Chado';
 use aliased 'Modware::Publication';
 use aliased 'Modware::Publication::JournalArticle';
+use aliased 'Modware::Publication::Unpublished';
 use aliased 'Modware::Publication::Author';
-use Devel::Size qw/total_size/;
 
 my $file = Path::Class::Dir->new($Bin)->parent->parent->subdir('data')
     ->file('pub_dump.txt')->openw;
 my $not_loaded = Path::Class::Dir->new($Bin)->parent->parent->subdir('data')
     ->file('pub_not_loaded.txt')->openw;
 my ( $dsn, $user, $pass );
+my $commit_threshold = 1000;
+
 GetOptions(
     'h|help'            => sub { pod2usage(1); },
     'dsn=s'             => \$dsn,
     'u|user:s'          => \$user,
-    'p|pass|password:s' => \$pass
+    'p|pass|password:s' => \$pass,
+    't|threshold:s'     => \$commit_threshold
 );
 
 die "no dsn given\n" if !$dsn;
@@ -52,15 +55,27 @@ my $cache;
 REFERENCE:
 while ( my $ref = $itr->next ) {
     my $pub;
+    $file->print( "id: ", $ref->reference_no, "\n" );
     if ( $ref->pmid ) {
         $pub = Publication->new( pubmed_id => $ref->pmid );
         if ( $ref->can('medline') && $ref->medline ) {
             $file->print( "medline: ", $ref->medline, "\n" );
             $pub->medline_id( $ref->medline );
         }
+        $file->print( "journal: ", $ref->journal_abbr, "\n" );
+        $pub->journal( $ref->journal_abbr );
+        $pub->abbreviation( $ref->journal_abbr );
+        $pub->full_text_url( $ref->full_text_url ) if $ref->full_text_url;
+    }
+    elsif ( !$ref->can('journal_abbr') ) {
+        $pub = Unpublished->new( id => 'PUB'.$ref->reference_no );
+        $file->print("Unpublished article\n");
     }
     else {
-        $pub = JournalArticle->new;
+        $pub = JournalArticle->new( id => $ref->reference_no );
+        $file->print( "journal: ", $ref->journal_abbr, "\n" );
+        $pub->journal( $ref->journal_abbr );
+        $pub->abbreviation( $ref->journal_abbr );
     }
 
     for my $method (qw/year source status title issue volume/) {
@@ -76,18 +91,9 @@ while ( my $ref = $itr->next ) {
         $pub->last_page($last_page)   if $last_page;
         $file->print( 'page: ', $ref->page, "\n" );
     }
-    $pub->type('journal_article') if $ref->type eq 'Journal Article';
 
-    if ( $ref->can('journal_abbr') ) {
-        $file->print( "journal: ", $ref->journal_abbr, "\n" );
-        $pub->journal( $ref->journal_abbr );
-        $pub->abbreviation( $ref->journal_abbr );
-    }
-    else {
-        $not_loaded->print( $ref->reference_no, "\n" );
-        undef $pub;
-        next REFERENCE;
-    }
+    $file->print( 'type: ', $ref->type, "\n" );
+    $pub->type( lc $ref->type );
 
     if ( $ref->abstract ) {
         $file->print( "Abstract\n ----- \n",
@@ -103,9 +109,13 @@ while ( my $ref = $itr->next ) {
     }
 
     for my $name (@authors) {
-        if ( $name =~ /^([^,.]+)(.+)$/ ) {
-            my $last_name  = $1;
+        if ( $name =~ /^(\w+)$/ ) {
+            $pub->add_author( Author->new( last_name => $1, ) );
+            $file->print("Author unorthodox :: $name\t$1\n");
+        }
+        elsif ( $name =~ /^([^,.]+)(.+)$/ ) {
             my $first_name = $2;
+            my $last_name  = $1;
             $first_name =~ s/\,//;
             $first_name =~ s/^s+//;
             $pub->add_author(
@@ -114,7 +124,13 @@ while ( my $ref = $itr->next ) {
                     last_name  => $last_name
                 )
             );
-            $file->print("Authors :: $first_name\t$last_name\n");
+            $file->print(
+                "Authors regular :: $name\t$first_name\t$last_name\n");
+        }
+        else {
+            $not_loaded->print( $ref->reference_no,
+                ": $name\tno author parsed\n" );
+            next REFERENCE;
         }
     }
 
@@ -130,12 +146,11 @@ while ( my $ref = $itr->next ) {
 
     $file->print("\n =========== \n");
     push @$cache, $pub->to_hashref;
-    if ( @$cache >= 200 ) {
-        print "total size of arrayref: ", total_size($cache) / 1024.0, "\n";
+    if ( @$cache >= $commit_threshold ) {
         print "start commiting\n";
         Chado->handler->resultset('Pub::Pub')->populate($cache);
-        print "commited 200 entries\n";
-        $count += 200;
+        print "commited $commit_threshold entries\n";
+        $count += $commit_threshold;
         undef $cache;
     }
 }
