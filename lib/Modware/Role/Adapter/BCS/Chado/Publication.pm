@@ -23,49 +23,49 @@ has '+resultset_class' => ( default => 'Pub::Pub' );
 
 before 'read' => sub {
     my $self = shift;
-    $self->add_read_hook( 'Persistent::PubProp',
+    $self->add_read_hook( 'Modware::Meta::Attribute::Trait::Persistent::Pubprop',
         sub { $self->read_pubprop(@_) } );
-    $self->add_read_hook( 'Persistent::PubAuthors',
+    $self->add_read_hook( 'Modware::Meta::Attribute::Trait::Persistent::Pubauthors',
         sub { $self->read_authors(@_) } );
     $self->add_read_hook(
-        'Persistent::PubDbxref',
+        'Modware::Meta::Attribute::Trait::Persistent::Pubdbxref',
         sub {
             $self->read_pub_dbxref(@_);
         }
     );
-    $self->add_read_hook( 'Persistent::PubProp::Dicty',
+    $self->add_read_hook( 'Modware::Meta::Attribute::Trait::Persistent::Pubprop::Dicty',
         sub { $self->dicty_pubprop_reader(@_) } );
 };
 
 before 'create' => sub {
     my $self = shift;
-    $self->add_create_hook( 'Persistent::PubProp',
+    $self->add_create_hook( 'Modware::Meta::Attribute::Trait::Persistent::Pubprop',
         sub { $self->create_pubprop(@_) } );
-    $self->add_create_hook( 'Persistent::PubAuthors',
+    $self->add_create_hook( 'Modware::Meta::Attribute::Trait::Persistent::Pubauthors',
         sub { $self->create_authors(@_) } );
     $self->add_create_hook(
-        'Persistent::PubDbxref',
+        'Modware::Meta::Attribute::Trait::Persistent::Pubdbxref',
         sub {
             $self->create_pub_dbxref(@_);
         }
     );
-    $self->add_create_hook( 'Persistent::PubProp::Dicty',
+    $self->add_create_hook( 'Modware::Meta::Attribute::Trait::Persistent::Pubprop::Dicty',
         sub { $self->create_dicty_pubprops(@_) } );
 };
 
 before 'update' => sub {
     my $self = shift;
-    $self->add_update_hook( 'Persistent::PubProp',
+    $self->add_update_hook( 'Modware::Meta::Attribute::Persistent::Pubprop',
         sub { $self->update_pubprop(@_) } );
-    $self->add_update_hook( 'Persistent::PubAuthors',
+    $self->add_update_hook( 'Modware::Meta::Attribute::Persistent::Pubauthors',
         sub { $self->update_authors(@_) } );
     $self->add_update_hook(
-        'Persistent::PubDbxref',
+        'Modware::Meta::Attribute::Persistent::Pubdbxref',
         sub {
             $self->update_pub_dbxref(@_);
         }
     );
-    $self->add_update_hook( 'Persistent::PubProp::Dicty',
+    $self->add_update_hook( 'Modware::Meta::Attribute::Persistent::Pubprop::Dicty',
         sub { $self->update_dicty_pubprops(@_) } );
 };
 

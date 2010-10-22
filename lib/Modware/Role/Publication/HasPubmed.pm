@@ -22,21 +22,21 @@ has 'pubmed_id' => (
 has 'medline_id' => (
     isa    => 'Maybe[Int]|Maybe[Str]',
     is     => 'rw',
-    traits => [qw/Persistent::PubDbxref/],
+    traits => [qw/Persistent::Pubdbxref/],
     db     => 'Medline'
 );
 
 has 'doi' => (
     isa    => 'Maybe[Str]',
     is     => 'rw',
-    traits => [qw/Persistent::PubDbxref/],
+    traits => [qw/Persistent::Pubdbxref/],
     db     => 'DOI'
 );
 
 has 'full_text_url' => (
     is     => 'rw',
     isa    => URI,
-    traits => [qw/Persistent::PubProp/],
+    traits => [qw/Persistent::Pubprop/],
     cvterm => 'website'
 );
 

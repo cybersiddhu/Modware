@@ -3,29 +3,38 @@ use Test::More qw/no_plan/;
 
 {
 
-    package My::Cv::Resultset;
+    package MyDefault;
+    use Moose;
+    with 'Modware::Role::Chado::Helper::WithDataStash'; 
+
+}
+
+{
+
+    package MyDefault::Create;
     use Moose;
 
-    with 'Modware::Role::Chado::Helper::BCS::ResultSet' => {
-        resultset     => 'Cv::Cv',
-        relationships => [qw/cvterms cvtermpaths/]
+    with 'Modware::Role::Chado::Helper::WithDataStash' => {
+        create_stash_for => [qw/dbxref featureprops/]
     };
 
 }
 
 {
 
-    package My::Feature::Resultset;
+    package MyDefault::All;
     use Moose;
 
-    with 'Modware::Role::Chado::Helper::BCS::ResultSet' => {
-        resultset => 'Sequence::Feature',
-        relationships =>
-            [qw/feature_pubs analysisfeatures featureprops type dbxref/],
-        columns => [qw/name uniquename residues seqlen dbxref_id/]
+    with 'Modware::Role::Chado::Helper::WithDataStash' => {
+        create_stash_for => [qw/dbxref featureprops/], 
+        update_stash_for => {
+        	has_many => [qw/featuresource analysis/], 
+        	many_to_many => [qw/pipes/]
+        }
     };
 
 }
+
 
 my $rs = My::Cv::Resultset->new;
 $rs->name('hello');

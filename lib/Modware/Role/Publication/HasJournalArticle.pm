@@ -18,14 +18,14 @@ validate_presence_of 'pages';
 has 'abbreviation' => (
     is     => 'rw',
     isa    => 'Maybe[Str]',
-    traits => [qw/Persistent::PubProp/],
+    traits => [qw/Persistent::Pubprop/],
     cvterm => 'journal_abbreviation'
 );
 
 has 'issn' => (
     is     => 'rw',
     isa    => 'Maybe[Str]',
-    traits => [qw/Persistent::PubDbxref/],
+    traits => [qw/Persistent::Pubdbxref/],
 );
 
 has 'journal' => (

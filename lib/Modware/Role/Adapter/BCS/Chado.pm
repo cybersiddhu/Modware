@@ -51,8 +51,8 @@ has 'read_hooks' => (
         'add_read_hook'  => 'set'
     },
     default => {
-        'Persistent'         => sub { $self->read_generic(@_) },
-        'Persistent::Cvterm' => sub { $self->read_cvterm(@_) },
+        'Modware::Meta::Attribute::Trait::Persistent'         => sub { $self->read_generic(@_) },
+        'Modware::Meta::Attribute::Trait::Persistent::Cvterm' => sub { $self->read_cvterm(@_) },
     }
 );
 
@@ -67,8 +67,8 @@ has 'create_hooks' => (
         'add_create_hook'  => 'set'
     },
     default => sub {
-        {   'Persistent'         => sub { $self->create_generic(@_) },
-            'Persistent::Cvterm' => sub { $self->create_cvterm(@_) },
+        {   'Modware::Meta::Attribute::Trait::Persistent'         => sub { $self->create_generic(@_) },
+            'Modware::Meta::Attribute::Trait::Persistent::Cvterm' => sub { $self->create_cvterm(@_) },
         };
     }
 );
@@ -84,8 +84,8 @@ has 'update_hooks' => (
         'add_update_hook' => 'set'
     },
     default => sub {
-        {   'Persistent'         => sub { $self->update_generic(@_) },
-            'Persistent::Cvterm' => sub { $self->update_cvterm(@_) },
+        {   'Modware::Meta::Attribute::Trait::Persistent'         => sub { $self->update_generic(@_) },
+            'Modware::Meta::Attribute::Trait::Persistent::Cvterm' => sub { $self->update_cvterm(@_) },
         };
     }
 );

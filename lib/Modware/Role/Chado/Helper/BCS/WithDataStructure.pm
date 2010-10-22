@@ -1,10 +1,10 @@
 package Modware::Role::Chado::Helper::WithDataStash;
 
 # Other modules:
+use namespace::autoclean;
 use MooseX::Role::Parameterized;
 use Modware::Types qw/UpdateStash/;
 use MooseX::Aliases;
-use namespace::autoclean;
 
 # Module implementation
 #

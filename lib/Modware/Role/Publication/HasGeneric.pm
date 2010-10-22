@@ -48,7 +48,7 @@ sub _set_cv {
     for my $attr ( $self->meta->get_all_attributes ) {
         next
             if !$attr->does('Persistent::Cvterm')
-                or !$attr->does('Persistent::PubProp');
+                or !$attr->does('Persistent::Pubprop');
         $attr->cv($new);
     }
 }
@@ -59,7 +59,7 @@ sub _set_db {
     for my $attr ( $self->meta->get_all_attributes ) {
         next
             if !$attr->does('Persistent::Cvterm')
-                or !$attr->does('Persistent::PubProp');
+                or !$attr->does('Persistent::Pubprop');
         $attr->db($new);
     }
 }
@@ -67,7 +67,7 @@ sub _set_db {
 has 'abstract' => (
     is     => 'rw',
     isa    => 'Maybe[Str]',
-    traits => [qw/Persistent::PubProp/],
+    traits => [qw/Persistent::Pubprop/],
 );
 
 has 'title' => (
@@ -86,7 +86,7 @@ has 'year' => (
 has 'keywords_stack' => (
     is      => 'rw',
     isa     => 'ArrayRef',
-    traits  => [qw/Array Persistent::PubPropList::Dicty/],
+    traits  => [qw/Array Persistent::Pubprop::Dicty/],
     cv      => 'dictyBase_literature_topic',
     db      => 'dictyBase',
     handles => {
@@ -106,7 +106,7 @@ has 'source' => (
 has 'status' => (
     is     => 'rw',
     isa    => 'Maybe[Str]',
-    traits => [qw/Persistent::PubProp/],
+    traits => [qw/Persistent::Pubprop/],
 );
 
 has 'type' => (

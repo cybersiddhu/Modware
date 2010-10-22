@@ -15,44 +15,46 @@ use Test::Moose;
 
     has 'type' => (
         isa    => 'Str',
-        isa    => 'rw',
+        is     => 'rw',
         traits => [qw/Persistent::Cvterm/]
     );
 
     has 'accession' => (
         isa    => 'Int',
-        isa    => 'rw',
-        traits => [qw/Persistent::PubDbxref/]
+        is     => 'rw',
+        traits => [qw/Persistent::Pubdbxref/]
     );
 
     has 'uniprot' => (
         isa    => 'Int',
-        isa    => 'rw',
-        traits => [qw/Persistent::PubProp/]
+        is     => 'rw',
+        traits => [qw/Persistent::Pubprop/]
     );
 
     has 'author' => (
         is     => 'rw',
         isa    => 'ArrayRef',
-        traits => [qw/Persistent::PubAuthors/]
+        traits => [qw/Persistent::Pubauthors/]
     );
 }
 
 my $persist = MyPersist->new;
 my $meta    = $persist->meta;
 
-does_ok( $persist, $_, "It does $_ traits" )
-    for (
-    'Persistent',             'Persistent::PubProp',
-    'Persistent::PubAuthors', 'Persistent::Cvterm'
-    );
-
 my $id_attr = $meta->get_attribute('id');
+does_ok(
+    $id_attr, 'Modware::Meta::Attribute::Trait::Persistent',
+    'It does Persistent trait'
+);
 has_attribute_ok( $id_attr, 'column',
     'Persistent trait has column attribute' );
 
 my $type_attr = $meta->get_attribute('type');
-has_attribute_ok( $id_attr, $_, "Cvterm trait has $_ attribute" )
+does_ok(
+    $type_attr, 'Modware::Meta::Attribute::Trait::Persistent::Cvterm',
+    'It does Cvterm trait'
+);
+has_attribute_ok( $type_attr, $_, "Cvterm trait has $_ attribute" )
     for qw/cv db/;
 
 my $acc_attr = $meta->get_attribute('accession');
