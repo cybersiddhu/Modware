@@ -1,19 +1,41 @@
 package Modware::Publication::Article;
 
 # Other modules:
+use namespace::autoclean;
+use Module::Load
+use Moose;
+use MooseX::ClassAttribute;
 
 # Module implementation
-#
+## -- Roles for data persistence
+with 'Modware::Role::Adapter::BCS::Chado::Publication';
 
-with 'Modware::Role::Chado::Writer::BCS::Publication::Article';
-with 'Modware::Role::Chado::Writer::BCS::Publication';
-with 'Modware::Role::Chado::Helper::BCS::Cvterm';
-with 'Modware::Role::Chado::Helper::BCS::Dbxref';
+## -- Data Role
 with 'Modware::Role::Publication::HasAuthors';
-with 'Modware::Role::HasPublication';
-with 'Modware::Role::HasArticle';
+with 'Modware::Role::Publication::HasGeneric';
+with 'Modware::Role::Publication::HasArticle';
+
 
 has '+type' => (default => 'article');
+
+class_has 'query_class' => (
+    is      => 'rw',
+    isa     => 'Str',
+    default => 'Modware::Chado::Query::BCS::Publication'
+);
+
+class_has 'query' => (
+    default => sub {
+        my $q     = __PACKAGE__->query_class;
+        load $q;
+        $q;
+    },
+    isa     => 'Str',
+    is      => 'rw',
+    lazy    => 1,
+    handles => [qw/find count search/]
+);
+
 
 
 

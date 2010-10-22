@@ -4,6 +4,7 @@ package Modware::Publication::Author;
 use Moose;
 use MooseX::Types::Moose qw/Int Str Bool/;
 use Modware::Types qw/CleanStr Toggler/;
+use namespace::autoclean;
 
 # Module implementation
 #
@@ -11,7 +12,7 @@ use Modware::Types qw/CleanStr Toggler/;
 has 'id' => (
     is        => 'rw',
     isa       => Int,
-    predicate => 'has_author_id'
+    predicate => 'has_author_id',
 );
 
 has 'first_name' => (
@@ -32,19 +33,24 @@ has 'last_name' => (
     is        => 'rw',
     isa       => CleanStr,
     coerce    => 1,
-    predicate => 'has_last_name'
+    predicate => 'has_last_name',
+    traits    => [qw/Persistent/],
+    column    => 'surname'
 );
 
 has 'suffix' => (
     is     => 'rw',
     isa    => 'Maybe[Str]',
+    traits => [qw/Persistent/]
 );
 
 has 'is_editor' => (
     is      => 'rw',
     isa     => Toggler,
     coerce  => 1,
-    default => sub {0}
+    default => sub {0},
+    traits  => [qw/Persistent/],
+    column  => 'editor'
 );
 
 has 'is_primary' => (
@@ -61,20 +67,37 @@ after 'is_primary' => sub {
 has 'rank' => (
     is        => 'rw',
     isa       => 'Int',
-    predicate => 'has_rank'
+    predicate => 'has_rank',
+    traits    => [qw/Persistent/]
 );
 
-sub given_name {
-    my ($self) = @_;
-    if ( $self->has_first_name ) {
-        if ( $self->has_initials ) {
-            return sprintf "%s %s", $self->initials, $self->first_name;
+has 'given_name' => (
+    is      => 'rw',
+    isa     => 'Maybe[Str]',
+    traits  => [qw/Persistent/],
+    column  => 'givennames',
+    trigger => sub {
+        my ( $self, $new, $old ) = @_;
+        return if $old and $new eq $old;
+        if ( $new =~ /^(\S+)\s+(\S+)$/ ) {
+            $self->initials($1);
+            $self->first_name($2);
         }
-        $self->first_name;
-    }
-}
+        else {
+            $self->first_name($new);
+        }
 
-no Moose;
+    },
+    default => sub {
+        my ($self) = @_;
+        if ( $self->has_first_name ) {
+            if ( $self->has_initials ) {
+                return sprintf "%s %s", $self->initials, $self->first_name;
+            }
+            $self->first_name;
+        }
+    }
+);
 
 1;    # Magic true value required at end of module
 

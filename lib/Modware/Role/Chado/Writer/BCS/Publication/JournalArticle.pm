@@ -1,9 +1,9 @@
 package Modware::Role::Chado::Writer::BCS::Publication::JournalArticle;
 
 # Other modules:
+use namespace::autoclean;
 use Moose::Role;
 use Carp;
-use namespace::autoclean;
 
 # Module implementation
 #

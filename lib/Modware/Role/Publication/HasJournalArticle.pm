@@ -1,32 +1,76 @@
 package Modware::Role::Publication::HasJournalArticle;
 
 # Other modules:
-use Moose::Role;
 use namespace::autoclean;
+use Moose::Role;
+use Modware::Meta;
+use Modware::DataModel::Validations;
 
 # Module implementation
 #
-requires '_build_issue', '_build_volume';
-requires '_build_first_page';
-requires '_build_last_page';
-requires '_build_abbreviation', '_build_issn', '_build_journal';
 
-has [qw/abbreviation issn journal/] => (
-    is         => 'rw',
-    isa        => 'Maybe[Str]',
-    lazy_build => 1
+requires 'abstract', 'title', 'year', 'source';
+requires 'status', 'type';
+validate_presence_of 'journal';
+validate_presence_of 'pages';
+
+
+has 'abbreviation' => (
+    is     => 'rw',
+    isa    => 'Maybe[Str]',
+    traits => [qw/Persistent::PubProp/],
+    cvterm => 'journal_abbreviation'
+);
+
+has 'issn' => (
+    is     => 'rw',
+    isa    => 'Maybe[Str]',
+    traits => [qw/Persistent::PubDbxref/],
+);
+
+has 'journal' => (
+    is     => 'rw',
+    isa    => 'Maybe[Str]',
+    traits => [qw/Persistent/],
+    column => 'series_name'
+);
+
+has [qw/issue volume/] => (
+    is     => 'rw',
+    isa    => 'Maybe[Str]',
+    traits => [qw/Persistent/]
 );
 
 has $_ => (
-    is         => 'rw',
-    isa        => 'Maybe[Int]|Maybe[Str]',
-    lazy_build => 1
+    is        => 'rw',
+    isa       => 'Maybe[Int]|Maybe[Str]',
+    predicate => 'has_' . $_
 ) for qw(first_page last_page);
 
-has [qw/issue volume/] => (
-    is         => 'rw',
-    isa        => 'Maybe[Str]',
-    lazy_build => 1
+
+has 'pages' => (
+    is      => 'rw',
+    isa     => 'Maybe[Int]|Maybe[Str]',
+    traits  => [qw/Persistent/],
+    trigger => sub {
+        my ( $self, $new, $old ) = @_;
+        return if $old and $new eq $old;
+        if ( $new !~ /\-\-/ ) {
+            $self->first_page($new);
+            return;
+        }
+        my ( $first_page, $last_page ) = split /\-\-/, $self->dbrow->pages;
+        $self->first_page($first_page);
+        $self->last_page($last_page);
+    },
+    default => sub {
+        my $self = shift;
+        if ( $self->has_first_page and $self->has_last_page ) {
+            return $self->first_page . '--' . $self->last_page;
+        }
+        return $self->first_page if $self->has_first_page;
+        return $self->last_page  if $self->has_last_page;
+    }
 );
 
 1;    # Magic true value required at end of module

@@ -1,7 +1,8 @@
 package  Modware::Types;
 
 # Other modules:
-use MooseX::Types -declare => [qw/CleanStr UnCleanStr ColumnMap Toggler URI/];
+use MooseX::Types -declare =>
+    [qw/CleanStr UnCleanStr ColumnMap Toggler URI UpdateStash ValidValues/];
 use MooseX::Types::Moose qw/Int Str Any Object Bool HashRef ArrayRef/;
 use Regexp::Common qw/URI/;
 use namespace::autoclean;
@@ -20,13 +21,27 @@ coerce ColumnMap, from ArrayRef, via {
     return \%hash;
 };
 
+subtype UpdateStash, as HashRef [ArrayRef], where {
+    defined $_->{has_many} or defined $_->{many_to_many};
+}, message {
+    'either of **has_many_stash** or **many_to_many_stash** has to be given as
+key';
+};
+
 subtype Toggler, as Bool;
 coerce Toggler, from Str, via {
     $_ eq 'false' ? 0 : 1;
 };
 
-subtype URI, as Str, where { $RE{URI}{HTTP}{-scheme => 'https?'}->matches($_) }, message {
+subtype URI, as Str, where {
+    $RE{URI}{HTTP}{-scheme => 'https?'}->matches($_);
+}, message {
     "$_ is not a HTTP URL";
+};
+
+subtype ValidValues, as ArrayRef;
+coerce ValidValues, from Str, via {
+    [$_];
 };
 
 1;    # Magic true value required at end of module
@@ -48,7 +63,8 @@ This document describes <MODULE NAME> version 0.0.1
 use <MODULE NAME>;
 
 =for author to fill in:
-Brief code example(s) here showing commonest usage(s).
+Brief code example (
+        s) here showing commonest usage(s).
 This section will be as far as many users bother reading
 so make it as educational and exeplary as possible.
 
@@ -57,8 +73,7 @@ so make it as educational and exeplary as possible.
 
 =for author to fill in:
 Write a full description of the module and its features here.
-Use subsections (=head2, =head3) as appropriate.
-
+Use subsections (=head2, =head3) as appropriate .
 
 =head1 INTERFACE 
 

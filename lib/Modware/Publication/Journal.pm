@@ -1,26 +1,39 @@
 package Modware::Publication::Journal;
 
-use version; our $VERSION = qv('0.1');
-
 # Other modules:
+use namespace::autoclean;
+use Module::Load;
+use Moose;
+use MooseX::ClassAttribute;
 
 # Module implementation
-#
-with 'Modware::Role::DataSource::Util';
+## -- Roles for data persistence
+with 'Modware::Role::Adapter::BCS::Chado::Publication';
 
-with 'Modware::Role::Chado::Builder::BCS::Publication';
-with 'Modware::Role::Chado::Writer::BCS::Publication';
-
-with 'Modware::Role::Chado::Builder::BCS::Publication::Journal';
-with 'Modware::Role::Chado::Writer::BCS::Publication::Journal';
-
-with 'Modware::Role::Chado::Helper::BCS::Cvterm';
-with 'Modware::Role::Chado::Helper::BCS::Dbxref';
+## -- Data Role
 with 'Modware::Role::Publication::HasAuthors';
-with 'Modware::Role::HasPublication';
-with 'Modware::Role::HasJournal';
+with 'Modware::Role::Publication::HasGeneric';
+with 'Modware::Role::Publication::HasJournal';
 
 has '+type' => (default => 'journal');
+
+class_has 'query_class' => (
+    is      => 'rw',
+    isa     => 'Str',
+    default => 'Modware::Chado::Query::BCS::Publication'
+);
+
+class_has 'query' => (
+    default => sub {
+        my $q     = __PACKAGE__->query_class;
+        load $q;
+        $q;
+    },
+    isa     => 'Str',
+    is      => 'rw',
+    lazy    => 1,
+    handles => [qw/find count search/]
+);
 
 
 

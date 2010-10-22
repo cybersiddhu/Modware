@@ -1,20 +1,54 @@
 package Modware::Role::Publication::HasArticle;
 
-use version; our $VERSION = qv('1.0.0');
-
 # Other modules:
+use namespace::autoclean;
 use Moose Role;
+use Modware::Meta;
+use Modware::DataModel::Validations;
 
 # Module implementation
 #
+requires 'abstract';
+requires 'title';
+requires 'year';
+requires 'source';
+requires 'status';
+requires 'type';
 
-requires '_build_first_page';
-requires '_build_last_page';
+
+validate_presence_of 'pages';
+
 
 has $_ => (
-    is  => 'rw',
-    isa => 'Maybe[Int]|Maybe[Str],  lazy_build => 1) 
-    for qw(first_page last_page);
+    is        => 'rw',
+    isa       => 'Maybe[Int]|Maybe[Str]',
+    predicate => 'has_' . $_
+) for qw(first_page last_page);
+
+has 'pages' => (
+    is      => 'rw',
+    isa     => 'Maybe[Int]|Maybe[Str]',
+    traits  => [qw/Persistent/],
+    trigger => sub {
+        my ( $self, $new, $old ) = @_;
+        return if $old and $new eq $old;
+        if ( $new !~ /\-\-/ ) {
+            $self->first_page($new);
+            return;
+        }
+        my ( $first_page, $last_page ) = split /\-\-/, $self->dbrow->pages;
+        $self->first_page($first_page);
+        $self->last_page($last_page);
+    },
+    default => sub {
+        my $self = shift;
+        if ($self->has_first_page and $self->has_last_page) {
+        	return $self->first_page.'--'.$self->last_page;
+        }
+        return $self->first_page if $self->has_first_page;
+        return $self->last_page if $self->has_last_page;
+    }
+);
 
 1;    # Magic true value required at end of module
 

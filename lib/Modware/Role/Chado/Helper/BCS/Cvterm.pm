@@ -6,13 +6,14 @@ use version; our $VERSION = qv('1.0.0');
 use Moose::Role;
 use MooseX::Params::Validate;
 use Carp;
+use namespace::autoclean;
 
 # Module implementation
 #
 
-requires 'chado';
-requires 'cv';
-requires 'db';
+#requires 'chado';
+#requires 'cv';
+#requires 'db';
 
 has 'cvterm_row' => (
     is        => 'rw',
@@ -45,6 +46,60 @@ sub _build_cvrow {
     my $cvrow  = $self->chado->resultset('Cv::Cv')
         ->find_or_create( { name => $name } );
     return { $name => $cvrow };
+}
+
+sub find_or_create_cvterm_id {
+    my ( $self, $cvterm, $cv, $db ) = validated_list(
+        \@_,
+        cvterm => { isa => 'Str' },
+        cv     => { isa => 'Str' },
+        db     => { isa => 'Str' }
+    );
+
+    if ( $self->exist_cvterm_row($cvterm) ) {
+        return $self->get_cvterm_row($cvterm)->cvterm_id;
+    }
+
+    #otherwise try to retrieve from database
+    my $rs = $self->chado->resultset('Cv::Cvterm')
+        ->search( { name => $cvterm } );
+    if ( $rs->count > 0 ) {
+        $self->set_cvterm_row( $cvterm => $rs->first );
+        return $rs->first->cvterm_id;
+    }
+
+    #otherwise create one using the default cv namespace
+    my $row = $self->chado->resultset('Cv::Cvterm')->create_with(
+        {   name   => $cvterm,
+            cv     => $cv,
+            db     => $db,
+            dbxref => $cv . '-' . $db . '-' . $cvterm
+        }
+    );
+    $self->set_cvterm_row( $cvterm, $row );
+    $row->cvterm_id;
+}
+
+sub find_cvterm_id {
+    my ( $self, $cvterm, $cv, $db ) = validated_list(
+        \@_,
+        cvterm => { isa => 'Str' },
+        cv     => { isa => 'Str' },
+        db     => { isa => 'Str' }
+    );
+
+    if ( $self->exist_cvterm_row($cvterm) ) {
+        return $self->get_cvterm_row($cvterm)->cvterm_id;
+    }
+
+    #otherwise try to retrieve from database
+    my $rs = $self->chado->resultset('Cv::Cvterm')
+        ->search( { name => $cvterm } );
+    if ( $rs->count > 0 ) {
+        $self->set_cvterm_row( $cvterm => $rs->first );
+        return $rs->first->cvterm_id;
+    }
+    croak "no cvterm id found for $cvterm\n";
 }
 
 sub cvterm_id_by_name {

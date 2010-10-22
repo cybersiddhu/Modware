@@ -1,111 +1,104 @@
-package Modware::Role::Collection::HasArray;
+package Modware::Role::Publication::HasDictyBase;
 
 # Other modules:
-use MooseX::Role::Parameterized;
-use Carp;
 use namespace::autoclean;
+use Moose Role;
+use Modware::Meta;
 
 # Module implementation
 #
-
-parameter name => (
-    isa      => 'Str',
-    required => 1
-);
-
-parameter class_name => (
-    isa      => 'Str',
-    required => 1
-);
-
-parameter persistent_trait => (
-    isa     => 'Str',
-);
-
-parameter association => ( isa => 'Str' );
-
-role {
-
-    my $p          = shift;
-    my $class_name = $p->class_name;
-    my $name       = $p->name;
-    ( my $singular = $name ) =~ s/s$//;
-
-    my $isa = "ArrayRef[$class_name]";
+requires 'abstract';
+requires 'title';
+requires 'year';
+requires 'source';
+requires 'status';
+requires 'type';
 
 
-	if ($p->persistent_trait)
-        has 'collection' => (
-            is          => 'rw',
-            traits      => ['Array', $p->persistent_trait],
-            isa         => $isa,
-            predicate   => 'has_collection',
-            handles     => {
-                $name                => 'elements',
-                'total_' . $name     => 'count',
-                'has_' . $name       => 'count',
-                'has_no_' . $name    => 'is_empty',
-                add_to_collection    => 'push',
-                'sort_' . $name      => 'sort_in_place',
-                'get_from_' . $name  => 'get',
-                'find_from_' . $name => 'first',
-                'delete_' . $name    => 'clear',
-                add_to_stack         => 'splice'
-            }
-        );
-    }
-    else {
-        has 'collection' => (
-            is        => 'rw',
-            traits    => ['Array'],
-            isa       => $isa,
-            predicate => 'has_collection',
-            builder   => '_build_' . $name,
-            lazy      => 1,
-            handles   => {
-                $name                => 'elements',
-                'total_' . $name     => 'count',
-                'has_' . $name       => 'count',
-                'has_no_' . $name    => 'is_empty',
-                add_to_collection    => 'push',
-                'sort_' . $name      => 'sort_in_place',
-                'get_from_' . $name  => 'get',
-                'find_from_' . $name => 'first',
-                'delete_' . $name    => 'clear',
-                add_to_stack         => 'splice'
-            }
-        );
-    }
+has $_ => (
+    is        => 'rw',
+    isa       => 'Maybe[Int]|Maybe[Str]',
+    predicate => 'has_' . $_
+) for qw(first_page last_page);
 
-    has 'counter' => (
-        is      => 'rw',
-        traits  => ['Counter'],
-        isa     => 'Int',
-        default => 0,
-        lazy    => 1,
-        handles => {
-            inc_counter  => 'inc',
-            decr_counter => 'dec',
-            rewind       => 'reset'
+has 'pages' => (
+    is      => 'rw',
+    isa     => 'Maybe[Int]|Maybe[Str]',
+    traits  => [qw/Persistent/],
+    trigger => sub {
+        my ( $self, $new, $old ) = @_;
+        return if $old and $new eq $old;
+        if ( $new !~ /\-\-/ ) {
+            $self->first_page($new);
+            return;
         }
-    );
-
-    method 'has_next' => sub {
-        my ($self) = @_;
-        my $method = 'total_' . $name;
-        return if $self->counter > $self->$method;
-        return 1;
-    };
-
-    method 'next_' . $singular => sub {
+        my ( $first_page, $last_page ) = split /\-\-/, $self->dbrow->pages;
+        $self->first_page($first_page);
+        $self->last_page($last_page);
+    },
+    default => sub {
         my $self = shift;
-        return if !$self->has_next;
-        my $method  = 'get_from_' . $name;
-        my $element = $self->$method( $self->counter );
-        $self->inc_counter;
-        $element;
-    };
-};
+        if ($self->has_first_page and $self->has_last_page) {
+        	return $self->first_page.'--'.$self->last_page;
+        }
+        return $self->first_page if $self->has_first_page;
+        return $self->last_page if $self->has_last_page;
+    }
+);
+
+has 'abbreviation' => (
+    is     => 'rw',
+    isa    => 'Maybe[Str]',
+    traits => [qw/Persistent::PubProp/],
+    cvterm => 'journal_abbreviation'
+);
+
+has 'issn' => (
+    is     => 'rw',
+    isa    => 'Maybe[Str]',
+    traits => [qw/Persistent::PubDbxref/],
+);
+
+has 'journal' => (
+    is     => 'rw',
+    isa    => 'Maybe[Str]',
+    traits => [qw/Persistent/],
+    column => 'series_name'
+);
+
+has [qw/issue volume/] => (
+    is     => 'rw',
+    isa    => 'Maybe[Str]',
+    traits => [qw/Persistent/]
+);
+
+has 'pubmed_id' => (
+    isa    => 'Maybe[Int]|Maybe[Str]',
+    is     => 'rw',
+    traits => [qw/Persistent/],
+    column => 'uniquename',
+);
+
+has 'medline_id' => (
+    isa    => 'Maybe[Int]|Maybe[Str]',
+    is     => 'rw',
+    traits => [qw/Persistent::PubDbxref/],
+    db     => 'Medline'
+);
+
+has 'doi' => (
+    isa    => 'Maybe[Str]',
+    is     => 'rw',
+    traits => [qw/Persistent::PubDbxref/],
+    db     => 'DOI'
+);
+
+has 'full_text_url' => (
+    is     => 'rw',
+    isa    => URI,
+    traits => [qw/Persistent::PubProp/],
+    cvterm => 'website'
+);
 
 1;    # Magic true value required at end of module
 
@@ -126,7 +119,8 @@ This document describes <MODULE NAME> version 0.0.1
 use <MODULE NAME>;
 
 =for author to fill in:
-Brief code example(s) here showing commonest usage(s).
+Brief code example (
+        s) here showing commonest usage(s).
 This section will be as far as many users bother reading
 so make it as educational and exeplary as possible.
 
@@ -135,8 +129,7 @@ so make it as educational and exeplary as possible.
 
 =for author to fill in:
 Write a full description of the module and its features here.
-Use subsections (=head2, =head3) as appropriate.
-
+Use subsections (=head2, =head3) as appropriate .
 
 =head1 INTERFACE 
 

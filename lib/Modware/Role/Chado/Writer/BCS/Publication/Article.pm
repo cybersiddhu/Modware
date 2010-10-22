@@ -8,6 +8,20 @@ use namespace::autoclean;
 
 # Module implementation
 #
+sub _build_first_page {
+    my ($self) = @_;
+    return if !$self->has_dbrow;
+    my $first = ( ( split /\-\-/, $self->dbrow->pages ) )[0];
+    $first;
+}
+
+sub _build_last_page {
+    my ($self) = @_;
+    return if !$self->has_dbrow;
+    my $last = ( ( split /\-\-/, $self->dbrow->pages ) )[1];
+    $last;
+}
+
 
 before 'create' => sub {
     my ($self) = @_;

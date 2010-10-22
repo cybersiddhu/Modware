@@ -1,19 +1,47 @@
 package Modware::Role::Publication::HasJournal;
 
-use version; our $VERSION = qv('1.0.0');
-
 # Other modules:
+use namespace::autoclean;
 use Moose::Role;
+use Modware::Meta;
+use Modware::DataModel::Validations;
 
 # Module implementation
 #
+requires 'abstract';
+requires 'title';
+requires 'year';
+requires 'source';
+requires 'status';
+requires 'type';
 
-requires '_build_abbreviation', '_build_issn', '_build_journal';
 
-has [qw/abbreviation issn journal/] => (
-    is         => 'rw',
-    isa        => 'Maybe[Str]',
-    lazy_build => 1
+validate_presence_of 'journal';
+
+has 'abbreviation' => (
+    is     => 'rw',
+    isa    => 'Maybe[Str]',
+    traits => [qw/Persistent::PubProp/],
+    cvterm => 'journal_abbreviation'
+);
+
+has 'issn' => (
+    is     => 'rw',
+    isa    => 'Maybe[Str]',
+    traits => [qw/Persistent::PubDbxref/],
+);
+
+has 'journal' => (
+    is     => 'rw',
+    isa    => 'Maybe[Str]',
+    traits => [qw/Persistent/],
+    column => 'series_name'
+);
+
+has [qw/issue volume/] => (
+    is     => 'rw',
+    isa    => 'Maybe[Str]',
+    traits => [qw/Persistent/]
 );
 
 1;    # Magic true value required at end of module

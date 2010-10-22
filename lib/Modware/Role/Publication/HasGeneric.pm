@@ -1,45 +1,127 @@
-package Modware::Publication::JournalArticle;
+package Modware::Role::Publication::HasGeneric;
 
 # Other modules:
 use namespace::autoclean;
-use Module::Load;
-use Moose;
-use MooseX::ClassAttribute;
+use Moose::Role;
+use Modware::Meta;
 
-# Module implementation
-#
-## -- Roles for data persistence
-with 'Modware::Role::Adapter::BCS::Chado::Publication';
-
-## -- Data Role
-with 'Modware::Role::Publication::HasAuthors';
-with 'Modware::Role::Publication::HasGeneric';
-with 'Modware::Role::Publication::HasJournal';
-with 'Modware::Role::Publication::HasArticle';
+#module implementation
+with 'Modware::Role::Data::WithDefault';
 
 
-has '+type' => ( default => 'journal article' );
+my $CV = 'pub_type';
+my $DB = 'Publication';
 
-class_has 'query_class' => (
-    is      => 'rw',
-    isa     => 'Str',
-    default => 'Modware::Chado::Query::BCS::Publication::JournalArticle'
+sub _build_cv {
+    my $self = shift;
+ATTR:
+    for my $attr ( $self->meta->get_all_attributes ) {
+        next ATTR if !$attr->has_applied_traits;
+    TRAIT:
+        for my $trait ( $attr->applied_traits ) {
+            next TRAIT if !$trait->has_attribute('cv');
+            next ATTR  if !$attr->has_value($self);
+            $attr->cv($CV);
+            return $CV;
+        }
+    }
+}
+
+sub _build_db {
+    my $self = shift;
+ATTR:
+    for my $attr ( $self->meta->get_all_attributes ) {
+        next ATTR if !$attr->has_applied_traits;
+    TRAIT:
+        for my $trait ( $attr->applied_traits ) {
+            next TRAIT if !$trait->has_attribute('db');
+            next ATTR  if !$attr->has_value($self);
+            $attr->db($DB);
+            return $DB;
+        }
+    }
+}
+
+sub _set_cv {
+    my ( $self, $new, $old ) = @_;
+    return if $old && $new eq $old;
+    for my $attr ( $self->meta->get_all_attributes ) {
+        next
+            if !$attr->does('Persistent::Cvterm')
+                or !$attr->does('Persistent::PubProp');
+        $attr->cv($new);
+    }
+}
+
+sub _set_db {
+    my ( $self, $new, $old ) = @_;
+    return if $old && $new eq $old;
+    for my $attr ( $self->meta->get_all_attributes ) {
+        next
+            if !$attr->does('Persistent::Cvterm')
+                or !$attr->does('Persistent::PubProp');
+        $attr->db($new);
+    }
+}
+
+has 'abstract' => (
+    is     => 'rw',
+    isa    => 'Maybe[Str]',
+    traits => [qw/Persistent::PubProp/],
 );
 
-class_has 'query' => (
-    default => sub {
-        my $q     = __PACKAGE__->query_class;
-        load $q;
-        $q;
-    },
-    isa     => 'Str',
-    is      => 'rw',
-    lazy    => 1,
-    handles => [qw/find count search/]
+has 'title' => (
+    is     => 'rw',
+    isa    => 'Maybe[Str]',
+    traits => [qw/Persistent/],
 );
 
+has 'year' => (
+    is     => 'rw',
+    isa    => 'Maybe[Str]',
+    traits => [qw/Persistent/],
+    column => 'pyear'
+);
 
-__PACKAGE__->meta->make_immutable;
+has 'keywords_stack' => (
+    is      => 'rw',
+    isa     => 'ArrayRef',
+    traits  => [qw/Array Persistent::PubPropList::Dicty/],
+    cv      => 'dictyBase_literature_topic',
+    db      => 'dictyBase',
+    handles => {
+        add_keyword     => 'push',
+        keywords        => 'elements',
+        keywords_sorted => 'sort'
+    }
+);
+
+has 'source' => (
+    is     => 'rw',
+    isa    => 'Maybe[Str]',
+    traits => [qw/Persistent/],
+    column => 'pubplace'
+);
+
+has 'status' => (
+    is     => 'rw',
+    isa    => 'Maybe[Str]',
+    traits => [qw/Persistent::PubProp/],
+);
+
+has 'type' => (
+    is     => 'rw',
+    isa    => 'Str',
+    traits => [qw/Persistent::Cvterm/],
+    column => 'type_id'
+);
+
+has 'id' => (
+    isa    => 'Maybe[Int]|Maybe[Str]',
+    is     => 'rw',
+    traits => [qw/Persistent/],
+    column => 'uniquename',
+);
 
 1;    # Magic true value required at end of module
 
@@ -47,37 +129,29 @@ __END__
 
 =head1 NAME
 
-B<Modware::Publication::JournalArticle> - [Module for handling published article in the journal]
+<Modware::Role::Publication::HasGeneric> - [Moose role for publication module]
 
 
 =head1 VERSION
 
-This document describes <Modware::Publication::JournalArticle> version 0.1
+This document describes B<Modware::Role::Publication> version 0.1.0
 
 
 =head1 SYNOPSIS
 
-use Modware::Publication::JournalArticle;
+use Moose;
+with Modware::Role::Publication;
 
 
 =head1 DESCRIPTION
 
-=for author to fill in:
-Write a full description of the module and its features here.
-Use subsections (=head2, =head3) as appropriate.
-
+The role in intended to be consumed by B<Modware::Publication> class. 
 
 =head1 INTERFACE 
 
-=head2 issue
-
-=head2 issue_suppliment
-
-=head2 volume
-
-For more docs,  look at B<Modware::Publication>,  B<Modware::Publication::Journal> and
-B<Modware::Publication::Article>
-
+=for author to fill in:
+Only role specific but non-public internal methods will be documented here, meant for API
+developer.
 
 =head1 DIAGNOSTICS
 
@@ -86,20 +160,6 @@ List every single error and warning message that the module can
 generate (even the ones that will "never happen"), with a full
 explanation of each problem, one or more likely causes, and any
 suggested remedies.
-
-=over
-
-=item C<< Error message here, perhaps with %s placeholders >>
-
-[Description of error here]
-
-=item C<< Another error message here >>
-
-[Description of error here]
-
-[Et cetera, et cetera]
-
-=back
 
 
 =head1 CONFIGURATION AND ENVIRONMENT
@@ -111,12 +171,10 @@ files, and the meaning of any environment variables or properties
 that can be set. These descriptions must also include details of any
 configuration language used.
 
-B<Modware::Publication::JournalArticle> requires no configuration files or environment variables.
-
 
 =head1 INCOMPATIBILITIES
 
-  =for author to fill in:
+=for author to fill in:
   A list of any modules that this module cannot be used in conjunction
   with. This may be due to name conflicts in the interface, or
   competition for system or program resources, or due to internal
@@ -128,7 +186,7 @@ B<Modware::Publication::JournalArticle> requires no configuration files or envir
 
 =head1 BUGS AND LIMITATIONS
 
-  =for author to fill in:
+=for author to fill in:
   A list of known problems with the module, together with some
   indication Whether they are likely to be fixed in an upcoming
   release. Also a list of restrictions on the features the module
@@ -137,8 +195,8 @@ B<Modware::Publication::JournalArticle> requires no configuration files or envir
   limitations on the size of data sets, special cases that are not
   (yet) handled, etc.
 
-  No bugs have been reported.Please report any bugs or feature requests to
-  dictybase@northwestern.edu
+No bugs have been reported.Please report any bugs or feature requests to
+dictybase@northwestern.edu
 
 
 

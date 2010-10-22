@@ -1,12 +1,6 @@
 package Modware::Meta::Attribute::Trait::Persistent;
 use strict;
-
-# Other modules:
 use Moose::Role;
-use namespace::autoclean;
-
-# Module implementation
-#
 
 has 'column' => (
     is        => 'rw',
@@ -20,96 +14,45 @@ has 'lazy_fetch' => (
     default => 0
 );
 
-has 'update' => (
-    isa     => 'Bool',
-    is      => 'rw',
-    default => 1
-);
-
-has 'compare' => (
-    is  => 'rw',
-    isa => 'CodeRef', 
-    predicate => 'do_compare'
-);
-
 package Modware::Meta::Attribute::Trait::Persistent::CvTerm;
 use strict;
-
 use Moose::Role;
-use namespace::autoclean;
 
-has 'cv' => ( is => 'rw', isa => 'Str', required => 1 );
-has 'db' => ( is => 'rw', isa => 'Str', required => 1 );
-has 'update' => (
-    isa     => 'Bool',
-    is      => 'rw',
-    default => 1
-);
+has 'cv' => ( is => 'rw', isa => 'Str' );
+has 'db' => ( is => 'rw', isa => 'Str' );
 
 package Modware::Meta::Attribute::Trait::Persistent::PubDbxref;
 use strict;
-
 use Moose::Role;
-use namespace::autoclean;
 
-has 'db' => ( is => 'rw', isa => 'Str', required => 1 );
-has 'update' => (
-    isa     => 'Bool',
-    is      => 'rw',
-    default => 1
-);
-
-has 'compare' => (
-    is  => 'rw',
-    isa => 'CodeRef', 
-    predicate => 'do_compare'
-);
+has 'db' => ( is => 'rw', isa => 'Str');
 
 package Modware::Meta::Attribute::Trait::Persistent::PubAuthors;
 use strict;
-
 use Moose::Role;
-use namespace::autoclean;
 
 has 'map_to' =>
     ( is => 'rw', isa => 'Str', default => 'Modware::Publication::Author' );
 has 'association' => ( is => 'rw', isa => 'Str', default => 'pubauthors' );
-has 'update' => (
-    isa     => 'Bool',
-    is      => 'rw',
-    default => 1
-);
 
 package Modware::Meta::Attribute::Trait::Persistent::PubProp;
 use strict;
-
 use Moose::Role;
-use namespace::autoclean;
 
-has 'cv'      => ( is => 'rw', isa => 'Str', required  => 1 );
+has 'cv'      => ( is => 'rw', isa => 'Str' );
+has 'db'      => ( is => 'rw', isa => 'Str' );
 has 'pubprop' => ( is => 'rw', isa => 'Str', predicate => 'has_pubprop' );
 has 'rank'    => ( is => 'rw', isa => 'Int', default   => 0 );
-has 'db'      => ( is => 'rw', isa => 'Int', required  => 1 );
-has 'update'  => (
-    isa     => 'Bool',
-    is      => 'rw',
-    default => 1
-);
+has 'cvterm' => ( is => 'rw', isa => 'Str',  predicate => 'has_cvterm');
+
 
 package Modware::Meta::Attribute::Trait::Persistent::PubPropList::Dicty;
 use strict;
-
 use Moose::Role;
-use namespace::autoclean;
 
 has 'cv'   => ( is => 'rw', isa => 'Str', required => 1 );
 has 'rank' => ( is => 'rw', isa => 'Int', default  => 0 );
 has 'db'   => ( is => 'rw', isa => 'Int', required => 1 );
-has 'update' => (
-    isa     => 'Bool',
-    is      => 'rw',
-    default => 1
-);
 
 package Moose::Meta::Attribute::Custom::Trait::Persistent;
 

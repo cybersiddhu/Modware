@@ -1,21 +1,44 @@
 package Modware::Role::Publication::HasPubmed;
 
-use version; our $VERSION = qv('0.1');
-
 # Other modules:
+use namespace::autoclean;
 use Moose::Role;
 use Modware::Types qw/URI/;
-use namespace::autoclean;
+use Modware::DataModel::Validations;
 
 # Module implementation
 #
-requires '_build_medline_id', '_build_doi',  '_build_pubmed_id';
+requires 'abstract', 'title',  'year';
+requires 'source',   'status', 'type';
+validate_presence_of 'pubmed_id';
 
-has 'doi' => ( is => 'rw', isa => 'Str', lazy_build => 1 );
-has [qw/pubmed_id medline_id/] =>
-    ( is => 'rw', isa => 'Int', lazy_build => 1 );
+has 'pubmed_id' => (
+    isa    => 'Maybe[Int]|Maybe[Str]',
+    is     => 'rw',
+    traits => [qw/Persistent/],
+    column => 'uniquename',
+);
 
-has 'full_text_url' => (is => 'rw',  isa => URI,  lazy_build => 1);
+has 'medline_id' => (
+    isa    => 'Maybe[Int]|Maybe[Str]',
+    is     => 'rw',
+    traits => [qw/Persistent::PubDbxref/],
+    db     => 'Medline'
+);
+
+has 'doi' => (
+    isa    => 'Maybe[Str]',
+    is     => 'rw',
+    traits => [qw/Persistent::PubDbxref/],
+    db     => 'DOI'
+);
+
+has 'full_text_url' => (
+    is     => 'rw',
+    isa    => URI,
+    traits => [qw/Persistent::PubProp/],
+    cvterm => 'website'
+);
 
 #has 'mesh_terms_stack' => (
 #    is         => 'rw',

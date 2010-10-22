@@ -8,7 +8,8 @@ use Modware::Types::Publication qw/PubAuthor/;
 
 with 'Modware::Role::Collection::HasArray' => {
     name       => 'authors',
-    class_name => 'Modware::Publication::Author'
+    class_name => 'Modware::Publication::Author', 
+    persistent_trait => 'Persistent::PubAuthors' , 
 };
 
 # Module implementation

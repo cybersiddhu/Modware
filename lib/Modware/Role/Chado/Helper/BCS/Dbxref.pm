@@ -8,8 +8,6 @@ use namespace::autoclean;
 # Module implementation
 #
 
-requires 'db';
-
 has 'dbrow_map' => (
     is         => 'rw',
     isa        => 'HashRef[Bio::Chado::Schema::General::Db]',
