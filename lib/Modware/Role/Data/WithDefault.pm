@@ -8,7 +8,6 @@ use Moose::Role;
 requires '_build_cv';
 requires '_build_db';
 
-
 has 'cv' => (
     is      => 'rw',
     isa     => 'Str',
@@ -27,10 +26,7 @@ sub _set_cv {
     my ( $self, $new, $old ) = @_;
     return if $old && $new eq $old;
     for my $attr ( $self->meta->get_all_attributes ) {
-        next
-            if !$attr->does('Persistent::Cvterm')
-                or !$attr->does('Persistent::PubProp');
-        $attr->cv($new);
+        $attr->cv($new) if $attr->can('cv');
     }
 }
 
@@ -38,10 +34,7 @@ sub _set_db {
     my ( $self, $new, $old ) = @_;
     return if $old && $new eq $old;
     for my $attr ( $self->meta->get_all_attributes ) {
-        next
-            if !$attr->does('Persistent::Cvterm')
-                or !$attr->does('Persistent::PubProp');
-        $attr->db($new);
+        $attr->db($new) if $attr->can('db');
     }
 }
 

@@ -2,7 +2,7 @@ package Modware::Role::Publication::HasArticle;
 
 # Other modules:
 use namespace::autoclean;
-use Moose Role;
+use Moose::Role;
 use Modware::Meta;
 use Modware::DataModel::Validations;
 
@@ -29,9 +29,11 @@ has 'pages' => (
     is      => 'rw',
     isa     => 'Maybe[Int]|Maybe[Str]',
     traits  => [qw/Persistent/],
+    lazy => 1, 
     trigger => sub {
         my ( $self, $new, $old ) = @_;
         return if $old and $new eq $old;
+        return if !$new;
         if ( $new !~ /\-\-/ ) {
             $self->first_page($new);
             return;

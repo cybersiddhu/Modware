@@ -2,7 +2,7 @@ package Modware::Publication::Article;
 
 # Other modules:
 use namespace::autoclean;
-use Module::Load
+use Module::Load;
 use Moose;
 use MooseX::ClassAttribute;
 

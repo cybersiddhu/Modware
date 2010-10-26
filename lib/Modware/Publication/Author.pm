@@ -1,10 +1,11 @@
 package Modware::Publication::Author;
 
 # Other modules:
+use namespace::autoclean;
 use Moose;
 use MooseX::Types::Moose qw/Int Str Bool/;
 use Modware::Types qw/CleanStr Toggler/;
-use namespace::autoclean;
+use Modware::Meta;
 
 # Module implementation
 #
@@ -76,6 +77,7 @@ has 'given_name' => (
     isa     => 'Maybe[Str]',
     traits  => [qw/Persistent/],
     column  => 'givennames',
+    lazy => 1, 
     trigger => sub {
         my ( $self, $new, $old ) = @_;
         return if $old and $new eq $old;

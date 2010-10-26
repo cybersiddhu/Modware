@@ -4,10 +4,10 @@ package Modware::Role::Publication::HasGeneric;
 use namespace::autoclean;
 use Moose::Role;
 use Modware::Meta;
+use Data::UUID;
 
 #module implementation
 with 'Modware::Role::Data::WithDefault';
-
 
 my $CV = 'pub_type';
 my $DB = 'Publication';
@@ -16,52 +16,18 @@ sub _build_cv {
     my $self = shift;
 ATTR:
     for my $attr ( $self->meta->get_all_attributes ) {
-        next ATTR if !$attr->has_applied_traits;
-    TRAIT:
-        for my $trait ( $attr->applied_traits ) {
-            next TRAIT if !$trait->has_attribute('cv');
-            next ATTR  if !$attr->has_value($self);
-            $attr->cv($CV);
-            return $CV;
-        }
+        $attr->cv($CV) if $attr->can('cv');
     }
+    return $CV;
 }
 
 sub _build_db {
     my $self = shift;
 ATTR:
     for my $attr ( $self->meta->get_all_attributes ) {
-        next ATTR if !$attr->has_applied_traits;
-    TRAIT:
-        for my $trait ( $attr->applied_traits ) {
-            next TRAIT if !$trait->has_attribute('db');
-            next ATTR  if !$attr->has_value($self);
-            $attr->db($DB);
-            return $DB;
-        }
+        $attr->db($DB) if $attr->can('db');
     }
-}
-
-sub _set_cv {
-    my ( $self, $new, $old ) = @_;
-    return if $old && $new eq $old;
-    for my $attr ( $self->meta->get_all_attributes ) {
-        next
-            if !$attr->does('Persistent::Cvterm')
-                or !$attr->does('Persistent::Pubprop');
-        $attr->cv($new);
-    }
-}
-
-sub _set_db {
-    my ( $self, $new, $old ) = @_;
-    return if $old && $new eq $old;
-    for my $attr ( $self->meta->get_all_attributes ) {
-        next
-            if !$attr->does('Persistent::Cvterm')
-                or !$attr->does('Persistent::Pubprop');
-        $attr->db($new);
-    }
+    return $DB;
 }
 
 has 'abstract' => (
@@ -121,6 +87,10 @@ has 'id' => (
     is     => 'rw',
     traits => [qw/Persistent/],
     column => 'uniquename',
+    default => sub {
+    	my $uuid = Data::UUID->new;
+    	return $uuid->create_from_name_str(NameSpace_DNS,  'gmod.org');
+    }
 );
 
 1;    # Magic true value required at end of module

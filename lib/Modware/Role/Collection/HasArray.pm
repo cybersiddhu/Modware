@@ -1,9 +1,9 @@
 package Modware::Role::Collection::HasArray;
 
 # Other modules:
+use namespace::autoclean;
 use MooseX::Role::Parameterized;
 use Carp;
-use namespace::autoclean;
 
 # Module implementation
 #
@@ -18,9 +18,7 @@ parameter class_name => (
     required => 1
 );
 
-parameter persistent_trait => (
-    isa     => 'Str',
-);
+parameter persistent_trait => ( isa => 'Str', );
 
 parameter association => ( isa => 'Str' );
 
@@ -33,14 +31,15 @@ role {
 
     my $isa = "ArrayRef[$class_name]";
 
-
-	if ($p->persistent_trait)
+    if ( $p->persistent_trait ) {
         has 'collection' => (
-            is          => 'rw',
-            traits      => ['Array', $p->persistent_trait],
-            isa         => $isa,
-            predicate   => 'has_collection',
-            handles     => {
+            is        => 'rw',
+            traits    => [ 'Array', $p->persistent_trait ],
+            isa       => $isa,
+            predicate => 'has_collection',
+            lazy      => 1,
+            default   => sub { [] },
+            handles   => {
                 $name                => 'elements',
                 'total_' . $name     => 'count',
                 'has_' . $name       => 'count',
@@ -60,8 +59,8 @@ role {
             traits    => ['Array'],
             isa       => $isa,
             predicate => 'has_collection',
-            builder   => '_build_' . $name,
             lazy      => 1,
+            default   => sub { [] },
             handles   => {
                 $name                => 'elements',
                 'total_' . $name     => 'count',

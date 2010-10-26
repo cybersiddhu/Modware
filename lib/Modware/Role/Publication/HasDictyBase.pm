@@ -2,8 +2,9 @@ package Modware::Role::Publication::HasDictyBase;
 
 # Other modules:
 use namespace::autoclean;
-use Moose Role;
+use Moose::Role;
 use Modware::Meta;
+use Modware::Types qw/URI/;
 
 # Module implementation
 #

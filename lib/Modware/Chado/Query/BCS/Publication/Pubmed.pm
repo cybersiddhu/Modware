@@ -11,7 +11,7 @@ extends 'Modware::Chado::Query::BCS::Publication';
 # Module implementation
 #
 
-class_has '+data_class' => ( default => 'Modware::Publication' );
+class_has '+data_class' => ( default => 'Modware::Publication::Pubmed' );
 
 sub find_by_pubmed_id {
     my $class = shift;

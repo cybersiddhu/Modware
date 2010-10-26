@@ -23,10 +23,6 @@ $pub->title('The best title ever');
 $pub->abstract('One of the best abstract ever');
 $pub->status('unpublished');
 $pub->cv($test_cv);
-
-dies_ok { $pub->create }
-'It cannot create record without setting author name';
-
 $pub->add_author( { first_name => 'Mumbo', last_name => 'Jumbo' } );
 
 dies_ok { $pub->create }

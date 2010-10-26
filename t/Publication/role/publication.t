@@ -1,63 +1,65 @@
 use strict;
 use Test::More qw/no_plan/;
-use Test::Moose;
-use Test::Exception;
-use Moose::Util;
+use List::MoreUtils qw/any/;
 
 {
-	package MyBadPub;
-	use Moose;
-}
 
-{
-	package MyPub;
-	use Moose;
-	use namespace::autoclean;
-	with 'Modware::Role::HasPublication';
+    package MyArticle;
+    use namespace::autoclean;
+    use Moose;
 
-	sub _build_abstract {
-		'abstract';
-	}
+## -- Roles for data persistence
+    with 'Modware::Role::Adapter::BCS::Chado::Publication';
 
-	sub _build_title {
-	}
-
-	sub _build_year {
-		'year';
-	}
-
-	sub _build_source {
-		'source';
-	}
-
-	sub _build_status {
-		'status';
-	}
-
-	sub _build_keywords_stack {
-	   	[qw/hello house hut/];
-	}
-
-	sub _build_id {
-		return 10;
-	}
+## -- Data Role
+    with 'Modware::Role::Publication::HasAuthors';
+    with 'Modware::Role::Publication::HasGeneric';
+    with 'Modware::Role::Publication::HasArticle';
 
 }
 
-dies_ok { Moose::Util::apply_all_roles(MyBadPub->meta, ('Modware::Role::Publication')) }  'throws without unimplemented methods';
+my @traits = (
+    'Modware::Meta::Attribute::Trait::Persistent::Pubprop',
+    'Modware::Meta::Attribute::Trait::Persistent::Cvterm'
+);
 
-my $pub = MyPub->new;
+my $article = MyArticle->new;
 
-does_ok($pub, 'Modware::Role::HasPublication', 'it does the Publiction role');
-has_attribute_ok($pub, $_,  "it has the attribute $_") for qw/abstract title year source
-status keywords_stack/;
-is($pub->status,  'status',  'it has the default status value');
-is($pub->source,  'source',  'it has the default source value');
-is($pub->title,  undef,  'it has undefined title value as default');
-is($pub->keywords,  3,  'it has the default keywords');
+is( $article->cv, 'pub_type',    'It has default cv value' );
+is( $article->db, 'Publication', 'It has default db value' );
 
-$pub->add_keyword('test');
-is($pub->keywords,  4,  'it has the new keyword');
+for my $attr ( $article->meta->get_all_attributes ) {
+    if ( any { $attr->does($_) } @traits ) {
+        is( $attr->cv, 'pub_type',
+            'It has default value for cv attribute in the trait' );
+        is( $attr->db, 'Publication',
+            'It has default value for db attribute in the trait' );
+    }
+}
 
+$article->cv('mycv');
+$article->db('mydb');
 
+for my $attr ( $article->meta->get_all_attributes ) {
+    if ( any { $attr->does($_) } @traits ) {
+        is( $attr->cv, 'mycv',
+            'It has new value for cv attribute in the trait' );
+        is( $attr->db, 'mydb',
+            'It has new value for db attribute in the trait' );
+    }
+}
 
+$article->add_author( { first_name => 'Sammy', last_name => 'Hammy' } );
+$article->add_author( { first_name => 'Polka', last_name => 'Dot' } );
+
+my $collection_attr = $article->meta->get_attribute('collection');
+my $authors         = $collection_attr->get_value($article);
+is( scalar @$authors, 2, 'It has two authors' );
+isa_ok( $_, 'Modware::Publication::Author' ) for @$authors;
+for my $author_obj (@$authors) {
+    my $attr = $author_obj->meta->get_attribute('given_name');
+    isnt( $attr->has_value($author_obj),
+        1, 'It does not yet have a defined value' );
+    like( $attr->get_value($author_obj),
+        qr/^\S+$/, 'It matches a defined value after calling the accessor' );
+}

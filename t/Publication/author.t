@@ -11,7 +11,6 @@ can_ok( 'Modware::Publication::Author', $_ )
 
 $author->first_name('James Brown');
 $author->initials('Mr.');
-
 is( $author->given_name,
     'Mr. James Brown',
     'It has given name with initials'

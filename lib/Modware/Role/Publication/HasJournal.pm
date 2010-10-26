@@ -28,7 +28,7 @@ has 'abbreviation' => (
 has 'issn' => (
     is     => 'rw',
     isa    => 'Maybe[Str]',
-    traits => [qw/Persistent::Pubdbxref/],
+    traits => [qw/Persistent::Pubdbxref/]
 );
 
 has 'journal' => (

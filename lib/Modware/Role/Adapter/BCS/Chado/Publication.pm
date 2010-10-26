@@ -6,12 +6,13 @@ use Moose::Role;
 use Module::Load;
 use Try::Tiny;
 use Carp;
+use Data::Dumper::Concise;
 
 # Module implementation
 #
 
 with 'Modware::Role::Adapter::BCS::Chado';
-with 'Modware::Role::Chado::Helper::WithDataStash' => {
+with 'Modware::Role::Chado::Helper::BCS::WithDataStash' => {
     create_stash_for => [qw/pubprops pubauthors pub_dbxrefs/],
     update_stash_for => {
         has_many     => [qw/pubauthors pubprops/],
@@ -19,53 +20,55 @@ with 'Modware::Role::Chado::Helper::WithDataStash' => {
     }
 };
 
-has '+resultset_class' => ( default => 'Pub::Pub' );
+has 'resultset_class' => (
+    is      => 'ro',
+    isa     => 'Str',
+    default => 'Pub::Pub'
+);
 
-before 'read' => sub {
+before 'all_read_hooks' => sub {
     my $self = shift;
-    $self->add_read_hook( 'Modware::Meta::Attribute::Trait::Persistent::Pubprop',
+    $self->add_read_hook(
+        'Modware::Meta::Attribute::Trait::Persistent::Pubprop',
         sub { $self->read_pubprop(@_) } );
-    $self->add_read_hook( 'Modware::Meta::Attribute::Trait::Persistent::Pubauthors',
+    $self->add_read_hook(
+        'Modware::Meta::Attribute::Trait::Persistent::Pubauthors',
         sub { $self->read_authors(@_) } );
     $self->add_read_hook(
         'Modware::Meta::Attribute::Trait::Persistent::Pubdbxref',
-        sub {
-            $self->read_pub_dbxref(@_);
-        }
-    );
-    $self->add_read_hook( 'Modware::Meta::Attribute::Trait::Persistent::Pubprop::Dicty',
-        sub { $self->dicty_pubprop_reader(@_) } );
+        sub { $self->read_pub_dbxref(@_) } );
+    $self->add_read_hook(
+        'Modware::Meta::Attribute::Trait::Persistent::Pubprop::Dicty',
+        sub { $self->read_dicty_pubprop(@_) } );
 };
 
 before 'create' => sub {
     my $self = shift;
-    $self->add_create_hook( 'Modware::Meta::Attribute::Trait::Persistent::Pubprop',
+    $self->add_create_hook(
+        'Modware::Meta::Attribute::Trait::Persistent::Pubprop',
         sub { $self->create_pubprop(@_) } );
-    $self->add_create_hook( 'Modware::Meta::Attribute::Trait::Persistent::Pubauthors',
+    $self->add_create_hook(
+        'Modware::Meta::Attribute::Trait::Persistent::Pubauthors',
         sub { $self->create_authors(@_) } );
     $self->add_create_hook(
         'Modware::Meta::Attribute::Trait::Persistent::Pubdbxref',
-        sub {
-            $self->create_pub_dbxref(@_);
-        }
-    );
-    $self->add_create_hook( 'Modware::Meta::Attribute::Trait::Persistent::Pubprop::Dicty',
+        sub { $self->create_pub_dbxref(@_) } );
+    $self->add_create_hook(
+        'Modware::Meta::Attribute::Trait::Persistent::Pubprop::Dicty',
         sub { $self->create_dicty_pubprops(@_) } );
 };
 
 before 'update' => sub {
     my $self = shift;
-    $self->add_update_hook( 'Modware::Meta::Attribute::Persistent::Pubprop',
+    $self->add_update_hook( 'Modware::Meta::Attribute::Trait::Persistent::Pubprop',
         sub { $self->update_pubprop(@_) } );
-    $self->add_update_hook( 'Modware::Meta::Attribute::Persistent::Pubauthors',
-        sub { $self->update_authors(@_) } );
     $self->add_update_hook(
-        'Modware::Meta::Attribute::Persistent::Pubdbxref',
-        sub {
-            $self->update_pub_dbxref(@_);
-        }
-    );
-    $self->add_update_hook( 'Modware::Meta::Attribute::Persistent::Pubprop::Dicty',
+        'Modware::Meta::Attribute::Trait::Persistent::Pubauthors',
+        sub { $self->update_authors(@_) } );
+    $self->add_update_hook( 'Modware::Meta::Attribute::Trait::Persistent::Pubdbxref',
+        sub { $self->update_pub_dbxref(@_) } );
+    $self->add_update_hook(
+        'Modware::Meta::Attribute::Trait::Persistent::Pubprop::Dicty',
         sub { $self->update_dicty_pubprops(@_) } );
 };
 
@@ -98,6 +101,17 @@ sub read_pub_dbxref {
     }
 }
 
+sub read_dicty_pubprop {
+    my ( $self, $attr, $dbrow ) = @_;
+    my $rs = $dbrow->search_related(
+        'pubprops',
+        { 'cv.name' => $attr->cv },
+        { join      => { 'type' => 'cv' }, cache => 1 }
+    );
+    return [] if $rs->count == 0;
+    $attr->set_value( $self, [ map { $_->type->name } $rs->all ] );
+}
+
 sub read_authors {
     my ( $self, $attr, $dbrow ) = @_;
     my $collection = [];
@@ -108,15 +122,22 @@ sub read_authors {
     load $author_obj;
     my %column_map;
     for my $author_attr ( $author_obj->meta->get_all_attributes ) {
-        my $column = $attr->has_column ? $attr->column : $attr->name;
-        $column_map{ $attr->name } = $column;
+        next
+            if !$author_attr->does(
+            'Modware::Meta::Attribute::Trait::Persistent');
+        my $column
+            = $author_attr->has_column
+            ? $author_attr->column
+            : $author_attr->name;
+        $column_map{$column} = $author_attr->name;
     }
     while ( my $row = $rs->next ) {
-        push @$collection,
-            $author_obj->new(
-            map { $_ => $rs->$column_map{$_} }
-                keys %column_map
-            );
+        my $author = $author_obj->new;
+        for my $col ( keys %column_map ) {
+            my $accessor = $column_map{$col};
+            $author->$accessor( $row->$col );
+        }
+        push @$collection, $author;
     }
     $attr->set_value( $self, $collection );
 }
@@ -133,7 +154,7 @@ sub create_pubprop {
         value => $attr->get_value($self),
         rank  => $attr->rank
     };
-    $self->add_to_pubprops($pubprop);
+    $self->add_to_insert_pubprops($pubprop);
 }
 
 sub create_dicty_pubprops {
@@ -148,7 +169,7 @@ sub create_dicty_pubprops {
             value => 'true',
             rank  => 0
         };
-        $self->add_to_pubprop($pubprop);
+        $self->add_to_insert_pubprop($pubprop);
     }
 }
 
@@ -161,21 +182,24 @@ sub create_authors {
         my $author_hash;
     AUTHOR:
         for my $author_attr ( $author->meta->get_all_attributes ) {
-            next AUTHOR if !$author_attr->does('Persistent');
-            next AUTHOR if !$author_attr->has_value($self);
+            next AUTHOR
+                if !$author_attr->does(
+                'Modware::Meta::Attribute::Trait::Persistent');
+            my $value = $author_attr->get_value($author);
+            next if !$value;
             my $column
                 = $author_attr->has_column
                 ? $author_attr->column
                 : $author_attr->name;
-            $author_hash->{$column} = $author_attr->get_value($author);
+            $author_hash->{$column} = $value;
         }
-        $self->add_to_pubauthors($author_hash);
+        $self->add_to_insert_pubauthors($author_hash);
     }
 }
 
 sub create_pub_dbxref {
     my ( $self, $attr ) = @_;
-    $self->add_to_pub_dbxrefs(
+    $self->add_to_insert_pub_dbxrefs(
         {   dbxref => {
                 accession => $attr->get_value($self),
                 db_id     => $self->db_id_by_name( $attr->db )
@@ -186,7 +210,7 @@ sub create_pub_dbxref {
 
 sub update_pubprop {
     my ( $self, $attr ) = @_;
-    $self->add_to_pubprops(
+    $self->add_to_update_pubprops(
         $self->find_cvterm_id(
             cvterm => $attr->name,
             cv     => $attr->cv,
@@ -201,13 +225,13 @@ sub update_dicty_pubprops {
         my $pubprops = {
             type_id => $self->find_cvterm_id(
                 cvterm => $value,
-                cv     => 'dictyBase_literature_topic',
-                db     => 'dictyBase'
+                cv     => $attr->cv,
+                db     => $attr->db
             ),
             value => 'true',
-            rank  => 0
+            rank  => $attr->rank
         };
-        $self->add_to_pubprops($pubprops);
+        $self->add_to_update_pubprops($pubprops);
     }
 }
 
@@ -224,17 +248,19 @@ sub update_pub_dbxref {
     )->single;
 
     if ( !$row ) {    #there is nothing to compare
-        $self->add_to_pub_dbxrefs(
+        $self->add_to_update_pub_dbxrefs(
             {   accession => $value,
                 db_id     => $db_id
             }
-        ) return;
+        );
+        return;
     }
 
-    $self->add_to_pub_dbxrefs(
+
+    $self->add_to_update_pub_dbxrefs(
         {   accession => $value,
             dbxref_id => $row->dbxref_id,
-            db_id     => $db
+            db_id     => $db_id
         }
     );
 }

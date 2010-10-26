@@ -9,16 +9,12 @@ use Data::Dumper::Concise;
 use Moose::Util qw/ensure_all_roles/;
 use Lingua::EN::Inflect::Phrase qw/to_S/;
 use Modware::DataSource::Chado;
+use Data::Dumper::Concise;
 
 # Module implementation
 #
 with 'Modware::Role::Chado::Helper::BCS::Cvterm';
 with 'Modware::Role::Chado::Helper::BCS::Dbxref';
-
-has 'resultset_class' => (
-    is  => 'rw',
-    isa => 'Str',
-);
 
 has 'datasource' => (
     is        => 'rw',
@@ -50,9 +46,14 @@ has 'read_hooks' => (
         'has_read_hook'  => 'defined',
         'add_read_hook'  => 'set'
     },
-    default => {
-        'Modware::Meta::Attribute::Trait::Persistent'         => sub { $self->read_generic(@_) },
-        'Modware::Meta::Attribute::Trait::Persistent::Cvterm' => sub { $self->read_cvterm(@_) },
+    default => sub {
+        my $self = shift;
+        return {
+            'Modware::Meta::Attribute::Trait::Persistent' =>
+                sub { $self->read_generic(@_) },
+            'Modware::Meta::Attribute::Trait::Persistent::Cvterm' =>
+                sub { $self->read_cvterm(@_) }
+        };
     }
 );
 
@@ -67,8 +68,12 @@ has 'create_hooks' => (
         'add_create_hook'  => 'set'
     },
     default => sub {
-        {   'Modware::Meta::Attribute::Trait::Persistent'         => sub { $self->create_generic(@_) },
-            'Modware::Meta::Attribute::Trait::Persistent::Cvterm' => sub { $self->create_cvterm(@_) },
+        my $self = shift;
+        return {
+            'Modware::Meta::Attribute::Trait::Persistent' =>
+                sub { $self->create_generic(@_) },
+            'Modware::Meta::Attribute::Trait::Persistent::Cvterm' =>
+                sub { $self->create_cvterm(@_) }
         };
     }
 );
@@ -78,14 +83,18 @@ has 'update_hooks' => (
     isa     => 'HashRef[CodeRef]',
     traits  => [qw/Hash/],
     handles => {
-        'all_update_hook' => 'keys',
-        'get_update_hook' => 'get',
-        'has_update_hook' => 'defined',
-        'add_update_hook' => 'set'
+        'all_update_hooks' => 'keys',
+        'get_update_hook'  => 'get',
+        'has_update_hook'  => 'defined',
+        'add_update_hook'  => 'set'
     },
     default => sub {
-        {   'Modware::Meta::Attribute::Trait::Persistent'         => sub { $self->update_generic(@_) },
-            'Modware::Meta::Attribute::Trait::Persistent::Cvterm' => sub { $self->update_cvterm(@_) },
+        my $self = shift;
+        return {
+            'Modware::Meta::Attribute::Trait::Persistent' =>
+                sub { $self->update_generic(@_) },
+            'Modware::Meta::Attribute::Trait::Persistent::Cvterm' =>
+                sub { $self->update_cvterm(@_) }
         };
     }
 );
@@ -113,9 +122,8 @@ sub read {
     my $meta = $self->meta;
 PERSISTENT:
     for my $attr ( $meta->get_all_attributes ) {
-        next PERSISTENT if !$attr->has_value($self);
     TRAIT:
-        for my $traits ( $self->all_readers ) {
+        for my $traits ( $self->all_read_hooks ) {
             next TRAIT if !$attr->does($traits);
             my $code = $self->get_read_hook($traits);
             $code->( $attr, $dbrow );
@@ -171,7 +179,7 @@ sub update_cvterm {
     );
 }
 
-sub m2m_primary_id {
+sub m2m_probe {
     my ( $self, $source_name, $rel_name ) = @_;
     return if $rel_name !~ /\_/;
     my $belong_to = ( ( split /\_/, $rel_name ) )[1];
@@ -187,12 +195,20 @@ sub m2m_primary_id {
 
 sub create {
     my ($self) = @_;
+
+    ## -- check for attribute probably will go through require pragma once moose support
+    ## -- validation through stack roles
+    if ( !$self->meta->has_attribute('resultset_class') ) {
+        croak "**resultset_class** attribute need to be defined\n";
+    }
+
     $self->do_validation;
+
     my $meta = $self->meta;
-    if ( !$self->does('Modware::Role::Chado::Helper::WithDataStash') ) {
+    if ( !$self->does('Modware::Role::Chado::Helper::BCS::WithDataStash') ) {
         $meta->make_mutable;
         ensure_all_roles( $self,
-            'Modware::Role::Chado::Helper::WithDataStash' );
+            'Modware::Role::Chado::Helper::BCS::WithDataStash' );
         $meta->make_immutable;
     }
 
@@ -218,61 +234,37 @@ PERSISTENT:
     $dbrow;
 }
 
-sub delete {
-    my ( $self, $cascade ) = @_;
-    confess "No data being fetched from storage: nothing to delete\n"
-        if !$self->has_dbrow;
-    if ( !$cascade ) {
-        try {
-            $self->chado->txn_do(
-                sub {
-                    $self->chado->resultset( $self->resultset_class )
-                        ->search( { pub_id => $self->dbrow->pub_id } )
-                        ->delete_all;
-                }
-            );
-        }
-        catch { confess "Unable to delete $_" };
-    }
-    else {
-        try {
-            $self->chado->txn_do(
-                sub {
-                    my $pub = $self->dbrow;
-                    $pub->pubprops->delete_all;
-                    $pub->pubauthors->delete_all;
-                    $pub->pub_dbxrefs->delete_all;
-                    $pub->pub_relationship_objects->delete_all;
-                    $pub->pub_relationship_subjects->delete_all;
-                    $self->dbrow->delete;
-                }
-            );
-        }
-        catch { confess "Unable to delete $_" };
-    }
-    $self->_clear_dbrow;
-}
-
 sub update {
     my ($self) = @_;
+
+    ## -- check for attribute probably will go through require pragma once moose support
+    ## -- validation through stack roles
+    if ( !$self->meta->has_attribute('resultset_class') ) {
+        croak "**resultset_class** attribute need to be defined\n";
+    }
+
     confess "No data being fetched from storage: nothing to update\n"
         if !$self->has_dbrow;
 
-	$self->do_validation;
+    $self->do_validation;
 
-    if ( !$self->does('Modware::Role::Chado::Helper::WithDataStash') ) {
+    if ( !$self->does('Modware::Role::Chado::Helper::BCS::WithDataStash') ) {
         $self->meta->make_mutable;
         ensure_all_roles( $self,
-            'Modware::Role::Chado::Helper::WithDataStash' );
+            'Modware::Role::Chado::Helper::BCS::WithDataStash' );
         $self->meta->make_immutable;
     }
 
 PERSISTENT:
     for my $attr ( $self->meta->get_all_attributes ) {
-        next PERSISTENT if !$attr->has_value($self);
+        if ( !$attr->has_value($self) ) {
+            next PERSISTENT;
+        }
     TRAIT:
         for my $traits ( $self->all_update_hooks ) {
-            next TRAIT if !$attr->does($traits);
+            if ( !$attr->does($traits) ) {
+                next TRAIT;
+            }
             my $code = $self->get_update_hook($traits);
             $code->( $attr, $self->dbrow );
         }
@@ -285,35 +277,66 @@ PERSISTENT:
             $dbrow->update();
             if ( $self->can('has_many_update') ) {
                 for my $name ( $self->has_many_update_stash ) {
-                    my $method = 'all_' . $name;
-                    $dbrow->update_or_create_related( $name, $self->$method );
+                    my $method = 'all_update_' . $name;
+                    $dbrow->update_or_create_related( $name, $_ )
+                        for $self->$method;
                 }
             }
 
             # -- for M2M relationship
-            if ( $self->can('many_to_many_update') ) {
+            if ( $self->can('many_to_many_update_stash') ) {
             M2M:
                 for my $name ( $self->many_to_many_update_stash ) {
-                    my $method  = 'all_' . $name;
-                    my $hashref = $self->$method;
+                    my $method = 'all_update_' . $name;
                     my ( $rel, $primary_key )
                         = $self->m2m_probe( $self->resultset_class, $name );
-                    if ( defined $hashref->{$primary_key} ) {
-                        my $id = $hashref->{$primary_key};
-                        delete $hashref->{$primary_key};
-                        $dbrow->$name( { $rel => $id }, { rows => 1 } )
-                            ->single->update_or_create_related( $rel,
-                            $hashref );
-                        next M2M;
+                HASHREF:
+                    for my $hashref ( $self->$method ) {
+                        if ( defined $hashref->{$primary_key} ) {
+                            my $id = $hashref->{$primary_key};
+                            delete $hashref->{$primary_key};
+                            $dbrow->$name( { $rel => $id }, { rows => 1 } )
+                                ->single->update_or_create_related( $rel,
+                                $hashref );
+                            next M2M;
 
+                        }
+                        $dbrow->create_related( $name, { $rel => $hashref } );
                     }
-                    $dbrow->create_related( $name, { $rel => $hashref } );
                 }
-
             }
         }
     );
     $dbrow;
+}
+
+sub delete {
+    my ( $self, $cascade ) = @_;
+    confess "No data being fetched from storage: nothing to delete\n"
+        if !$self->has_dbrow;
+    if ( !$cascade ) {
+        $self->chado->txn_do(
+            sub {
+                $self->chado->resultset( $self->resultset_class )
+                    ->search( { pub_id => $self->dbrow->pub_id } )
+                    ->delete_all;
+            }
+        );
+    }
+    else {
+        $self->chado->txn_do(
+            sub {
+                my $pub = $self->dbrow;
+                $pub->pubprops->delete_all;
+                $pub->pubauthors->delete_all;
+                $pub->pub_dbxrefs->delete_all;
+                $pub->pub_relationship_objects->delete_all;
+                $pub->pub_relationship_subjects->delete_all;
+                $self->dbrow->delete;
+            }
+        );
+    }
+    $self->_clear_dbrow;
 }
 
 1;    # Magic true value required at end of module

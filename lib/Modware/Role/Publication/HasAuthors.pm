@@ -4,6 +4,7 @@ package Modware::Role::Publication::HasAuthors;
 use Carp;
 use Moose::Role;
 use MooseX::Params::Validate;
+use Modware::Meta;
 use Modware::Types::Publication qw/PubAuthor/;
 
 with 'Modware::Role::Collection::HasArray' => {

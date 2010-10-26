@@ -1,10 +1,9 @@
-package Modware::Role::Chado::Helper::WithDataStash;
+package Modware::Role::Chado::Helper::BCS::WithDataStash;
 
 # Other modules:
 use namespace::autoclean;
 use MooseX::Role::Parameterized;
 use Modware::Types qw/UpdateStash/;
-use MooseX::Aliases;
 
 # Module implementation
 #
@@ -32,23 +31,7 @@ role {
         my $self = shift;
         my $hashref;
         $hashref->{$_} = $self->get_map($_) for $self->mapped_columns;
-    };
-
-    method 'generate_stash' => sub {
-        my ( $self, $name ) = @_;
-        has $name => (
-            is      => 'rw',
-            isa     => 'ArrayRef',
-            traits  => [qw/Array/],
-            handles => {
-                'add_to_' . $name => 'push',
-                'has_' . $name    => 'count',
-                'all_' . $name    => 'elements'
-            },
-            lazy    => 1,
-            default => sub { [] },
-            clearer => '_clear_' . $name
-        );
+        $hashref;
     };
 
     if ( $p->create_stash_for ) {
@@ -59,20 +42,42 @@ role {
             default    => sub { $p->create_stash_for }
         );
 
-        $self->generate_stash($_) for $self->create_stash;
+        for my $name ( @{ $p->create_stash_for } ) {
+            has 'insert_'
+                . $name => (
+                is      => 'rw',
+                isa     => 'ArrayRef',
+                traits  => [qw/Array/],
+                handles => {
+                    'add_to_insert_' . $name => 'push',
+                    'has_insert_' . $name    => 'count',
+                    'all_insert_' . $name    => 'elements'
+                },
+                lazy    => 1,
+                default => sub { [] },
+                clearer => '_clear_' . $name
+                );
+
+        }
 
         method 'insert_hashref' => sub {
             my $self    = shift;
             my $hashref = $self->update_hashref;
             for my $name ( $self->create_stash ) {
-                my $method = 'all_' . $name;
-                $hashref->{$name} = $self->$method;
+                my $method = 'all_insert_' . $name;
+                my $count  = 'has_insert_' . $name;
+                $hashref->{$name} = [ $self->$method ] if $self->$count;
             }
             $hashref;
         };
     }
     else {
-        alias 'insert_hashref' => 'update_hashref';
+        method 'insert_hashref' => sub {
+            my $self = shift;
+            my $hashref;
+            $hashref->{$_} = $self->get_map($_) for $self->mapped_columns;
+            $hashref;
+        };
     }
 
     if ( $p->update_stash_for ) {
@@ -83,13 +88,29 @@ role {
                 isa        => 'ArrayRef[Str]',
                 auto_deref => 1,
                 predicate  => 'has_many_update',
-                default    => sub { $stash->{has_may} }
+                default    => sub { $stash->{has_many} }
             );
 
-            $self->generate_stash($_) for $self->has_many_update_stash;
+            for my $name ( @{ $stash->{has_many} } ) {
+                has 'update_'
+                    . $name => (
+                    is      => 'rw',
+                    isa     => 'ArrayRef',
+                    traits  => [qw/Array/],
+                    handles => {
+                        'add_to_update_' . $name => 'push',
+                        'has_update_' . $name    => 'count',
+                        'all_update_' . $name    => 'elements'
+                    },
+                    lazy    => 1,
+                    default => sub { [] },
+                    clearer => '_clear_' . $name
+                    );
+            }
+
         }
 
-        if ( defined $stash->{has_many_to_many} ) {
+        if ( defined $stash->{many_to_many} ) {
             has 'many_to_many_update_stash' => (
                 is         => 'rw',
                 isa        => 'ArrayRef[Str]',
@@ -97,7 +118,22 @@ role {
                 auto_deref => 1,
                 default    => sub { $stash->{many_to_many} }
             );
-            $self->generate_stash($_) for $self->many_to_many_update_stash;
+            for my $name ( @{ $stash->{many_to_many} } ) {
+                has 'update_'
+                    . $name => (
+                    is      => 'rw',
+                    isa     => 'ArrayRef',
+                    traits  => [qw/Array/],
+                    handles => {
+                        'add_to_update_' . $name => 'push',
+                        'has_update_' . $name    => 'count',
+                        'all_update_' . $name    => 'elements'
+                    },
+                    lazy    => 1,
+                    default => sub { [] },
+                    clearer => '_clear_' . $name
+                    );
+            }
         }
     }
 
