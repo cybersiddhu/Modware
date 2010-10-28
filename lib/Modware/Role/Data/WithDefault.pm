@@ -26,7 +26,9 @@ sub _set_cv {
     my ( $self, $new, $old ) = @_;
     return if $old && $new eq $old;
     for my $attr ( $self->meta->get_all_attributes ) {
-        $attr->cv($new) if $attr->can('cv');
+        if ( $attr->can('cv') && !$attr->has_cv ) {
+            $attr->cv($new);
+        }
     }
 }
 
@@ -34,7 +36,9 @@ sub _set_db {
     my ( $self, $new, $old ) = @_;
     return if $old && $new eq $old;
     for my $attr ( $self->meta->get_all_attributes ) {
-        $attr->db($new) if $attr->can('db');
+        if ( $attr->can('db') && !$attr->has_db ) {
+            $attr->db($new);
+        }
     }
 }
 

@@ -16,7 +16,9 @@ sub _build_cv {
     my $self = shift;
 ATTR:
     for my $attr ( $self->meta->get_all_attributes ) {
-        $attr->cv($CV) if $attr->can('cv');
+        if ( $attr->can('cv') && !$attr->has_cv ) {
+            $attr->cv($CV);
+        }
     }
     return $CV;
 }
@@ -25,7 +27,9 @@ sub _build_db {
     my $self = shift;
 ATTR:
     for my $attr ( $self->meta->get_all_attributes ) {
-        $attr->db($DB) if $attr->can('db');
+        if ( $attr->can('db') && !$attr->has_db ) {
+            $attr->db($DB);
+        }
     }
     return $DB;
 }
@@ -55,6 +59,7 @@ has 'keywords_stack' => (
     traits  => [qw/Array Persistent::Pubprop::Dicty/],
     cv      => 'dictyBase_literature_topic',
     db      => 'dictyBase',
+    default => sub { [] },
     handles => {
         add_keyword     => 'push',
         keywords        => 'elements',
@@ -83,13 +88,13 @@ has 'type' => (
 );
 
 has 'id' => (
-    isa    => 'Maybe[Int]|Maybe[Str]',
-    is     => 'rw',
-    traits => [qw/Persistent/],
-    column => 'uniquename',
+    isa     => 'Maybe[Int]|Maybe[Str]',
+    is      => 'rw',
+    traits  => [qw/Persistent/],
+    column  => 'uniquename',
     default => sub {
-    	my $uuid = Data::UUID->new;
-    	return $uuid->create_from_name_str(NameSpace_DNS,  'gmod.org');
+        my $uuid = Data::UUID->new;
+        return $uuid->create_from_name_str( NameSpace_DNS, 'gmod.org' );
     }
 );
 

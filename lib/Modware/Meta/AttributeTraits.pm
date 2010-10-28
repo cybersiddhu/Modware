@@ -18,8 +18,8 @@ package Modware::Meta::Attribute::Trait::Persistent::Cvterm;
 use strict;
 use Moose::Role;
 
-has 'cv' => ( is => 'rw', isa => 'Str' );
-has 'db' => ( is => 'rw', isa => 'Str' );
+has 'cv' => ( is => 'rw', isa => 'Str', predicate => 'has_cv' );
+has 'db' => ( is => 'rw', isa => 'Str', predicate => 'has_db' );
 has 'column' => (
     is        => 'rw',
     isa       => 'Str',
@@ -30,7 +30,7 @@ package Modware::Meta::Attribute::Trait::Persistent::Pubdbxref;
 use strict;
 use Moose::Role;
 
-has 'db' => ( is => 'rw', isa => 'Str');
+has 'db' => ( is => 'rw', isa => 'Str', predicate => 'has_db' );
 
 package Modware::Meta::Attribute::Trait::Persistent::Pubauthors;
 use strict;
@@ -44,19 +44,21 @@ package Modware::Meta::Attribute::Trait::Persistent::Pubprop;
 use strict;
 use Moose::Role;
 
-has 'cv'      => ( is => 'rw', isa => 'Str' );
-has 'db'      => ( is => 'rw', isa => 'Str' );
+has 'cv'      => ( is => 'rw', isa => 'Str', predicate => 'has_cv' );
+has 'db'      => ( is => 'rw', isa => 'Str', predicate => 'has_db' );
 has 'pubprop' => ( is => 'rw', isa => 'Str', predicate => 'has_pubprop' );
 has 'rank'    => ( is => 'rw', isa => 'Int', default   => 0 );
-has 'cvterm' => ( is => 'rw', isa => 'Str',  predicate => 'has_cvterm');
+has 'cvterm'  => ( is => 'rw', isa => 'Str', predicate => 'has_cvterm' );
 
 package Modware::Meta::Attribute::Trait::Persistent::Pubprop::Dicty;
 use strict;
 use Moose::Role;
 
-has 'cv'   => ( is => 'rw', isa => 'Str', required => 1 );
-has 'rank' => ( is => 'rw', isa => 'Int', default  => 0 );
-has 'db'   => ( is => 'rw', isa => 'Str', required => 1 );
+has 'cv' =>
+    ( is => 'rw', isa => 'Str', required => 1, predicate => 'has_cv' );
+has 'rank' => ( is => 'rw', isa => 'Int', default => 0 );
+has 'db' =>
+    ( is => 'rw', isa => 'Str', required => 1, predicate => 'has_db' );
 
 package Moose::Meta::Attribute::Custom::Trait::Persistent;
 

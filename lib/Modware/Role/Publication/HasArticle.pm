@@ -4,7 +4,6 @@ package Modware::Role::Publication::HasArticle;
 use namespace::autoclean;
 use Moose::Role;
 use Modware::Meta;
-use Modware::DataModel::Validations;
 
 # Module implementation
 #
@@ -14,9 +13,6 @@ requires 'year';
 requires 'source';
 requires 'status';
 requires 'type';
-
-
-validate_presence_of 'pages';
 
 
 has $_ => (

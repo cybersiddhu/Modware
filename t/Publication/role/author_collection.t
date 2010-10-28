@@ -9,11 +9,6 @@ use Modware::Publication::Author;
     use Modware::Publication::Author;
     with 'Modware::Role::Publication::HasAuthors';
 
-    sub _build_authors {
-    	my $author = Modware::Publication::Author->new;
-    	return  [];
-    }
-
 }
 
 my $author1 = Modware::Publication::Author->new(

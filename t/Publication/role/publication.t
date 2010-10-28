@@ -31,9 +31,9 @@ is( $article->db, 'Publication', 'It has default db value' );
 for my $attr ( $article->meta->get_all_attributes ) {
     if ( any { $attr->does($_) } @traits ) {
         is( $attr->cv, 'pub_type',
-            'It has default value for cv attribute in the trait' );
+            'It gets default value for cv attribute in the trait' );
         is( $attr->db, 'Publication',
-            'It has default value for db attribute in the trait' );
+            'It gets default value for db attribute in the trait' );
     }
 }
 
@@ -42,10 +42,10 @@ $article->db('mydb');
 
 for my $attr ( $article->meta->get_all_attributes ) {
     if ( any { $attr->does($_) } @traits ) {
-        is( $attr->cv, 'mycv',
-            'It has new value for cv attribute in the trait' );
-        is( $attr->db, 'mydb',
-            'It has new value for db attribute in the trait' );
+        is( $attr->cv, 'pub_type',
+            'It has old value for cv attribute in the trait' );
+        is( $attr->db, 'Publication',
+            'It has old value for db attribute in the trait' );
     }
 }
 

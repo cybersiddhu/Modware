@@ -55,3 +55,18 @@ dies_ok { $helper->cvterm_ids_by_namespace('blind') }
 my $rel_ids
     = $helper->cvterm_ids_by_namespace('Modware-relation-relationship');
 like( scalar @$rel_ids, qr/\d{2}/, 'it return relationship cvterm ids' );
+
+my $type_id = $helper->find_or_create_cvterm_id(
+	cvterm => 'piano', 
+	db => 'music', 
+	cv => 'instrument'
+);
+like($type_id,  qr/\d+/,  'it returns a cvterm_id');
+
+my $id_from_db = $helper->find_cvterm_id(
+	cvterm => 'piano', 
+	db => 'music', 
+	cv => 'instrument'
+);
+is($type_id, $id_from_db,  'it got back the cvterm id from database');
+

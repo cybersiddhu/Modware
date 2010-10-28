@@ -115,7 +115,7 @@ is( $pub_after_update->year, $pub_from_db->year,
     'journal year matches after update' );
 is( $pub_after_update->title, $pub_from_db->title,
     'journal title matches after update' );
-is( $pub_after_update->issn, $pub_from_db->issn,
-    'journal issn matches after update' );
 is( $pub_after_update->issue, $pub_from_db->issue,
     'journal issue matches after update' );
+is( $pub_after_update->issn, $pub_from_db->issn,
+    'journal issn matches after update' );

@@ -4,7 +4,6 @@ package Modware::Role::Publication::HasJournal;
 use namespace::autoclean;
 use Moose::Role;
 use Modware::Meta;
-use Modware::DataModel::Validations;
 
 # Module implementation
 #
@@ -16,7 +15,6 @@ requires 'status';
 requires 'type';
 
 
-validate_presence_of 'journal';
 
 has 'abbreviation' => (
     is     => 'rw',

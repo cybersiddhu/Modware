@@ -4,15 +4,12 @@ package Modware::Role::Publication::HasJournalArticle;
 use namespace::autoclean;
 use Moose::Role;
 use Modware::Meta;
-use Modware::DataModel::Validations;
 
 # Module implementation
 #
 
 requires 'abstract', 'title', 'year', 'source';
 requires 'status', 'type';
-validate_presence_of 'journal';
-validate_presence_of 'pages';
 
 
 has 'abbreviation' => (

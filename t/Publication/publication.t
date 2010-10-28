@@ -4,9 +4,10 @@ use Test::Exception;
 use aliased 'Modware::DataSource::Chado';
 use Modware::Build;
 use aliased 'Modware::Publication::Author';
+use Data::Dumper::Concise;
 
 BEGIN {
-    use_ok('Modware::Publication');
+    use_ok('Modware::Publication::Pubmed');
 }
 
 my $build = Modware::Build->current;
@@ -17,7 +18,7 @@ Chado->connect(
 );
 
 my $test_cv = 'Modware-publication-pub_type';
-my $Pub     = 'Modware::Publication';
+my $Pub     = 'Modware::Publication::Pubmed';
 
 my $pub = $Pub->new( year => 2010 );
 $pub->title('The title for publication');
@@ -169,8 +170,11 @@ $pub->add_keyword($_) for @keys;
 lives_ok { $pub->create } 'created new record with keywords';
 
 my $pub_with_keyw = $Pub->find_by_pubmed_id(2000876);
-$pub_with_keyw->dicty_cv(
-    'Modware-dicty_literature_topic-dictyBase_literature_topic');
+is( $pub_with_keyw->journal,
+    'Bottle journal',
+    'It has retrieved the correct journal name'
+);
+
 is_deeply(
     [ $pub_with_keyw->keywords_sorted ],
     [ sort @keys ],
@@ -183,14 +187,12 @@ my ($pub_from_search) = $Pub->search(
     year    => '2010'
 );
 
-is($pub_from_search->total_authors, 3,  'it has three authors');
+is( $pub_from_search->total_authors, 3, 'it has three authors' );
 
 ($pub_from_search) = $Pub->search(
-	last_name => 'Boulton', 
-	first_name => 'Michael'
+    last_name  => 'Boulton',
+    first_name => 'Michael'
 );
 
-is($pub_from_search->total_authors, 3,  'it has three authors');
-
-
+is( $pub_from_search->total_authors, 3, 'it has three authors' );
 

@@ -2,7 +2,7 @@ package  Modware::Types;
 
 # Other modules:
 use MooseX::Types -declare =>
-    [qw/CleanStr UnCleanStr ColumnMap Toggler URI UpdateStash ValidValues/];
+    [qw/CleanStr UnCleanStr ColumnMap Toggler URI UpdateStash/];
 use MooseX::Types::Moose qw/Int Str Any Object Bool HashRef ArrayRef/;
 use Regexp::Common qw/URI/;
 use namespace::autoclean;
@@ -39,10 +39,6 @@ subtype URI, as Str, where {
     "$_ is not a HTTP URL";
 };
 
-subtype ValidValues, as ArrayRef;
-coerce ValidValues, from Str, via {
-    [$_];
-};
 
 1;    # Magic true value required at end of module
 

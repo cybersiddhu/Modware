@@ -4,12 +4,12 @@ package Modware::Role::Adapter::BCS::Chado;
 use namespace::autoclean;
 use Moose::Role;
 use Try::Tiny;
-use Carp;
-use Data::Dumper::Concise;
 use Moose::Util qw/ensure_all_roles/;
 use Lingua::EN::Inflect::Phrase qw/to_S/;
 use Modware::DataSource::Chado;
+use aliased 'Modware::DataModel::Validation';
 use Data::Dumper::Concise;
+use Carp;
 
 # Module implementation
 #
@@ -110,10 +110,13 @@ sub _build_chado {
 
 sub do_validation {
     my ($self) = @_;
-    return if !$self->meta->has_attribute('_attr_to_validate');
-    for my $name ( $self->_attr_to_validate ) {
-        my $attr = $self->meta->find_attribute_by_name($name);
-        croak $attr->name, "\tcannot be empty\n" if !$attr->has_value($self);
+    for my $name ( Validation->attributes ) {
+    	if (my $attr = $self->meta->find_attribute_by_name($name)) {
+        	croak $attr->name, "\tcannot be empty\n" if !$attr->has_value($self);
+    	}
+    	else {
+    		croak "attr $name does not exist\n";
+    	}
     }
 }
 
@@ -171,7 +174,7 @@ sub update_cvterm {
     my ( $self, $attr, $dbrow ) = @_;
     my $column = $attr->has_column ? $attr->column : $attr->name;
     $dbrow->$column(
-        $self->find_cvterm_id(
+        $self->find_or_create_cvterm_id(
             cvterm => $attr->get_value($self),
             cv     => $attr->cv,
             db     => $attr->db
@@ -231,7 +234,6 @@ PERSISTENT:
             $value;
         }
     );
-    $dbrow;
 }
 
 sub update {
@@ -278,8 +280,9 @@ PERSISTENT:
             if ( $self->can('has_many_update') ) {
                 for my $name ( $self->has_many_update_stash ) {
                     my $method = 'all_update_' . $name;
-                    $dbrow->update_or_create_related( $name, $_ )
-                        for $self->$method;
+                    for my $hashref ( $self->$method ) {
+                        $dbrow->update_or_create_related( $name, $hashref );
+                    }
                 }
             }
 
@@ -298,7 +301,7 @@ PERSISTENT:
                             $dbrow->$name( { $rel => $id }, { rows => 1 } )
                                 ->single->update_or_create_related( $rel,
                                 $hashref );
-                            next M2M;
+                            next HASHREF;
 
                         }
                         $dbrow->create_related( $name, { $rel => $hashref } );

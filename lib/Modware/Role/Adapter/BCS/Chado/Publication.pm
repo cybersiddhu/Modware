@@ -7,6 +7,7 @@ use Module::Load;
 use Try::Tiny;
 use Carp;
 use Data::Dumper::Concise;
+use DBIx::Class::ResultClass::HashRefInflator;
 
 # Module implementation
 #
@@ -39,7 +40,7 @@ before 'all_read_hooks' => sub {
         sub { $self->read_pub_dbxref(@_) } );
     $self->add_read_hook(
         'Modware::Meta::Attribute::Trait::Persistent::Pubprop::Dicty',
-        sub { $self->read_dicty_pubprop(@_) } );
+        sub { $self->read_dicty_pubprops(@_) } );
 };
 
 before 'create' => sub {
@@ -60,12 +61,14 @@ before 'create' => sub {
 
 before 'update' => sub {
     my $self = shift;
-    $self->add_update_hook( 'Modware::Meta::Attribute::Trait::Persistent::Pubprop',
+    $self->add_update_hook(
+        'Modware::Meta::Attribute::Trait::Persistent::Pubprop',
         sub { $self->update_pubprop(@_) } );
     $self->add_update_hook(
         'Modware::Meta::Attribute::Trait::Persistent::Pubauthors',
         sub { $self->update_authors(@_) } );
-    $self->add_update_hook( 'Modware::Meta::Attribute::Trait::Persistent::Pubdbxref',
+    $self->add_update_hook(
+        'Modware::Meta::Attribute::Trait::Persistent::Pubdbxref',
         sub { $self->update_pub_dbxref(@_) } );
     $self->add_update_hook(
         'Modware::Meta::Attribute::Trait::Persistent::Pubprop::Dicty',
@@ -75,15 +78,13 @@ before 'update' => sub {
 sub read_pubprop {
     my ( $self, $attr, $dbrow ) = @_;
     my $cvterm = $attr->has_cvterm ? $attr->cvterm : $attr->name;
-    my $rs = $dbrow->search_related(
-        'pubprops',
-        {   'type_id' => $self->find_cvterm_id(
-                cvterm => $cvterm,
-                cv     => $attr->cv,
-                db     => $attr->db
-            )
-        }
+    my $type_id = $self->find_cvterm_id(
+        cvterm => $cvterm,
+        cv     => $attr->cv,
+        db     => $attr->db
     );
+    return if !$type_id;    #no record in the database
+    my $rs = $dbrow->search_related( 'pubprops', { 'type_id' => $type_id } );
     if ( $rs->count > 0 ) {
         $attr->set_value( $self, $rs->first->value );
     }
@@ -91,22 +92,20 @@ sub read_pubprop {
 
 sub read_pub_dbxref {
     my ( $self, $attr, $dbrow ) = @_;
-    my $rs = $dbrow->search_related( 'pub_dbxrefs', {} )->search_related(
-        'dbxref',
-        { 'db.name' => $attr->name },
-        { join      => 'db' }
-    );
+    my $db = $attr->has_db ? $attr->db : $attr->name;
+    my $rs = $dbrow->search_related( 'pub_dbxrefs', {} )
+        ->search_related( 'dbxref', { 'db.name' => $db }, { join => 'db' } );
     if ( $rs->count > 0 ) {
         $attr->set_value( $self, $rs->first->accession );
     }
 }
 
-sub read_dicty_pubprop {
+sub read_dicty_pubprops {
     my ( $self, $attr, $dbrow ) = @_;
     my $rs = $dbrow->search_related(
         'pubprops',
         { 'cv.name' => $attr->cv },
-        { join      => { 'type' => 'cv' }, cache => 1 }
+        { join      => { 'type' => 'cv' } }
     );
     return [] if $rs->count == 0;
     $attr->set_value( $self, [ map { $_->type->name } $rs->all ] );
@@ -169,7 +168,7 @@ sub create_dicty_pubprops {
             value => 'true',
             rank  => 0
         };
-        $self->add_to_insert_pubprop($pubprop);
+        $self->add_to_insert_pubprops($pubprop);
     }
 }
 
@@ -199,10 +198,11 @@ sub create_authors {
 
 sub create_pub_dbxref {
     my ( $self, $attr ) = @_;
+    my $db = $attr->has_db ? $attr->db : $attr->name;
     $self->add_to_insert_pub_dbxrefs(
         {   dbxref => {
                 accession => $attr->get_value($self),
-                db_id     => $self->db_id_by_name( $attr->db )
+                db_id     => $self->db_id_by_name($db)
             }
         }
     );
@@ -210,20 +210,25 @@ sub create_pub_dbxref {
 
 sub update_pubprop {
     my ( $self, $attr ) = @_;
-    $self->add_to_update_pubprops(
-        $self->find_cvterm_id(
-            cvterm => $attr->name,
+    my $cvterm = $attr->has_cvterm ? $attr->cvterm : $attr->name;
+    my $pubprop = {
+        type_id => $self->find_or_create_cvterm_id(
+            cvterm => $cvterm,
             cv     => $attr->cv,
             db     => $attr->db
-        )
-    );
+        ),
+        value => $attr->get_value($self),
+        rank  => $attr->rank
+    };
+
+    $self->add_to_update_pubprops($pubprop);
 }
 
 sub update_dicty_pubprops {
     my ( $self, $attr ) = @_;
     for my $value ( @{ $attr->get_value($self) } ) {
         my $pubprops = {
-            type_id => $self->find_cvterm_id(
+            type_id => $self->find_or_create_cvterm_id(
                 cvterm => $value,
                 cv     => $attr->cv,
                 db     => $attr->db
@@ -235,11 +240,32 @@ sub update_dicty_pubprops {
     }
 }
 
+sub update_authors {
+    my ( $self, $attr ) = @_;
+    for my $author ( @{ $attr->get_value($self) } ) {
+        my $author_hash;
+        for my $author_attr ( $author->meta->get_all_attributes ) {
+            next
+                if !$author_attr->does(
+                'Modware::Meta::Attribute::Trait::Persistent');
+            my $value = $author_attr->get_value($author);
+            next if !$value;
+            my $column
+                = $author_attr->has_column
+                ? $author_attr->column
+                : $author_attr->name;
+            $author_hash->{$column} = $value;
+        }
+        $self->add_to_update_pubauthors($author_hash);
+    }
+}
+
 sub update_pub_dbxref {
     my ( $self, $attr, $dbrow ) = @_;
     my $schema = $dbrow->result_source->schema;
     my $value  = $attr->get_value($self);
-    my $db_id  = $self->db_id_by_name( $attr->db );
+    my $db     = $attr->has_db ? $attr->db : $attr->name;
+    my $db_id  = $self->db_id_by_name($db);
     my $row    = $schema->resultset('General::Dbxref')->search(
         {   accession => $value,
             db_id     => $db_id
@@ -247,7 +273,7 @@ sub update_pub_dbxref {
         { rows => 1 }
     )->single;
 
-    if ( !$row ) {    #there is nothing to compare
+    if ( !$row ) {    #there is nothing to compare so new record
         $self->add_to_update_pub_dbxrefs(
             {   accession => $value,
                 db_id     => $db_id
@@ -256,7 +282,7 @@ sub update_pub_dbxref {
         return;
     }
 
-
+    ## -- update the existing record
     $self->add_to_update_pub_dbxrefs(
         {   accession => $value,
             dbxref_id => $row->dbxref_id,

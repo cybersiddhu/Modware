@@ -57,12 +57,13 @@ sub find_or_create_cvterm_id {
     );
 
     if ( $self->exist_cvterm_row($cvterm) ) {
-        return $self->get_cvterm_row($cvterm)->cvterm_id;
+        my $row = $self->get_cvterm_row($cvterm);
+        return $row->cvterm_id if $row->cv->name eq $cv;
     }
 
     #otherwise try to retrieve from database
     my $rs = $self->chado->resultset('Cv::Cvterm')
-        ->search( { name => $cvterm } );
+        ->search( { 'me.name' => $cvterm, 'cv.name' => $cv }, { join => 'cv' } );
     if ( $rs->count > 0 ) {
         $self->set_cvterm_row( $cvterm => $rs->first );
         return $rs->first->cvterm_id;
@@ -89,17 +90,18 @@ sub find_cvterm_id {
     );
 
     if ( $self->exist_cvterm_row($cvterm) ) {
-        return $self->get_cvterm_row($cvterm)->cvterm_id;
+        my $row = $self->get_cvterm_row($cvterm);
+        return $row->cvterm_id if $row->cv->name eq $cv;
     }
 
     #otherwise try to retrieve from database
     my $rs = $self->chado->resultset('Cv::Cvterm')
-        ->search( { name => $cvterm } );
+        ->search( { 'me.name' => $cvterm, 'cv.name' => $cv }, { join => 'cv' } );
     if ( $rs->count > 0 ) {
         $self->set_cvterm_row( $cvterm => $rs->first );
         return $rs->first->cvterm_id;
     }
-    croak "no cvterm id found for $cvterm\n";
+    #croak "no cvterm id found for $cvterm\n";
 }
 
 sub cvterm_id_by_name {

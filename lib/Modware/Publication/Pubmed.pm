@@ -5,8 +5,11 @@ use namespace::autoclean;
 use Moose;
 use MooseX::ClassAttribute;
 use Module::Load;
+use Modware::DataModel::Validation;
 
 # Module implementation
+
+validate_presence_of 'journal',  'pubmed_id';
 #
 ## -- Roles for data persistence
 with 'Modware::Role::Adapter::BCS::Chado::Publication';

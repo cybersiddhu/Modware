@@ -4,13 +4,11 @@ package Modware::Role::Publication::HasPubmed;
 use namespace::autoclean;
 use Moose::Role;
 use Modware::Types qw/URI/;
-use Modware::DataModel::Validations;
 
 # Module implementation
 #
 requires 'abstract', 'title',  'year';
 requires 'source',   'status', 'type';
-validate_presence_of 'pubmed_id';
 
 has 'pubmed_id' => (
     isa    => 'Maybe[Int]|Maybe[Str]',

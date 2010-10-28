@@ -5,6 +5,7 @@ use namespace::autoclean;
 use Module::Load;
 use Moose;
 use MooseX::ClassAttribute;
+use Modware::DataModel::Validation;
 
 # Module implementation
 ## -- Roles for data persistence
@@ -14,6 +15,9 @@ with 'Modware::Role::Adapter::BCS::Chado::Publication';
 with 'Modware::Role::Publication::HasAuthors';
 with 'Modware::Role::Publication::HasGeneric';
 with 'Modware::Role::Publication::HasJournal';
+
+## -- validation
+validate_presence_of 'journal';
 
 has '+type' => (default => 'journal');
 
