@@ -111,12 +111,13 @@ sub _build_chado {
 sub do_validation {
     my ($self) = @_;
     for my $name ( Validation->attributes ) {
-    	if (my $attr = $self->meta->find_attribute_by_name($name)) {
-        	croak $attr->name, "\tcannot be empty\n" if !$attr->has_value($self);
-    	}
-    	else {
-    		croak "attr $name does not exist\n";
-    	}
+        if ( my $attr = $self->meta->find_attribute_by_name($name) ) {
+            croak $attr->name, "\tcannot be empty\n"
+                if !$attr->has_value($self);
+        }
+        else {
+            croak "attr $name does not exist\n";
+        }
     }
 }
 
@@ -196,8 +197,17 @@ sub m2m_probe {
     return ( $singular, $column[0] );
 }
 
+sub inflate_to_hashref {
+    my $self = shift;
+    $self->create( fake => 1 );
+    $self->insert_hashref;
+}
+
 sub create {
-    my ($self) = @_;
+    my ( $self, %arg ) = @_;
+
+    croak "cannot create a new object which already exist in the database\n"
+        if $self->has_dbrow;
 
     ## -- check for attribute probably will go through require pragma once moose support
     ## -- validation through stack roles
@@ -226,6 +236,9 @@ PERSISTENT:
         }
     }
 
+    #dry run just in case you need the hashref
+    return if defined $arg{fake};
+
     my $chado = $self->chado;
     my $dbrow = $chado->txn_do(
         sub {
@@ -234,6 +247,13 @@ PERSISTENT:
             $value;
         }
     );
+    my $class = $self->meta->name;
+    return $class->new( dbrow => $dbrow );
+}
+
+sub save {
+    my ($self) = @_;
+    return $self->has_dbrow ? $self->update : $self->create;
 }
 
 sub update {
