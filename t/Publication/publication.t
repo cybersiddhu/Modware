@@ -5,6 +5,7 @@ use aliased 'Modware::DataSource::Chado';
 use Modware::Build;
 use aliased 'Modware::Publication::Author';
 use Data::Dumper::Concise;
+use Scalar::Util qw/reftype/;
 
 BEGIN {
     use_ok('Modware::Publication::Pubmed');
@@ -195,4 +196,27 @@ is( $pub_from_search->total_authors, 3, 'it has three authors' );
 );
 
 is( $pub_from_search->total_authors, 3, 'it has three authors' );
+
+$pub = $Pub->new(
+    year      => 12059,
+    title     => 'Single malt whisky',
+    abstract  => 'Whisky kill deamons!',
+    status    => 'In a smoking den',
+    cv        => $test_cv,
+    journal   => 'Bottle journal',
+    pubmed_id => 200087648393
+);
+$pub->add_author(
+    {   first_name => 'Lois',
+        last_name  => 'Lane',
+        suffix     => 'Sr.',
+        initials   => 'Alive.'
+
+    }
+);
+
+is( reftype $pub->inflate_to_hashref,
+    'HASH',
+    'It returns a hashref used for object creation'
+);
 
