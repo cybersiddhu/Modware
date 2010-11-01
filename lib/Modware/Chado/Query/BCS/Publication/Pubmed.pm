@@ -6,7 +6,7 @@ use MooseX::ClassAttribute;
 use Module::Load;
 use MooseX::Params::Validate;
 use namespace::autoclean;
-extends 'Modware::Chado::Query::BCS::Publication';
+extends 'Modware::Chado::Query::BCS::Publication::Generic';
 
 # Module implementation
 #

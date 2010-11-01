@@ -7,10 +7,8 @@ use FindBin qw/$Bin/;
 use lib ( "$Bin/../../lib", "$ENV{HOME}/dictyBase/Libs/dictylegacy/lib" );
 use dicty::Legacy::Search::Reference;
 use Path::Class;
+use Modware::Publication::DictyBase;
 use aliased 'Modware::DataSource::Chado';
-use aliased 'Modware::Publication';
-use aliased 'Modware::Publication::JournalArticle';
-use aliased 'Modware::Publication::Unpublished';
 use aliased 'Modware::Publication::Author';
 
 my $file = Path::Class::Dir->new($Bin)->parent->parent->subdir('data')
@@ -18,6 +16,7 @@ my $file = Path::Class::Dir->new($Bin)->parent->parent->subdir('data')
 my $not_loaded = Path::Class::Dir->new($Bin)->parent->parent->subdir('data')
     ->file('pub_not_loaded.txt')->openw;
 my ( $dsn, $user, $pass );
+my $delete           = 1;
 my $commit_threshold = 1000;
 
 GetOptions(
@@ -25,7 +24,8 @@ GetOptions(
     'dsn=s'             => \$dsn,
     'u|user:s'          => \$user,
     'p|pass|password:s' => \$pass,
-    't|threshold:s'     => \$commit_threshold
+    't|threshold:s'     => \$commit_threshold,
+    'delete!'           => \$delete
 );
 
 die "no dsn given\n" if !$dsn;
@@ -42,6 +42,17 @@ Chado->connect(
     attr     => $attr
 );
 
+my $schema = Chado->handler;
+my $rs     = $schema->resultset('Pub::Pub');
+
+if ($delete) {
+    $schema->txn_do(
+        sub {
+            $rs->delete_all;
+        }
+    );
+}
+
 my $count = 0;
 my $limit = $ARGV[0] || 'all';
 print "journal to be loaded: $limit\n";
@@ -54,29 +65,29 @@ my $itr
 my $cache;
 REFERENCE:
 while ( my $ref = $itr->next ) {
-    my $pub;
+    my $pub = Modware::Publication::DictyBase->new(
+        id => 'PUB' . $ref->reference_no );
     $file->print( "id: ", $ref->reference_no, "\n" );
+
+    $pub->type( lc $ref->type );
+    $file->print( 'type: ', $ref->type, "\n" );
+
     if ( $ref->pmid ) {
-        $pub = Publication->new( pubmed_id => $ref->pmid );
+        $pub->pubmed_id( $ref->pmid );
+        $file->print( "pubmed: ", $ref->pmid, "\n" );
         if ( $ref->can('medline') && $ref->medline ) {
-            $file->print( "medline: ", $ref->medline, "\n" );
             $pub->medline_id( $ref->medline );
+            $file->print( "medline: ", $ref->medline, "\n" );
         }
-        $file->print( "journal: ", $ref->journal_abbr, "\n" );
+    }
+
+    if ( $ref->can('journal_abbr') ) {
         $pub->journal( $ref->journal_abbr );
         $pub->abbreviation( $ref->journal_abbr );
-        $pub->full_text_url( $ref->full_text_url ) if $ref->full_text_url;
-    }
-    elsif ( !$ref->can('journal_abbr') ) {
-        $pub = Unpublished->new( id => 'PUB'.$ref->reference_no );
-        $file->print("Unpublished article\n");
-    }
-    else {
-        $pub = JournalArticle->new( id => $ref->reference_no );
         $file->print( "journal: ", $ref->journal_abbr, "\n" );
-        $pub->journal( $ref->journal_abbr );
-        $pub->abbreviation( $ref->journal_abbr );
     }
+
+    $pub->full_text_url( $ref->full_text_url ) if $ref->full_text_url;
 
     for my $method (qw/year source status title issue volume/) {
         if ( $ref->$method ) {
@@ -92,13 +103,10 @@ while ( my $ref = $itr->next ) {
         $file->print( 'page: ', $ref->page, "\n" );
     }
 
-    $file->print( 'type: ', $ref->type, "\n" );
-    $pub->type( lc $ref->type );
-
     if ( $ref->abstract ) {
+        $pub->abstract( $ref->abstract );
         $file->print( "Abstract\n ----- \n",
             $ref->abstract, "\n-------------\n\n" );
-        $pub->abstract( $ref->abstract );
     }
 
     my @authors = @{ $ref->authors };
@@ -139,16 +147,12 @@ while ( my $ref = $itr->next ) {
         $file->print( "topic: ", $word, "\n" );
     }
 
-    #if ( $ref->not_curated ) {
-    #    $pub->add_keyword('Not yet curated');
-    #    $file->print("topic: Not yet curated\n");
-    #}
+    $file->print("\n==== Done ======= \n");
 
-    $file->print("\n =========== \n");
-    push @$cache, $pub->to_hashref;
+    push @$cache, $pub->inflate_to_hashref;
     if ( @$cache >= $commit_threshold ) {
         print "start commiting\n";
-        Chado->handler->resultset('Pub::Pub')->populate($cache);
+        $rs->populate($cache);
         print "commited $commit_threshold entries\n";
         $count += $commit_threshold;
         undef $cache;
@@ -157,7 +161,7 @@ while ( my $ref = $itr->next ) {
 
 if ( defined @$cache ) {
     print "commiting rest of the entries\n";
-    Chado->handler->resultset('Pub::Pub')->populate($cache);
+    $rs->populate($cache);
     print "done\n";
     $count += scalar @$cache;
 }

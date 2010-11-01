@@ -31,8 +31,8 @@ sub nested_query {
 sub full_text_nested_query {
     my ( $class, $attrs, $clause, $match_type ) = @_;
     my $where;
-    for my $param ( keys %attrs ) {
-        $query = $class->_construct_query( $match_type, $attrs->{$param} );
+    for my $param ( keys %$attrs ) {
+        my $query = $class->_construct_query( $match_type, $attrs->{$param} );
         push @$where, { "CONTAINS($param, $query)" => { '>', 0 } };
     }
     my $nested_where;
@@ -72,10 +72,10 @@ sub query {
 sub full_text_query {
     my ( $class, $attrs, $clause, $match_type ) = @_;
     my $where;
-    for my $param ( keys %attrs ) {
-        $query = $class->_construct_query( $match_type, $attrs->{$param} );
+    for my $param ( keys %$attrs ) {
+        my $query = $class->_construct_query( $match_type, $attrs->{$param} );
         if ( $clause eq 'end' ) {
-            $where->{ "CONTAINS($param, $query)" => { '>', 0 } };
+            $where->{ "CONTAINS($param, $query)"}  = { '>', 0 } ;
         }
         else {
             push @$where, { "CONTAINS($param, $query)" => { '>', 0 } };
@@ -86,8 +86,8 @@ sub full_text_query {
 
 sub _construct_query {
     my ( $class, $match, $value ) = @_;
-    $query
-        = $match_type eq 'exact'
+    my $query
+        = $match eq 'exact'
         ? "'" . $value . "'"
         : "'%" . $value . "%'";
     $query;

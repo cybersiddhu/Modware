@@ -1,4 +1,4 @@
-package Modware::Chado::Query::BCS::Publication;
+package Modware::Chado::Query::BCS::Publication::Generic;
 
 # Other modules:
 use Moose;
@@ -6,6 +6,7 @@ use MooseX::ClassAttribute;
 use Module::Load;
 use aliased 'Modware::Collection::Iterator::BCS::ResultSet';
 use namespace::autoclean;
+use Data::Dumper::Concise;
 extends 'Modware::Chado::Query::BCS';
 
 # Module implementation
@@ -45,10 +46,19 @@ class_has '+related_params_map' => (
     },
 );
 
+before 'search' => sub {
+	my $class = shift;
+	$class->clause('and');
+	$class->match_type('partial');
+	$class->full_text(0);
+};
+
+
 sub search {
     my ( $class, %arg ) = @_;
-    my $clause = $arg{cond}->{clause} ? lc $arg{cond}->{clause} : 'and';
-    my $match_type = $arg{cond}->{match} ? lc $arg{cond}->{match} : 'partial';
+    $class->clause( lc $arg{cond}->{clasue} )    if defined $arg{cond}->{clause};
+    $class->match_type( lc $arg{cond}->{match} ) if defined $arg{cond}->{match};
+    $class->full_text(1)                         if defined $arg{cond}->{full_text};
 
     my ( $nested, $where, $query, $attrs );
     my $options = {};
@@ -71,8 +81,7 @@ PARAM:
             if ( $param eq 'author' ) {
                 my $author_attr = { map { $_ => $arg{$param} }
                         @{ $class->related_param_value($param) } };
-                $nested = $class->rearrange_nested_query( $author_attr, 'or',
-                    $match_type );
+                $nested = $class->rearrange_nested_query( $author_attr);
                 next PARAM;
             }
             $attrs->{ $class->related_param_value($param) } = $arg{$param};
@@ -81,7 +90,7 @@ PARAM:
         $attrs->{ $class->param_value($param) } = $arg{$param};
     }
 
-    $where = $class->rearrange_query( $attrs, $clause, $match_type );
+    $where = $class->rearrange_query( $attrs );
     if ( $nested and $where ) {
         $query = { %$nested, %$where };
     }
@@ -120,6 +129,7 @@ PARAM:
         search_class      => $class
     );
 }
+
 
 __PACKAGE__->meta->make_immutable;
 

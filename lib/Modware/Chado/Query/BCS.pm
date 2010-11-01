@@ -12,6 +12,21 @@ use aliased 'Modware::DataSource::Chado';
 # Module implementation
 #
 
+class_has 'clause' => (
+    is      => 'rw',
+    isa     => 'Str',
+);
+
+class_has 'match_type' => (
+    is      => 'rw',
+    isa     => 'Str',
+);
+
+class_has 'full_text' => (
+    is      => 'rw',
+    isa     => 'Bool',
+);
+
 class_has 'related_query' => (
     is      => 'rw',
     isa     => 'Bool',
@@ -33,6 +48,7 @@ sub _build_chado {
         : Chado->handler;
     $chado;
 }
+
 
 class_has 'datasource' => (
     is        => 'rw',
@@ -93,15 +109,15 @@ class_has 'resultset_name' => (
 );
 
 sub rearrange_nested_query {
-    my ( $class, $attrs, $clause, $match_type ) = @_;
+    my ( $class, $attrs ) = @_;
     my $engine = $class->query_engine;
-    $engine->nested_query( $attrs, $clause, $match_type );
+    $engine->nested_query( $attrs, 'or', $class->match_type,  $class->full_text );
 }
 
 sub rearrange_query {
-    my ( $class, $attrs, $clause, $match_type ) = @_;
+    my ( $class, $attrs ) = @_;
     my $engine = $class->query_engine;
-    $engine->query( $attrs, $clause, $match_type );
+    $engine->query( $attrs, $class->clause, $class->match_type,  $class->full_text );
 }
 
 sub count {
@@ -124,6 +140,8 @@ before 'find' => sub {
     confess "resultset_name must be defined in your query class\n"
         if !$class->has_resultset_name;
 };
+
+
 
 __PACKAGE__->meta->make_immutable;
 

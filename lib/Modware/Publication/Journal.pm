@@ -24,7 +24,7 @@ has '+type' => (default => 'journal');
 class_has 'query_class' => (
     is      => 'rw',
     isa     => 'Str',
-    default => 'Modware::Chado::Query::BCS::Publication'
+    default => 'Modware::Chado::Query::BCS::Publication::Generic'
 );
 
 class_has 'query' => (

@@ -5,7 +5,7 @@ package Modware::Chado::Query::BCS::Publication::JournalArticle;
 use Moose;
 use MooseX::ClassAttribute;
 use namespace::autoclean;
-extends 'Modware::Chado::Query::BCS::Publication';
+extends 'Modware::Chado::Query::BCS::Publication::Generic';
 
 # Module implementation
 #
