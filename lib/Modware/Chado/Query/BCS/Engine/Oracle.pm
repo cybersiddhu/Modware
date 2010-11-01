@@ -7,9 +7,12 @@ use strict;
 # Module implementation
 #
 sub nested_query {
-    my ( $class, $attrs, $clause, $match_type ) = @_;
+    my ( $class, $attrs, $clause, $match_type, $full_text ) = @_;
     $clause     = lc $clause;
     $match_type = lc $match_type;
+
+    return $class->full_text_nested_query( $attrs, $clause, $match_type )
+        if $full_text;
 
     my $where;
     for my $param ( keys %$attrs ) {
@@ -23,13 +26,27 @@ sub nested_query {
     my $nested_where;
     $nested_where->{ '-' . $clause } = $where;
     $nested_where;
+}
 
+sub full_text_nested_query {
+    my ( $class, $attrs, $clause, $match_type ) = @_;
+    my $where;
+    for my $param ( keys %attrs ) {
+        $query = $class->_construct_query( $match_type, $attrs->{$param} );
+        push @$where, { "CONTAINS($param, $query)" => { '>', 0 } };
+    }
+    my $nested_where;
+    $nested_where->{ '-' . $clause } = $where;
+    $nested_where;
 }
 
 sub query {
-    my ( $class, $attrs, $clause, $match_type ) = @_;
+    my ( $class, $attrs, $clause, $match_type, $full_text ) = @_;
     $clause     = lc $clause;
     $match_type = lc $match_type;
+
+    return $class->full_text_query( $attrs, $clause, $match_type )
+        if $full_text;
 
     my $where;
     for my $param ( keys %$attrs ) {
@@ -47,11 +64,33 @@ sub query {
                 : {   'UPPER(' 
                     . $param
                     . ')' => { 'like', '%' . uc $attrs->{$param} . '%' } };
-
         }
-
     }
     $where;
+}
+
+sub full_text_query {
+    my ( $class, $attrs, $clause, $match_type ) = @_;
+    my $where;
+    for my $param ( keys %attrs ) {
+        $query = $class->_construct_query( $match_type, $attrs->{$param} );
+        if ( $clause eq 'end' ) {
+            $where->{ "CONTAINS($param, $query)" => { '>', 0 } };
+        }
+        else {
+            push @$where, { "CONTAINS($param, $query)" => { '>', 0 } };
+        }
+    }
+    return $where;
+}
+
+sub _construct_query {
+    my ( $class, $match, $value ) = @_;
+    $query
+        = $match_type eq 'exact'
+        ? "'" . $value . "'"
+        : "'%" . $value . "%'";
+    $query;
 }
 
 1;    # Magic true value required at end of module
