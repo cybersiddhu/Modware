@@ -15,7 +15,6 @@ requires 'source';
 requires 'status';
 requires 'type';
 
-
 has $_ => (
     is        => 'rw',
     isa       => 'Maybe[Int]|Maybe[Str]',
@@ -23,11 +22,13 @@ has $_ => (
 ) for qw(first_page last_page);
 
 has 'pages' => (
-    is      => 'rw',
-    isa     => 'Maybe[Int]|Maybe[Str]',
-    traits  => [qw/Persistent/],
-    trigger => sub {
+    is        => 'rw',
+    isa       => 'Maybe[Int]|Maybe[Str]',
+    predicate => 'has_pages',
+    traits    => [qw/Persistent/],
+    trigger   => sub {
         my ( $self, $new, $old ) = @_;
+        return if !$new;
         return if $old and $new eq $old;
         if ( $new !~ /\-\-/ ) {
             $self->first_page($new);
@@ -39,66 +40,81 @@ has 'pages' => (
     },
     default => sub {
         my $self = shift;
-        if ($self->has_first_page and $self->has_last_page) {
-        	return $self->first_page.'--'.$self->last_page;
+        if ( $self->has_first_page and $self->has_last_page ) {
+            return $self->first_page . '--' . $self->last_page;
         }
         return $self->first_page if $self->has_first_page;
-        return $self->last_page if $self->has_last_page;
+        return $self->last_page  if $self->has_last_page;
     }
 );
 
 has 'abbreviation' => (
-    is     => 'rw',
-    isa    => 'Maybe[Str]',
-    traits => [qw/Persistent::Pubprop/],
-    cvterm => 'journal_abbreviation'
+    is        => 'rw',
+    isa       => 'Maybe[Str]',
+    traits    => [qw/Persistent::Pubprop/],
+    predicate => 'has_abbreviation',
+    cvterm    => 'journal_abbreviation'
 );
 
 has 'issn' => (
-    is     => 'rw',
-    isa    => 'Maybe[Str]',
-    traits => [qw/Persistent::Pubdbxref/],
+    is        => 'rw',
+    isa       => 'Maybe[Str]',
+    predicate => 'has_issn',
+    traits    => [qw/Persistent::Pubdbxref/],
 );
 
 has 'journal' => (
-    is     => 'rw',
-    isa    => 'Maybe[Str]',
-    traits => [qw/Persistent/],
-    column => 'series_name'
+    is        => 'rw',
+    isa       => 'Maybe[Str]',
+    predicate => 'has_journal',
+    traits    => [qw/Persistent/],
+    column    => 'series_name'
 );
 
-has [qw/issue volume/] => (
-    is     => 'rw',
-    isa    => 'Maybe[Str]',
-    traits => [qw/Persistent/]
+has 'issue' => (
+    is        => 'rw',
+    predicate => 'has_issue',
+    isa       => 'Maybe[Str]',
+    traits    => [qw/Persistent/]
+);
+
+has 'volume' => (
+    is        => 'rw',
+    predicate => 'has_volume',
+    isa       => 'Maybe[Str]',
+    traits    => [qw/Persistent/]
 );
 
 has 'pubmed_id' => (
-    isa    => 'Maybe[Int]|Maybe[Str]',
-    is     => 'rw',
-    traits => [qw/Persistent/],
-    column => 'uniquename',
+    isa       => 'Maybe[Int]|Maybe[Str]',
+    is        => 'rw',
+    predicate => 'has_pubmed_id',
+    traits    => [qw/Persistent/],
+    column    => 'uniquename',
 );
 
 has 'medline_id' => (
-    isa    => 'Maybe[Int]|Maybe[Str]',
-    is     => 'rw',
-    traits => [qw/Persistent::Pubdbxref/],
-    db     => 'Medline'
+    isa       => 'Maybe[Int]|Maybe[Str]',
+    is        => 'rw',
+    predicate => 'has_medline_id',
+    traits    => [qw/Persistent::Pubdbxref/],
+    db        => 'Medline'
 );
 
 has 'doi' => (
-    isa    => 'Maybe[Str]',
-    is     => 'rw',
-    traits => [qw/Persistent::Pubdbxref/],
-    db     => 'DOI'
+    isa       => 'Maybe[Str]',
+    is        => 'rw',
+    predicate => 'has_doi',
+    traits    => [qw/Persistent::Pubdbxref/],
+    db        => 'DOI'
 );
 
 has 'full_text_url' => (
-    is     => 'rw',
-    isa    => URI,
-    traits => [qw/Persistent::Pubprop/],
-    cvterm => 'website'
+    is        => 'rw',
+    isa       => URI,
+    predicate => 'has_full_text_url',
+    traits    => [qw/Persistent::Pubprop/],
+    cvterm    => 'website'
 );
 
 1;    # Magic true value required at end of module

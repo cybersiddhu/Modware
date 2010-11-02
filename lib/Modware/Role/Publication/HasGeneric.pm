@@ -35,22 +35,25 @@ ATTR:
 }
 
 has 'abstract' => (
-    is     => 'rw',
-    isa    => 'Maybe[Str]',
-    traits => [qw/Persistent::Pubprop/],
+    is        => 'rw',
+    isa       => 'Maybe[Str]',
+    predicate => 'has_abstract',
+    traits    => [qw/Persistent::Pubprop/],
 );
 
 has 'title' => (
-    is     => 'rw',
-    isa    => 'Maybe[Str]',
-    traits => [qw/Persistent/],
+    is        => 'rw',
+    isa       => 'Maybe[Str]',
+    predicate => 'has_title',
+    traits    => [qw/Persistent/],
 );
 
 has 'year' => (
-    is     => 'rw',
-    isa    => 'Maybe[Str]',
-    traits => [qw/Persistent/],
-    column => 'pyear'
+    is        => 'rw',
+    isa       => 'Maybe[Str]',
+    predicate => 'has_year',
+    traits    => [qw/Persistent/],
+    column    => 'pyear'
 );
 
 has 'keywords_stack' => (
@@ -75,9 +78,10 @@ has 'source' => (
 );
 
 has 'status' => (
-    is     => 'rw',
-    isa    => 'Maybe[Str]',
-    traits => [qw/Persistent::Pubprop/],
+    is        => 'rw',
+    predicate => 'has_status',
+    isa       => 'Maybe[Str]',
+    traits    => [qw/Persistent::Pubprop/],
 );
 
 has 'type' => (

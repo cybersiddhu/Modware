@@ -14,7 +14,6 @@ requires 'source';
 requires 'status';
 requires 'type';
 
-
 has $_ => (
     is        => 'rw',
     isa       => 'Maybe[Int]|Maybe[Str]',
@@ -22,11 +21,12 @@ has $_ => (
 ) for qw(first_page last_page);
 
 has 'pages' => (
-    is      => 'rw',
-    isa     => 'Maybe[Int]|Maybe[Str]',
-    traits  => [qw/Persistent/],
-    lazy => 1, 
-    trigger => sub {
+    is        => 'rw',
+    isa       => 'Maybe[Int]|Maybe[Str]',
+    traits    => [qw/Persistent/],
+    predicate => 'has_pages',
+    lazy      => 1,
+    trigger   => sub {
         my ( $self, $new, $old ) = @_;
         return if $old and $new eq $old;
         return if !$new;
@@ -40,11 +40,11 @@ has 'pages' => (
     },
     default => sub {
         my $self = shift;
-        if ($self->has_first_page and $self->has_last_page) {
-        	return $self->first_page.'--'.$self->last_page;
+        if ( $self->has_first_page and $self->has_last_page ) {
+            return $self->first_page . '--' . $self->last_page;
         }
         return $self->first_page if $self->has_first_page;
-        return $self->last_page if $self->has_last_page;
+        return $self->last_page  if $self->has_last_page;
     }
 );
 

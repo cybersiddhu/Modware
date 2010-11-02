@@ -23,7 +23,7 @@ has '+type' => ( default => 'unpublished' );
 class_has 'query_class' => (
     is      => 'rw',
     isa     => 'Str',
-    default => 'Modware::Chado::Query::BCS::Publication::Pubmed'
+    default => 'Modware::Chado::Query::BCS::Publication::DictyBase'
 );
 
 class_has 'query' => (
