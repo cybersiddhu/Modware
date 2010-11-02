@@ -2,6 +2,7 @@ package Modware::Collection::Iterator::BCS::ResultSet;
 
 # Other modules:
 use Moose;
+use Module::Load;
 
 # Module implementation
 #
@@ -28,7 +29,6 @@ before 'count' => sub {
         if !$self->has_collection;
 };
 
-
 has 'data_access_class' => (
     is        => 'rw',
     isa       => 'Str',
@@ -42,7 +42,7 @@ has 'search_class' => (
 );
 
 before 'next' => sub {
-	my $self = shift;
+    my $self = shift;
     confess "data access class name is not set\n"
         if !$self->has_data_access_class;
 };
@@ -50,16 +50,32 @@ before 'next' => sub {
 sub next {
     my ($self) = @_;
     if ( my $next = $self->collection->next ) {
+    	load $self->data_access_class;
         $self->data_access_class->new( dbrow => $next );
     }
 
+}
+
+sub slice {
+    my ( $self, $start, $end ) = @_;
+    my $rs = $self->collection->slice( $start, $end );
+    return if $rs->count == 0;
+    if ( wantarray() ) {
+    	load $self->data_access_class;
+        return map { $self->data_access_class->new( dbrow => $_ ) } $rs->all;
+    }
+    my $class = $self->meta->name;
+    return $class->new(
+        collection        => $rs,
+        data_access_class => $self->data_access_class,
+        search_class      => $self->search_class
+    );
 }
 
 sub search {
     my ( $self, %arg ) = @_;
     $self->search_class->search(%arg);
 }
-
 
 1;    # Magic true value required at end of module
 
