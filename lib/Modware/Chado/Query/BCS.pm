@@ -2,11 +2,11 @@ package Modware::Chado::Query::BCS;
 
 # Other modules:
 use strict;
+use namespace::autoclean;
 use Moose;
 use MooseX::ClassAttribute;
 use MooseX::Params::Validate;
 use Module::Load;
-use namespace::autoclean;
 use aliased 'Modware::DataSource::Chado';
 
 # Module implementation

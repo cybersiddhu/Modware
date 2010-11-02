@@ -16,6 +16,16 @@ __PACKAGE__->add_property( 'tar' => Archive::Tar->new );
 my @feature_list = qw/setup_done is_db_created is_schema_loaded
     is_fixture_loaded/;
 
+sub connect_hash {
+	my $self = shift;
+	my %hash;
+	for my $param(qw/dsn user password/) {
+		$hash{$param} = $self->config_data($param) if $self->config_data($param);
+	}
+	$hash{attr} = $self->config_data('db_attr') if $self->config_data('db_attr');
+	return %hash;
+}
+
 sub check_oracle {
     my ($self) = @_;
     ## -- this whole thing is for working with Oracle

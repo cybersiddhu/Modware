@@ -7,14 +7,7 @@ BEGIN {
 }
 
 my $build = Modware::Build->current;
-Chado->connect(
-    dsn      => $build->config_data('dsn'),
-    user     => $build->config_data('user'),
-    password => $build->config_data('password'),
-    attr     => $build->config_data('db_attr')
-);
-
-#Chado->handler->storage->debug(1);
+Chado->connect( $build->connect_hash );
 
 my $Pub = 'Modware::Chado::Query::BCS::Publication::Pubmed';
 my $itr = $Pub->search( author => 'Ian' );
@@ -35,5 +28,4 @@ is( $Pub->search( last_name => 'Lewin', first_name => 'AS Alfred S' )->count,
     1,
     'has publication from first and last name search'
 );
-
 

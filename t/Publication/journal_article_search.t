@@ -7,12 +7,7 @@ BEGIN {
 }
 
 my $build = Modware::Build->current;
-Chado->connect(
-    dsn      => $build->config_data('dsn'),
-    user     => $build->config_data('user'),
-    password => $build->config_data('password')
-);
-
+Chado->connect( $build->connect_hash );
 
 my $Pub = 'Modware::Chado::Query::BCS::Publication::JournalArticle';
 my $pub_itr = $Pub->search( journal => 'Text' );
@@ -42,7 +37,6 @@ is( $pub_itr->count, 1,
 $pub_itr = $Pub->search( title => '5', );
 is( $pub_itr->count, 3,
     'has journal articles with partial match in title field' );
-
 
 $pub_itr = $Pub->search( author => 'Text2', );
 is( $pub_itr->count, 2,
@@ -88,13 +82,13 @@ is( $pub_itr->count, 1,
     'has journal articles with exact matches in journal and title fields' );
 
 is( $Pub->search( last_name => 'Underwood', first_name => 'MJ Malcolm J' )
-        ->count, 1, 'has journal articles from first and last name search'
+        ->count,
+    1,
+    'has journal articles from first and last name search'
 );
 
-is( $Pub->search( last_name => 'Torres' )
-        ->count, 1, 'has journal articles from last name search'
-);
+is( $Pub->search( last_name => 'Torres' )->count,
+    1, 'has journal articles from last name search' );
 
-is( $Pub->search( first_name => 'GG George G' )
-        ->count, 1, 'has journal articles from last name search'
-);
+is( $Pub->search( first_name => 'GG George G' )->count,
+    1, 'has journal articles from last name search' );

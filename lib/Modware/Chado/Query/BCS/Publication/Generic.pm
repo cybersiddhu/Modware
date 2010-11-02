@@ -1,12 +1,11 @@
 package Modware::Chado::Query::BCS::Publication::Generic;
 
 # Other modules:
+use namespace::autoclean;
 use Moose;
 use MooseX::ClassAttribute;
 use Module::Load;
 use aliased 'Modware::Collection::Iterator::BCS::ResultSet';
-use namespace::autoclean;
-use Data::Dumper::Concise;
 extends 'Modware::Chado::Query::BCS';
 
 # Module implementation

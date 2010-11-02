@@ -28,12 +28,7 @@ use Modware::Build;
 }
 
 my $build = Modware::Build->current;
-Chado->connect(
-    dsn      => $build->config_data('dsn'),
-    user     => $build->config_data('user'),
-    password => $build->config_data('password'), 
-    attr     => $build->config_data('db_attr')
-);
+Chado->connect( $build->connect_hash );
 
 my $helper = My::Helper::Cv->new;
 dies_ok { $helper->cvterm_id_by_name } 'it throws without passing a cvterm';
@@ -57,16 +52,16 @@ my $rel_ids
 like( scalar @$rel_ids, qr/\d{2}/, 'it return relationship cvterm ids' );
 
 my $type_id = $helper->find_or_create_cvterm_id(
-	cvterm => 'piano', 
-	db => 'music', 
-	cv => 'instrument'
+    cvterm => 'piano',
+    db     => 'music',
+    cv     => 'instrument'
 );
-like($type_id,  qr/\d+/,  'it returns a cvterm_id');
+like( $type_id, qr/\d+/, 'it returns a cvterm_id' );
 
 my $id_from_db = $helper->find_cvterm_id(
-	cvterm => 'piano', 
-	db => 'music', 
-	cv => 'instrument'
+    cvterm => 'piano',
+    db     => 'music',
+    cv     => 'instrument'
 );
-is($type_id, $id_from_db,  'it got back the cvterm id from database');
+is( $type_id, $id_from_db, 'it got back the cvterm id from database' );
 

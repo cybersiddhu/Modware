@@ -9,11 +9,7 @@ BEGIN {
 }
 
 my $build = Modware::Build->current;
-Chado->connect(
-    dsn      => $build->config_data('dsn'),
-    user     => $build->config_data('user'),
-    password => $build->config_data('password')
-);
+Chado->connect( $build->connect_hash );
 
 my $test_cv = 'Modware-publication-pub_type';
 my $Pub     = 'Modware::Publication::JournalArticle';
