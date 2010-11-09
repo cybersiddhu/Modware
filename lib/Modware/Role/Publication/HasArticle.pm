@@ -30,11 +30,9 @@ has 'pages' => (
         my ( $self, $new, $old ) = @_;
         return if $old and $new eq $old;
         return if !$new;
-        if ( $new !~ /\-\-/ ) {
-            $self->first_page($new);
-            return;
-        }
-        my ( $first_page, $last_page ) = split /\-\-/, $self->dbrow->pages;
+        return if $new !~ /\-\-/;
+
+        my ( $first_page, $last_page ) = split /\-\-/, $new;
         $self->first_page($first_page);
         $self->last_page($last_page);
     },
