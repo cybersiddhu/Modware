@@ -54,6 +54,7 @@ my $build = Modware::Build->new(
         create         => { type    => '!', default => 1 },
         drop           => { type    => '!', default => 1 },
         test_debug     => { type    => '!', default => 0 },
+        post_ddl       => { type    => '!', default => 0 },
         db_config      => { default => $db_config, type => ':s' },
         file_config    => { default => $file_config, type => ':s' },
         fixture_config => { default => $fixture_config, type => ':s' },
