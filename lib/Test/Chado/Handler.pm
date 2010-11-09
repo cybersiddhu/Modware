@@ -18,7 +18,7 @@ use namespace::autoclean;
 #
 
 has 'name' => ( is => 'rw', isa => 'Str' );
-has 'loader' => ( is => 'rw', isa => 'Str',  lazy => 1,  default => 'preset');
+has 'loader' => ( is => 'rw', isa => 'Str', lazy => 1, default => 'preset' );
 has 'section' => (
     is        => 'rw',
     isa       => 'Test::Chado::Config::Database',
@@ -78,6 +78,22 @@ has 'ddl' => (
     }
 );
 
+has 'run_post_ddl' => (
+    is      => 'rw',
+    isa     => 'Bool',
+    default => sub {0}
+);
+
+has 'post_ddl' => (
+    is        => 'rw',
+    isa       => 'Str',
+    lazy      => 1,
+    default   => sub {
+        my $self = shift;
+        catfile( $self->ddl_dir, 'chado_post.' . lc $self->driver );
+    }
+);
+
 sub _setup_dsn {
     my ( $self, $value ) = @_;
     return if !$value;
@@ -97,8 +113,6 @@ after 'driver' => sub {
     apply_all_roles( $self,
         'Test::Chado::Role::Handler::' . ucfirst $driver );
 };
-
-
 
 after 'ddl_dir' => sub {
     my ( $self, $value ) = @_;
@@ -123,8 +137,8 @@ after 'password' => sub {
 
 ## -- for oracle it will always be loaded from the raw file
 sub loader_choice {
-	my $self = shift;
-	my $loader = $self->driver eq 'Oracle' ? 'bcs' : $self->loader;
+    my $self = shift;
+    my $loader = $self->driver eq 'Oracle' ? 'bcs' : $self->loader;
 }
 
 1;    # Magic true value required at end of module
