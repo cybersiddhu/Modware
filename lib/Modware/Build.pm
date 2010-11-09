@@ -35,9 +35,9 @@ sub check_oracle {
     my ( $scheme, $driver ) = DBI->parse_dsn( $self->args('dsn') );
     if ( $driver eq 'Oracle' ) {
         $self->args( 'preset', 0 );
+        $self->args( 'post_ddl', 1 );
         return 1;
     }
-
 }
 
 sub db_handler {
