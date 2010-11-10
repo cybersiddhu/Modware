@@ -2,10 +2,17 @@ package Modware::Chado::Query::BCS::Engine::Generic;
 
 use warnings;
 use strict;
+use namespace::autoclean;
+use Moose;
 
 # Other modules:
 
 # Module implementation
+
+before [qw/nested_query query/] => sub {
+    my ( $class, $attrs ) = @_;
+    $attrs->{$_} =~ s/\*/\%/g for keys %$attrs;
+};
 
 sub nested_query {
     my ( $class, $attrs, $clause, $match_type ) = @_;
@@ -15,42 +22,41 @@ sub nested_query {
     my $where;
     for my $param ( keys %$attrs ) {
         push @$where,
-            {
-              $param => $match_type eq 'exact'
-            ? $attrs->{$param}
-            : { 'like', '%' . $attrs->{$param} . '%' }
-            };
-    }
-    my $nested_where;
-    $nested_where->{ '-' . $clause } = $where;
-    $nested_where;
+            $attrs->{$param} =~ /\%/
+            ? { $param => { 'like', $attrs->{$param} } }
+            : { $param => $attrs->{$param} };
 
+        my $nested_where;
+        $nested_where->{ '-' . $clause } = $where;
+    }
+    $nested_where;
 }
 
 sub query {
-    my ( $class, $attrs, $clause, $match_type ) = @_;
-    $clause     = lc $clause;
-    $match_type = lc $match_type;
+    my ( $class, $attrs, $clause ) = @_;
+    $clause = lc $clause;
 
     my $where;
     for my $param ( keys %$attrs ) {
         if ( $clause eq 'and' ) {
             $where->{$param}
-                = $match_type eq 'exact'
-                ? $attrs->{$param}
-                : { 'like', '%' . $attrs->{$param} . '%' };
+                = $attrs->{$param} =~ /\%/
+                ? { 'like', $attrs->{$param} }
+                : $attrs->{$param};
         }
         else {
             push @$where,
-                $match_type eq 'exact'
-                ? { $param => $attrs->{$param} }
-                : { $param => { 'like', '%' . $attrs->{$param} . '%' } };
+                $attrs->{$param} =~ /\%/
+                ? { $param => { 'like', $attrs->{$param} } }
+                : { $param => $attrs->{$param} };
 
         }
     }
     $where;
 
 }
+
+__PACKAGE__->meta->make_immutable;
 
 1;    # Magic true value required at end of module
 

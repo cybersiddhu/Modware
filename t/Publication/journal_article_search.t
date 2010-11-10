@@ -10,84 +10,79 @@ my $build = Modware::Build->current;
 Chado->connect( $build->connect_hash );
 
 my $Pub = 'Modware::Chado::Query::BCS::Publication::JournalArticle';
-my $pub_itr = $Pub->search( journal => 'Text' );
+my $pub_itr = $Pub->search( journal => '*Text*' );
 isa_ok( $pub_itr, 'Modware::Collection::Iterator::BCS::ResultSet' );
 is( $pub_itr->count, 3,
     'has journal articles with partial match in journal name' );
-is( $Pub->count( journal => 'Text' ),
+is( $Pub->count( journal => '*Text*' ),
     3, 'has journal articles from direct counting' );
 
 $pub_itr = $Pub->search(
     journal => 'Text7',
-    cond    => { match => 'exact' }
 );
 is( $pub_itr->count, 1,
     'has journal article with exact match in journal name' );
 
-$pub_itr = $Pub->search( journal => 'none', );
+$pub_itr = $Pub->search( journal => '*none*' );
 is( $pub_itr->count, 0, 'has  no match with non-existing journal name' );
 
 $pub_itr = $Pub->search(
     title => 'Text503',
-    cond  => { match => 'exact' }
 );
 is( $pub_itr->count, 1,
     'has journal article with exact match in title field' );
 
-$pub_itr = $Pub->search( title => '5', );
+$pub_itr = $Pub->search( title => '*5*', );
 is( $pub_itr->count, 3,
     'has journal articles with partial match in title field' );
 
-$pub_itr = $Pub->search( author => 'Text2', );
+$pub_itr = $Pub->search( author => '*Text2*', );
 is( $pub_itr->count, 2,
     'has  journal articles with partial match in author name' );
 
 $pub_itr = $Pub->search(
     author => 'Text510',
-    cond   => { match => 'exact' }
 );
 is( $pub_itr->count, 1,
     'has journal article with exact match in author name' );
 
-$pub_itr = $Pub->search( journal => 'Text', author => 'Text' );
+$pub_itr = $Pub->search( journal => '*Text*', author => '*Text*' );
 is( $pub_itr->count, 3,
     'has journal articles with partial matches in author and journal names' );
 
 $pub_itr = $Pub->search(
     journal => 'Text7',
     author  => 'Text21',
-    cond    => { match => 'exact' }
 );
 is( $pub_itr->count, 1,
     'has journal articles with exact matches in author and journal names' );
 
-$pub_itr = $Pub->search( journal => '5', title => '5' );
+$pub_itr = $Pub->search( journal => '*5*', title => '*5*' );
 is( $pub_itr->count, 2,
     'has journal articles with partial matches in journal and title fields' );
 
 $pub_itr = $Pub->search(
     journal => 'Text7',
     title   => 'Text9',
-    cond    => { match => 'exact' }
 );
 is( $pub_itr->count, 1,
     'has journal articles with exact matches in journal and title fields' );
 
 $pub_itr = $Pub->search(
-    journal => 'Text7',
-    title   => 'none',
+    journal => '*Text7*',
+    title   => '*none*',
     cond    => { clause => 'OR' }
 );
 is( $pub_itr->count, 1,
     'has journal articles with exact matches in journal and title fields' );
 
-is( $Pub->search( last_name => 'Underwood', first_name => 'MJ Malcolm J' )
+is( $Pub->search( last_name => '*Underwood*', first_name => 'MJ Malcolm J' )
         ->count,
     1,
     'has journal articles from first and last name search'
 );
 
-is( $Pub->search( last_name => 'Torres' )->count,
+is( $Pub->search( last_name => '*Torres*' )->count,
     1, 'has journal articles from last name search' );
 
 is( $Pub->search( first_name => 'GG George G' )->count,

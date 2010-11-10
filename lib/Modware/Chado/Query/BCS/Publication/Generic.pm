@@ -40,27 +40,26 @@ class_has '+related_params_map' => (
                 [ map { 'pubauthors.' . $_ } qw/givennames surname suffix/ ],
             first_name => 'pubauthors.givennames',
             last_name  => 'pubauthors.surname',
-            initials   => 'pubauthors.givennames'
+            initials   => 'pubauthors.givennames',
+            status     => 'pubprops.value',
         };
     },
 );
 
 before 'search' => sub {
-	my $class = shift;
-	$class->clause('and');
-	$class->match_type('partial');
-	$class->full_text(0);
+    my $class = shift;
+    $class->clause('and');
+    $class->full_text(0);
 };
-
 
 sub search {
     my ( $class, %arg ) = @_;
-    $class->clause( lc $arg{cond}->{clasue} )    if defined $arg{cond}->{clause};
-    $class->match_type( lc $arg{cond}->{match} ) if defined $arg{cond}->{match};
-    $class->full_text(1)                         if defined $arg{cond}->{full_text};
+    $class->clause( lc $arg{cond}->{clasue} ) if defined $arg{cond}->{clause};
+    $class->full_text(1) if defined $arg{cond}->{full_text};
 
     my ( $nested, $where, $query, $attrs );
     my $options = {};
+    my $join    = {};
 
 PARAM:
     for my $param (
@@ -71,25 +70,31 @@ PARAM:
         ## -- code block for joining the pubauthor table
         if ( $class->has_related_param_value($param) ) {
             $class->related_query(1);
-            if ( not defined $options->{join} ) {
-                $options->{join}     = 'pubauthors';
+            my $relation
+                = ( ( split /\./, $class->related_param_value($param) ) )[0];
+            if ( not defined $join->{$relation} ) {
                 $options->{cache}    = 1;
                 $options->{columns}  = $class->distinct_columns;
                 $options->{distinct} = 1;
+                $join->{$relation}   = 1;
+                push @{ $options->{join} }, $relation;
             }
+
+            ## -- hardcoded for author as it implies bunch of columns
             if ( $param eq 'author' ) {
                 my $author_attr = { map { $_ => $arg{$param} }
                         @{ $class->related_param_value($param) } };
-                $nested = $class->rearrange_nested_query( $author_attr);
+                $nested = $class->rearrange_nested_query($author_attr);
                 next PARAM;
             }
+
             $attrs->{ $class->related_param_value($param) } = $arg{$param};
             next PARAM;
         }
         $attrs->{ $class->param_value($param) } = $arg{$param};
     }
 
-    $where = $class->rearrange_query( $attrs );
+    $where = $class->rearrange_query($attrs);
     if ( $nested and $where ) {
         $query = { %$nested, %$where };
     }
@@ -128,7 +133,6 @@ PARAM:
         search_class      => $class
     );
 }
-
 
 __PACKAGE__->meta->make_immutable;
 

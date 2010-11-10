@@ -1,27 +1,32 @@
 package Modware::Chado::Query::BCS::Engine::Oracle;
 use warnings;
 use strict;
+use namespace::autoclean;
+use Moose;
 
 # Other modules:
 
 # Module implementation
 #
-sub nested_query {
-    my ( $class, $attrs, $clause, $match_type, $full_text ) = @_;
-    $clause     = lc $clause;
-    $match_type = lc $match_type;
 
-    return $class->full_text_nested_query( $attrs, $clause, $match_type )
+before [qw/nested_query query/] => sub {
+    my ( $class, $attrs ) = @_;
+    $attrs->{$_} =~ s/\*/\%/g for keys %$attrs;
+};
+
+sub nested_query {
+    my ( $class, $attrs, $clause, $full_text ) = @_;
+    $clause = lc $clause;
+
+    return $class->full_text_nested_query( $attrs, $clause )
         if $full_text;
 
     my $where;
     for my $param ( keys %$attrs ) {
         push @$where,
-            {
-            'UPPER(' . $param . ')' => $match_type eq 'exact'
-            ? { 'like', uc $attrs->{$param} }
-            : { 'like', '%' . uc $attrs->{$param} . '%' }
-            };
+            $attrs->{$param} =~ /\%/
+            ? { 'UPPER(' . $param . ')' => { 'like', uc $attrs->{$param} } }
+            : { $param => $attrs->{$param} };
     }
     my $nested_where;
     $nested_where->{ '-' . $clause } = $where;
@@ -29,10 +34,10 @@ sub nested_query {
 }
 
 sub full_text_nested_query {
-    my ( $class, $attrs, $clause, $match_type ) = @_;
+    my ( $class, $attrs, $clause) = @_;
     my $where;
     for my $param ( keys %$attrs ) {
-        my $query = $class->_construct_query( $match_type, $attrs->{$param} );
+        my $query = $attrs->{$param};
         push @$where, { "CONTAINS($param, $query)" => { '>', 0 } };
     }
     my $nested_where;
@@ -51,31 +56,32 @@ sub query {
     my $where;
     for my $param ( keys %$attrs ) {
         if ( $clause eq 'and' ) {
-            $where->{ 'UPPER(' . $param . ')' }
-                = $match_type eq 'exact'
-                ? { 'like', uc $attrs->{$param} }
-                : { 'like', '%' . uc $attrs->{$param} . '%' };
+            if ( $attrs->{$param} =~ /\%/ ) {
+                $where->{ 'UPPER(' . $param . ')' }
+                    = { 'like', uc $attrs->{$param} };
+            }
+            else {
+                $where->{$param} = $attrs->{$param};
+            }
         }
         else {
             push @$where,
-                $match_type eq 'exact'
+                $attrs->{$param} =~ /\%/
                 ? {
                 'UPPER(' . $param . ')' => { 'like', uc $attrs->{$param} } }
-                : {   'UPPER(' 
-                    . $param
-                    . ')' => { 'like', '%' . uc $attrs->{$param} . '%' } };
+                : { $param => $attrs->{$param} };
         }
     }
     $where;
 }
 
 sub full_text_query {
-    my ( $class, $attrs, $clause, $match_type ) = @_;
+    my ( $class, $attrs, $clause ) = @_;
     my $where;
     for my $param ( keys %$attrs ) {
-        my $query = $class->_construct_query( $match_type, $attrs->{$param} );
+        my $query = $attrs->{$param};
         if ( $clause eq 'end' ) {
-            $where->{ "CONTAINS($param, $query)"}  = { '>', 0 } ;
+            $where->{"CONTAINS($param, $query)"} = { '>', 0 };
         }
         else {
             push @$where, { "CONTAINS($param, $query)" => { '>', 0 } };
@@ -84,14 +90,7 @@ sub full_text_query {
     return $where;
 }
 
-sub _construct_query {
-    my ( $class, $match, $value ) = @_;
-    my $query
-        = $match eq 'exact'
-        ? "'" . $value . "'"
-        : "'%" . $value . "%'";
-    $query;
-}
+__PACKAGE__->meta->make_immutable;
 
 1;    # Magic true value required at end of module
 
