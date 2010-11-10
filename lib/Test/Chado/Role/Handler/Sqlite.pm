@@ -99,6 +99,10 @@ sub deploy_schema {
     $self->dbh; #making sure the pragma is run
 }
 
+sub deploy_post_schema {
+	return;
+}
+
 sub deploy_by_client {
     my $self = shift;
     return if !$self->has_client;

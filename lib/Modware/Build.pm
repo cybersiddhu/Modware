@@ -17,13 +17,15 @@ my @feature_list = qw/setup_done is_db_created is_schema_loaded
     is_fixture_loaded/;
 
 sub connect_hash {
-	my $self = shift;
-	my %hash;
-	for my $param(qw/dsn user password/) {
-		$hash{$param} = $self->config_data($param) if $self->config_data($param);
-	}
-	$hash{attr} = $self->config_data('db_attr') if $self->config_data('db_attr');
-	return %hash;
+    my $self = shift;
+    my %hash;
+    for my $param (qw/dsn user password/) {
+        $hash{$param} = $self->config_data($param)
+            if $self->config_data($param);
+    }
+    $hash{attr} = $self->config_data('db_attr')
+        if $self->config_data('db_attr');
+    return %hash;
 }
 
 sub check_oracle {
@@ -34,7 +36,7 @@ sub check_oracle {
     load DBI;
     my ( $scheme, $driver ) = DBI->parse_dsn( $self->args('dsn') );
     if ( $driver eq 'Oracle' ) {
-        $self->args( 'preset', 0 );
+        $self->args( 'preset',   0 );
         $self->args( 'post_ddl', 1 );
         return 1;
     }
@@ -133,6 +135,7 @@ sub ACTION_deploy {
     $self->depends_on('create');
     if ( !Modware::ConfigData->feature('is_schema_loaded') ) {
         $self->handler->deploy_schema;
+        $self->handler->deploy_post_schema if $self->args('post_ddl');
         $self->feature( 'is_schema_loaded' => 1 );
         print "loaded schema\n" if $self->args('test_debug');
     }
@@ -144,6 +147,7 @@ sub ACTION_deploy_schema {
     $self->feature( 'is_db_created' => 1 );
     if ( !Modware::ConfigData->feature('is_schema_loaded') ) {
         $self->handler->deploy_schema;
+        $self->handler->deploy_post_schema if $self->args('post_ddl');
         $self->feature( 'is_schema_loaded' => 1 );
         print "loaded schema\n" if $self->args('test_debug');
     }

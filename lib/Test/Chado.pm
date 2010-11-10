@@ -49,6 +49,7 @@ sub handler_from_options {
         loader      => $builder->args('loader')
     );
     $handler->$_( $builder->args($_) ) for qw/user password name ddl_dir dsn/;
+    $handler->run_post_ddl($builder->args('post_ddl'));
     $handler;
 }
 

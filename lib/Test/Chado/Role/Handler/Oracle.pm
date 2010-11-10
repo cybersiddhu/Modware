@@ -64,6 +64,7 @@ sub drop_schema {
     $tsth->execute() or croak $tsth->errstr();
 TABLE:
     while ( my ($table) = $tsth->fetchrow_array() ) {
+    	next TABLE if $table =~ /CTX/;
         try { $dbh->do(qq{ drop table $table cascade constraints purge }) }
         catch {
             $dbh->rollback();
@@ -166,6 +167,28 @@ sub deploy_schema {
     my ($self) = @_;
     my $dbh    = $self->dbh;
     my $fh     = Path::Class::File->new( $self->ddl )->openr;
+    my $data = do { local ($/); <$fh> };
+    $fh->close();
+LINE:
+    foreach my $line ( split( /\n{2,}/, $data ) ) {
+        next LINE if $line =~ /^\-\-/;
+        $line =~ s{;$}{};
+        $line =~ s{/}{};
+        try {
+            $dbh->do($line);
+            $dbh->commit;
+        }
+        catch {
+            $dbh->rollback;
+            confess $_, "\n";
+        };
+    }
+}
+
+sub deploy_post_schema {
+	my ($self) = @_;
+    my $dbh    = $self->dbh;
+    my $fh     = Path::Class::File->new( $self->post_ddl )->openr;
     my $data = do { local ($/); <$fh> };
     $fh->close();
 LINE:
