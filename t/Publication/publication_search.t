@@ -24,8 +24,16 @@ isa_ok( $pub, 'Modware::Publication::Pubmed' );
 my $pub2 = $Pub->find( $pub->dbrow->pub_id );
 isa_ok( $pub2, 'Modware::Publication::Pubmed' );
 
-is( $Pub->search( last_name => 'Lewin*', first_name => 'AS Alfred S' )->count,
-    1,
-    'has publication from first and last name search'
-);
+SKIP: {
+
+    my $sql_type = ucfirst lc( Chado->handler->storage->sqlt_type );
+    skip 'oracle do not support *=* search', 1 if $sql_type eq 'Oracle';
+
+    is( $Pub->search( last_name => 'Lewin*', first_name => 'AS Alfred S' )
+            ->count,
+        1,
+        'has publication from first and last name search'
+    );
+
+}
 

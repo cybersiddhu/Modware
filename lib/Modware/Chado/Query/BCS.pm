@@ -110,7 +110,7 @@ class_has 'resultset_name' => (
 sub rearrange_nested_query {
     my ( $class, $attrs ) = @_;
     my $engine = $class->query_engine;
-    $engine->nested_query( $attrs, 'or', $class->full_text );
+    $engine->query( $attrs, 'or', $class->full_text );
 }
 
 sub rearrange_query {

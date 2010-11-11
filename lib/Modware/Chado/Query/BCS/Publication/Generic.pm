@@ -5,6 +5,7 @@ use namespace::autoclean;
 use Moose;
 use MooseX::ClassAttribute;
 use Module::Load;
+use Data::Dumper::Concise;
 use aliased 'Modware::Collection::Iterator::BCS::ResultSet';
 extends 'Modware::Chado::Query::BCS';
 
@@ -54,7 +55,7 @@ before 'search' => sub {
 
 sub search {
     my ( $class, %arg ) = @_;
-    $class->clause( lc $arg{cond}->{clasue} ) if defined $arg{cond}->{clause};
+    $class->clause( lc $arg{cond}->{clause} ) if defined $arg{cond}->{clause};
     $class->full_text(1) if defined $arg{cond}->{full_text};
 
     my ( $nested, $where, $query, $attrs );
@@ -67,34 +68,40 @@ PARAM:
     {
         next if not defined $arg{$param};
 
-        ## -- code block for joining the pubauthor table
+        ## -- code block for joining the relation
         if ( $class->has_related_param_value($param) ) {
             $class->related_query(1);
-            my $relation
-                = ( ( split /\./, $class->related_param_value($param) ) )[0];
-            if ( not defined $join->{$relation} ) {
+            if ( not defined $options->{cache} ) {
                 $options->{cache}    = 1;
                 $options->{columns}  = $class->distinct_columns;
                 $options->{distinct} = 1;
-                $join->{$relation}   = 1;
-                push @{ $options->{join} }, $relation;
             }
-
+            if ( $param ne 'author' ) {
+                my $relation
+                    = ( ( split /\./, $class->related_param_value($param) ) )
+                    [0];
+                if ( not defined $join->{$relation} ) {
+                    $join->{$relation} = 1;
+                    push @{ $options->{join} }, $relation;
+                }
+            }
             ## -- hardcoded for author as it implies bunch of columns
             if ( $param eq 'author' ) {
+                push @{ $options->{join} }, 'pubauthors';
+                $join->{pubauthors} = 1;
                 my $author_attr = { map { $_ => $arg{$param} }
                         @{ $class->related_param_value($param) } };
                 $nested = $class->rearrange_nested_query($author_attr);
                 next PARAM;
             }
-
             $attrs->{ $class->related_param_value($param) } = $arg{$param};
             next PARAM;
         }
         $attrs->{ $class->param_value($param) } = $arg{$param};
     }
 
-    $where = $class->rearrange_query($attrs);
+    $where = $class->rearrange_query($attrs) if defined $attrs;
+
     if ( $nested and $where ) {
         $query = { %$nested, %$where };
     }

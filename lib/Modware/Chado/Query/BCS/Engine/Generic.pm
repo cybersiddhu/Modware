@@ -1,6 +1,5 @@
 package Modware::Chado::Query::BCS::Engine::Generic;
 
-use warnings;
 use strict;
 use namespace::autoclean;
 use Moose;
@@ -9,50 +8,25 @@ use Moose;
 
 # Module implementation
 
-before [qw/nested_query query/] => sub {
+before [qw/query/] => sub {
     my ( $class, $attrs ) = @_;
     $attrs->{$_} =~ s/\*/\%/g for keys %$attrs;
 };
-
-sub nested_query {
-    my ( $class, $attrs, $clause, $match_type ) = @_;
-    $clause     = lc $clause;
-    $match_type = lc $match_type;
-
-    my $where;
-    for my $param ( keys %$attrs ) {
-        push @$where,
-            $attrs->{$param} =~ /\%/
-            ? { $param => { 'like', $attrs->{$param} } }
-            : { $param => $attrs->{$param} };
-
-        my $nested_where;
-        $nested_where->{ '-' . $clause } = $where;
-    }
-    $nested_where;
-}
 
 sub query {
     my ( $class, $attrs, $clause ) = @_;
     $clause = lc $clause;
 
     my $where;
+    my $nested_where ;
     for my $param ( keys %$attrs ) {
-        if ( $clause eq 'and' ) {
-            $where->{$param}
-                = $attrs->{$param} =~ /\%/
-                ? { 'like', $attrs->{$param} }
-                : $attrs->{$param};
-        }
-        else {
-            push @$where,
-                $attrs->{$param} =~ /\%/
-                ? { $param => { 'like', $attrs->{$param} } }
-                : { $param => $attrs->{$param} };
-
-        }
+        $where->{$param}
+            = $attrs->{$param} =~ /\%/
+            ? { 'like', $attrs->{$param} }
+            : $attrs->{$param};
     }
-    $where;
+    $nested_where->{ '-' . $clause } = [%$where];
+    $nested_where;
 
 }
 

@@ -44,9 +44,9 @@ lives_ok { $pub->create } 'It needs pubmed_id to create a record';
 
 #lets find the record with our cool search API
 is( $Pub->count(
-        title   => 'publication',
+        title   => '*publication*',
         year    => 2010,
-        journal => 'Hungry',
+        journal => '*Hungry*',
     ),
     1,
     'has got the created publication record from database'
@@ -65,10 +65,10 @@ isa_ok( $author, 'Modware::Publication::Author' );
 
 $pub_from_db->delete( { cascade => 1 } );
 is( $Pub->count(
-        title   => 'publication',
+        title   => '*publication*',
         year    => 2010,
         journal => 'Hungry',
-        author  => 'Todd'
+        author  => '*Todd*'
     ),
     0,
     'got no record from database after deletion'
@@ -102,9 +102,9 @@ $pub->add_author(
 lives_ok { $pub->create } 'create another new publication record';
 is( $Pub->count(
         year       => '2050',
-        title      => 'whisky',
-        first_name => 'Harry',
-        last_name  => 'Potter'
+        title      => '*whisky*',
+        first_name => '*Harry*',
+        last_name  => '*Potter*'
     ),
     1,
     'got six publications from database'
@@ -112,9 +112,9 @@ is( $Pub->count(
 
 ($pub_from_db) = $Pub->search(
     year       => '2050',
-    title      => 'whisky',
-    last_name  => 'Potter',
-    first_name => 'Harry'
+    title      => '*whisky*',
+    last_name  => '*Potter*',
+    first_name => '*Harry*'
 );
 
 is( $pub_from_db->journal,
@@ -179,16 +179,16 @@ is_deeply(
 );
 
 my ($pub_from_search) = $Pub->search(
-    journal => 'Ophthalmic',
-    title   => 'mitochondria',
+    journal => '*Ophthalmic*',
+    title   => '*mitochondria*',
     year    => '2010'
 );
 
 is( $pub_from_search->total_authors, 3, 'it has three authors' );
 
 ($pub_from_search) = $Pub->search(
-    last_name  => 'Boulton',
-    first_name => 'Michael'
+    last_name  => '*Boulton*',
+    first_name => '*Michael*'
 );
 
 is( $pub_from_search->total_authors, 3, 'it has three authors' );

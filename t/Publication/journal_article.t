@@ -35,7 +35,7 @@ is( $Pub->count( title => 'Best title', year => 2004, journal => 'Modware' ),
 );
 
 my ($pub_from_db) = $Pub->search(
-    title   => 'Best title',
+    title   => '*Best title*',
     year    => 2004,
     journal => 'Modware'
 );
@@ -85,7 +85,7 @@ is( $Pub->count( year => '2010' ), 6, 'got six publications from database' );
 
 ($pub_from_db) = $Pub->search(
     year    => '2010',
-    title   => 'mitochondria',
+    title   => '*mitochondria*',
     journal => 'Ophthalmic'
 );
 
