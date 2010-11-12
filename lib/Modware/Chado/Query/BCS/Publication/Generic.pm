@@ -48,59 +48,55 @@ class_has '+related_params_map' => (
 );
 
 before 'search' => sub {
-    my $class = shift;
+    my ( $class, %arg ) = @_;
     $class->clause('and');
     $class->full_text(0);
+    $class->add_arg( $_, $arg{$_} ) for keys %args;
 };
 
 sub search {
-    my ( $class, %arg ) = @_;
-    $class->clause( lc $arg{cond}->{clause} ) if defined $arg{cond}->{clause};
-    $class->full_text(1) if defined $arg{cond}->{full_text};
+    my ( $class ) = @_;
+    my $cond = $class->get_arg_value('cond');
+    $class->clause( lc $cond->{clause} ) if defined $cond->{clause};
+    $class->full_text(1) if defined $cond->{full_text};
 
-    my ( $nested, $where, $query, $attrs );
-    my $options = {};
-    my $join    = {};
+    my ( $nested, $where, $query );
 
 PARAM:
     for my $param (
         ( $class->allowed_params, $class->allowed_related_params ) )
     {
-        next if not defined $arg{$param};
+    	next if !$class->has_arg($param);
 
         ## -- code block for joining the relation
         if ( $class->has_related_param_value($param) ) {
             $class->related_query(1);
-            if ( not defined $options->{cache} ) {
-                $options->{cache}    = 1;
-                $options->{columns}  = $class->distinct_columns;
-                $options->{distinct} = 1;
+            if ( !$class->has_option('cache') ) {
+                $class->add_option( 'cache',    1 );
+                $class->add_option( 'columns',  $class->distinct_columns );
+                $class->add_option( 'distinct', 1 );
             }
             if ( $param ne 'author' ) {
                 my $relation
                     = ( ( split /\./, $class->related_param_value($param) ) )
                     [0];
-                if ( not defined $join->{$relation} ) {
-                    $join->{$relation} = 1;
-                    push @{ $options->{join} }, $relation;
-                }
+                $class->handle_relation($relation);
+                $class->handle_query_attr( $param, $relation );
             }
             ## -- hardcoded for author as it implies bunch of columns
             if ( $param eq 'author' ) {
-                push @{ $options->{join} }, 'pubauthors';
-                $join->{pubauthors} = 1;
-                my $author_attr = { map { $_ => $arg{$param} }
-                        @{ $class->related_param_value($param) } };
-                $nested = $class->rearrange_nested_query($author_attr);
+                $class->handle_relation('pubauthors');
+                $class->handle_nested_query_attr( $param, 'pubauthors' );
+                $nested = $class->rearrange_nested_query;
                 next PARAM;
             }
-            $attrs->{ $class->related_param_value($param) } = $arg{$param};
+            $class->handle_query_attr($param);
             next PARAM;
         }
-        $attrs->{ $class->param_value($param) } = $arg{$param};
+        $class->handle_query_attr($param);
     }
 
-    $where = $class->rearrange_query($attrs) if defined $attrs;
+    $where = $class->rearrange_query if $class->search_attributes;
 
     if ( $nested and $where ) {
         $query = { %$nested, %$where };
@@ -115,6 +111,9 @@ PARAM:
 # - If you want to know what's being done for building the query hash ,  please do a dump
 # - of the structure and also read the query syntax for DBIx::Class module
     my $rs;
+    my $options = $class->query_option;
+    $options->{join} = [ $class->all_relations ];
+
     if ( $class->related_query ) {
         my $inside_rs = $class->chado->resultset('Pub::Pub')
             ->search( $query, $options );
@@ -139,6 +138,46 @@ PARAM:
         data_access_class => $class->data_class,
         search_class      => $class
     );
+}
+
+sub handle_relation {
+    my ( $class, $relation ) = @_;
+    if ( !$class->has_join($relation) ) {
+        $class->add_join($relation);
+        if ( $relation eq 'pubprops' ) {
+            $class->add_relation( { 'pubprops' => 'type' } );
+            return;
+        }
+        $class->add_relation($relation);
+    }
+}
+
+sub handle_query_attr {
+    my ( $class, $key, $relation ) = @_;
+    if ( !$relation ) {
+        $class->add_search_attribute( $key, $class->get_arg_value($key) )
+            if !$class->has_search_attribute($key);
+        return;
+    }
+
+    if ( $relation eq 'pubprops' ) {
+    	my $value = $class->get_arg_value($key);
+    	if ($class->has_search_attribute('pubprops.value')) {
+    		my $exist = $class->get_search_attribute('pubprops.value');
+    		my $type  = $class->get_search_attribute('type.name');
+    		push @$exist, $value;
+    		push @$type, $key;
+    	}
+        $class->add_search_attribute( 'pubprops.value', $value );
+        $class->add_search_attribute( 'type.name',      $key );
+    }
+
+}
+
+sub handle_nested_query_attr {
+    my ( $class, $key, $relation ) = @_;
+    $class->add_nested_search_attribute( $_, $class->get_arg_value($_) )
+        for @{ $class->related_param_value($key) };
 }
 
 __PACKAGE__->meta->make_immutable;

@@ -29,7 +29,7 @@ lives_ok { $pub->create }
 'It needs a author and journal names to create a new record';
 
 #lets find the record with our cool search API
-is( $Pub->count( title => 'Best title', year => 2004, journal => 'Modware' ),
+is( $Pub->count( title => '*Best title*', year => 2004, journal => '*Modware*' ),
     1,
     'has got one persisted record from database'
 );
@@ -37,7 +37,7 @@ is( $Pub->count( title => 'Best title', year => 2004, journal => 'Modware' ),
 my ($pub_from_db) = $Pub->search(
     title   => '*Best title*',
     year    => 2004,
-    journal => 'Modware'
+    journal => '*Modware*'
 );
 is( $pub_from_db->title, $pub->title, 'persisted record matches in title' );
 is( $pub_from_db->journal, $pub->journal,
@@ -51,7 +51,7 @@ isa_ok( $author, 'Modware::Publication::Author' );
 is( $author->first_name,, 'Mumbo', 'has got author first name' );
 
 $pub_from_db->delete( { cascade => 1 } );
-is( $Pub->count( title => 'Best title', year => 2004, journal => 'Modware' ),
+is( $Pub->count( title => '*Best title*', year => 2004, journal => '*Modware*' ),
     0,
     'got no record from database after deletion'
 );
@@ -81,12 +81,12 @@ $pub->add_author(
 );
 
 lives_ok { $pub->create } 'create another new publication record';
-is( $Pub->count( year => '2010' ), 6, 'got six publications from database' );
+is( $Pub->count( year => '*2010*' ), 6, 'got six publications from database' );
 
 ($pub_from_db) = $Pub->search(
     year    => '2010',
     title   => '*mitochondria*',
-    journal => 'Ophthalmic'
+    journal => '*Ophthalmic*'
 );
 
 is( $pub_from_db->journal,

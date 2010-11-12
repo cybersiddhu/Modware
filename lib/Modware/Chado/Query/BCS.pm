@@ -7,10 +7,94 @@ use Moose;
 use MooseX::ClassAttribute;
 use MooseX::Params::Validate;
 use Module::Load;
+use Data::Dumper::Concise;
 use aliased 'Modware::DataSource::Chado';
 
 # Module implementation
 #
+
+class_has 'query_option' => (
+    is      => 'rw',
+    isa     => 'HashRef',
+    traits  => [qw/Hash/],
+    default => sub { {} },
+    handles => {
+        'add_option'          => 'set',
+        'all_options'         => 'keys',
+        'get_option'          => 'get',
+        'has_option'          => 'defined',
+        'clear_query_options' => 'clear'
+    }
+);
+
+class_has 'join_stack' => (
+    is      => 'rw',
+    isa     => 'HashRef',
+    traits  => [qw/Hash/],
+    default => sub { {} },
+    handles => {
+        'add_join'    => 'set',
+        'all_joins'   => 'keys',
+        'get_join'    => 'get',
+        'has_join'    => 'defined',
+        'clear_joins' => 'clear'
+    }
+);
+
+class_has 'relation_stack' => (
+    is      => 'rw',
+    isa     => 'ArrayRef',
+    traits  => [qw/Array/],
+    default => sub { [] },
+    handles => {
+        'add_relation'    => 'push',
+        'all_relations'   => 'elements',
+        'clear_relations' => 'clear'
+    }
+);
+
+class_has 'attr_stack' => (
+    is      => 'rw',
+    isa     => 'HashRef',
+    traits  => [qw/Hash/],
+    default => sub { {} },
+    handles => {
+        'add_search_attribute'    => 'set',
+        'all_search_attributes'   => 'keys',
+        'get_search_attribute'    => 'get',
+        'has_search_attribute'    => 'defined',
+        'clear_search_attributes' => 'clear',
+        'search_attributes'       => 'count'
+    }
+);
+
+class_has 'nested_attr_stack' => (
+    is      => 'rw',
+    isa     => 'HashRef',
+    traits  => [qw/Hash/],
+    default => sub { {} },
+    handles => {
+        'add_nested_search_attribute'    => 'set',
+        'all_nested_search_attributes'   => 'keys',
+        'get_nested_search_attribute'    => 'get',
+        'clear_nested_search_attributes' => 'clear',
+        'has_nested_search_attribute'    => 'defined'
+    }
+);
+
+class_has 'arg_stack' => (
+    is      => 'rw',
+    isa     => 'HashRef',
+    traits  => [qw/Hash/],
+    default => sub { {} },
+    handles => {
+        'all_args'      => 'keys',
+        'get_arg_value' => 'get',
+        'has_arg'       => 'defined',
+        'clear_args'    => 'clear',
+        'add_arg'       => 'set'
+    }
+);
 
 class_has 'clause' => (
     is  => 'rw',
@@ -78,6 +162,7 @@ class_has 'params_map' => (
     handles => {
         allowed_params       => 'keys',
         param_value          => 'get',
+        param2col            => 'get',
         has_param_value      => 'defined',
         allowed_param_values => 'values'
     }
@@ -92,7 +177,9 @@ class_has 'related_params_map' => (
     handles => {
         allowed_related_params  => 'keys',
         related_param_value     => 'get',
-        has_related_param_value => 'defined'
+        related_param2col       => 'get',
+        has_related_param_value => 'defined',
+        add_related_param       => 'set'
     }
 );
 
@@ -108,15 +195,15 @@ class_has 'resultset_name' => (
 );
 
 sub rearrange_nested_query {
-    my ( $class, $attrs ) = @_;
+    my ($class) = @_;
     my $engine = $class->query_engine;
-    $engine->query( $attrs, 'or', $class->full_text );
+    $engine->query( $class->nested_attr_stack, 'or', $class->full_text );
 }
 
 sub rearrange_query {
-    my ( $class, $attrs ) = @_;
+    my ($class) = @_;
     my $engine = $class->query_engine;
-    $engine->query( $attrs, $class->clause, $class->full_text );
+    $engine->query( $class->attr_stack, $class->clause, $class->full_text );
 }
 
 sub count {
@@ -148,13 +235,13 @@ __END__
 
 =head1 NAME
 
-B<Modware::Chado::Query::BCS> - [BCS based base class for modware's search modules]
+B<Modware::Chado::Query::BCS> - [BCS based base class for modware'
+            s search modules]
 
 
 =head1 SYNOPSIS
 
 extends 'Modware::Chado::Query::BCS';
-
 
 =head1 METHODS
 

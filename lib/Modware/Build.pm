@@ -135,7 +135,6 @@ sub ACTION_deploy {
     $self->depends_on('create');
     if ( !Modware::ConfigData->feature('is_schema_loaded') ) {
         $self->handler->deploy_schema;
-        $self->handler->deploy_post_schema if $self->args('post_ddl');
         $self->feature( 'is_schema_loaded' => 1 );
         print "loaded schema\n" if $self->args('test_debug');
     }
@@ -147,7 +146,6 @@ sub ACTION_deploy_schema {
     $self->feature( 'is_db_created' => 1 );
     if ( !Modware::ConfigData->feature('is_schema_loaded') ) {
         $self->handler->deploy_schema;
-        $self->handler->deploy_post_schema if $self->args('post_ddl');
         $self->feature( 'is_schema_loaded' => 1 );
         print "loaded schema\n" if $self->args('test_debug');
     }
@@ -209,6 +207,11 @@ sub ACTION_load_fixture {
             print "loaded fixture\n" if $self->args('test_debug');
         }
     }
+    if ( $self->args('post_ddl') ) {
+        $self->handler->deploy_post_schema;
+        print "loaded post ddl\n" if $self->args('test_debug');
+    }
+
 }
 
 sub ACTION_unload_rel {

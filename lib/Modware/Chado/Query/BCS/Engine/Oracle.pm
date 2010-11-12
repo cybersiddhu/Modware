@@ -3,15 +3,36 @@ use warnings;
 use strict;
 use namespace::autoclean;
 use Moose;
+use MooseX::ClassAttribute;
 
 # Other modules:
 
 # Module implementation
 #
 
-before [qw/query/] => sub {
+class_has 'skip_column_stack' => (
+    is      => 'rw',
+    isa     => 'HashRef',
+    traits  => [qw/Hash/],
+    default => sub { {} },
+    handles => {
+        add_skip_column    => 'set',
+        has_skip_column    => 'defined',
+        remove_skip_column => 'delete',
+        all_skip_columns   => 'keys',
+        get_skip_column    => 'get'
+    }
+);
+
+before 'query' => sub {
     my ( $class, $attrs ) = @_;
     $attrs->{$_} =~ s/\*/\%/g for keys %$attrs;
+};
+
+before 'full_text_query' => sub {
+    my $class = shift;
+    $class->add_skip_column( 'type.name', 1 )
+        if !$class->has_skip_column('type.name');
 };
 
 sub query {
@@ -39,8 +60,19 @@ sub query {
 sub full_text_query {
     my ( $class, $attrs, $clause ) = @_;
     my $where;
+PARAM:
     for my $param ( keys %$attrs ) {
         my $query = $attrs->{$param};
+        if ( $class->has_skip_column($param) ) {
+            if ( $query =~ /\%/ ) {
+                $where->{ 'UPPER(' . $param . ')' } = { 'like', uc $query };
+            }
+            else {
+                $where->{$param} = $query;
+            }
+            next PARAM;
+        }
+        $query = "'" . $query . "'";
         $where->{"CONTAINS($param, $query)"} = { '>', 0 };
     }
     my $nested_where;

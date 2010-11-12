@@ -13,6 +13,11 @@ extends 'Modware::Chado::Query::BCS::Publication::Generic';
 
 class_has '+data_class' => ( default => 'Modware::Publication::DictyBase' );
 
+before 'search' => sub {
+    my ($class) = @_;
+    $class->add_related_param( 'keyword', 'pubprops.value' );
+};
+
 sub find_by_pubmed_id {
     my $class = shift;
     my ($id) = pos_validated_list( \@_, { isa => 'Int' } );
@@ -22,6 +27,28 @@ sub find_by_pubmed_id {
         load $class->data_class;
         return $class->data_class->new( dbrow => $row );
     }
+}
+
+sub handle_query_attr {
+    my ( $class, $key, $relation ) = @_;
+    if ( !$relation ) {
+        $class->add_search_attribute( $key, $class->get_arg_value($key) )
+            if !$class->has_search_attribute($key);
+        return;
+    }
+
+    if ( $relation eq 'pubprops' ) {
+        my $value = $class->get_arg_value($key);
+        if ( $class->has_search_attribute('pubprops.value') ) {
+            my $exist = $class->get_search_attribute('pubprops.value');
+            my $type  = $class->get_search_attribute('type.name');
+            push @$exist, $value;
+            push @$type,  $key;
+        }
+        $class->add_search_attribute( 'pubprops.value', $value );
+        $class->add_search_attribute( 'type.name',      $key );
+    }
+
 }
 
 1;    # Magic true value required at end of module
