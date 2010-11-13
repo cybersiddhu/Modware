@@ -251,6 +251,11 @@ PERSISTENT:
     return $class->new( dbrow => $dbrow );
 }
 
+sub new_record {
+	my $self = shift;
+	return $self->has_dbrow ? 0 : 1;
+}
+
 sub save {
     my ($self) = @_;
     return $self->has_dbrow ? $self->update : $self->create;
