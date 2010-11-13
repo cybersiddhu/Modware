@@ -1,5 +1,4 @@
 BEGIN
-ctx_ddl.drop_preference('mywordlist');
 ctx_ddl.create_preference('mywordlist',  'BASIC_WORDLIST'); 
 ctx_ddl.set_attribute('mywordlist', 'PREFIX_INDEX', 'TRUE');
 ctx_ddl.set_attribute('mywordlist', 'PREFIX_MIN_LENGTH',  '1');

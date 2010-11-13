@@ -49,13 +49,21 @@ class_has '+related_params_map' => (
 
 before 'search' => sub {
     my ( $class, %arg ) = @_;
+    for my $name (
+        qw/query_options joins relations search_attributes
+        nested_search_attributes args/
+        )
+    {
+        my $method = 'clear_' . $name;
+        $class->$method;
+    }
     $class->clause('and');
     $class->full_text(0);
-    $class->add_arg( $_, $arg{$_} ) for keys %args;
+    $class->add_arg( $_, $arg{$_} ) for keys %arg;
 };
 
 sub search {
-    my ( $class ) = @_;
+    my ($class) = @_;
     my $cond = $class->get_arg_value('cond');
     $class->clause( lc $cond->{clause} ) if defined $cond->{clause};
     $class->full_text(1) if defined $cond->{full_text};
@@ -66,7 +74,7 @@ PARAM:
     for my $param (
         ( $class->allowed_params, $class->allowed_related_params ) )
     {
-    	next if !$class->has_arg($param);
+        next if !$class->has_arg($param);
 
         ## -- code block for joining the relation
         if ( $class->has_related_param_value($param) ) {
@@ -81,19 +89,21 @@ PARAM:
                     = ( ( split /\./, $class->related_param_value($param) ) )
                     [0];
                 $class->handle_relation($relation);
-                $class->handle_query_attr( $param, $relation );
+                $class->handle_query_attr( $class->related_param2col($param),
+                    $param, $relation );
+                next PARAM;
             }
             ## -- hardcoded for author as it implies bunch of columns
             if ( $param eq 'author' ) {
                 $class->handle_relation('pubauthors');
-                $class->handle_nested_query_attr( $param, 'pubauthors' );
+                $class->handle_nested_query_attr(
+                    $class->related_param2col($param),
+                    $param, 'pubauthors' );
                 $nested = $class->rearrange_nested_query;
                 next PARAM;
             }
-            $class->handle_query_attr($param);
-            next PARAM;
         }
-        $class->handle_query_attr($param);
+        $class->handle_query_attr( $class->param2col($param), $param );
     }
 
     $where = $class->rearrange_query if $class->search_attributes;
@@ -153,31 +163,32 @@ sub handle_relation {
 }
 
 sub handle_query_attr {
-    my ( $class, $key, $relation ) = @_;
-    if ( !$relation ) {
-        $class->add_search_attribute( $key, $class->get_arg_value($key) )
-            if !$class->has_search_attribute($key);
+    my ( $class, $column, $arg, $relation ) = @_;
+    if ( !$relation or $relation eq 'pubauthors' ) {
+        $class->add_search_attribute( $column, $class->get_arg_value($arg) )
+            if !$class->has_search_attribute($column);
         return;
     }
 
     if ( $relation eq 'pubprops' ) {
-    	my $value = $class->get_arg_value($key);
-    	if ($class->has_search_attribute('pubprops.value')) {
-    		my $exist = $class->get_search_attribute('pubprops.value');
-    		my $type  = $class->get_search_attribute('type.name');
-    		push @$exist, $value;
-    		push @$type, $key;
-    	}
+        my $value = $class->get_arg_value($arg);
+        my $type  = $arg;
+        if ( $class->has_search_attribute('pubprops.value') ) {
+            my $exist = $class->get_search_attribute('pubprops.value');
+            my $type  = $class->get_search_attribute('type.name');
+            push @$exist, $value;
+            push @$type,  $arg;
+        }
         $class->add_search_attribute( 'pubprops.value', $value );
-        $class->add_search_attribute( 'type.name',      $key );
+        $class->add_search_attribute( 'type.name',      $type );
     }
 
 }
 
 sub handle_nested_query_attr {
-    my ( $class, $key, $relation ) = @_;
-    $class->add_nested_search_attribute( $_, $class->get_arg_value($_) )
-        for @{ $class->related_param_value($key) };
+    my ( $class, $columns, $arg, $relation ) = @_;
+    $class->add_nested_search_attribute( $_, $class->get_arg_value($arg) )
+        for @$columns;
 }
 
 __PACKAGE__->meta->make_immutable;

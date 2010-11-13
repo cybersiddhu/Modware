@@ -60,11 +60,13 @@ sub drop_schema {
     my $vsth = $dbh->prepare(qq{ select view_name FROM user_views });
     my $isth = $dbh->prepare(qq{ select sequence_name FROM user_sequences });
     my $tsth = $dbh->prepare(qq{ select table_name FROM user_tables });
+    my $psth = $dbh->prepare(
+        qq{select distinct(prv_preference) from ctx_user_preference_values});
 
     $tsth->execute() or croak $tsth->errstr();
 TABLE:
     while ( my ($table) = $tsth->fetchrow_array() ) {
-    	next TABLE if $table =~ /CTX/;
+        next TABLE if $table =~ /CTX/;
         try { $dbh->do(qq{ drop table $table cascade constraints purge }) }
         catch {
             $dbh->rollback();
@@ -118,6 +120,26 @@ TRIGGER:
             confess "$_\n";
         };
     }
+
+    $psth->execute or croak $psth->errstr();
+PREF:
+    while ( my ($preference) = $psth->fetchrow_array() ) {
+    	$preference = "'".$preference."'";
+        try {
+            $dbh->do(
+                qq{
+				BEGIN
+			 		ctx_ddl.drop_preference($preference);
+				END;
+			  }
+            );
+        }
+        catch {
+            $dbh->rollback;
+            confess "$_\n";
+        }
+    }
+
     $dbh->commit;
 }
 
@@ -125,7 +147,7 @@ has 'attr_hash' => (
     is      => 'rw',
     isa     => 'HashRef',
     traits  => ['Hash'],
-    default => sub { { AutoCommit => 0 ,  LongTruncOk => 1} },
+    default => sub { { AutoCommit => 0, LongTruncOk => 1 } },
     handles => { add_dbh_attribute => 'set' }
 );
 
@@ -146,7 +168,7 @@ has 'super_dbh' => (
     default => sub {
         my $self = shift;
         DBI->connect(
-            $self->dsn,       $self->superuser,
+            $self->dsn,           $self->superuser,
             $self->superpassword, $self->attr_hash
         ) or confess $DBI::errstr;
     }
@@ -186,7 +208,7 @@ LINE:
 }
 
 sub deploy_post_schema {
-	my ($self) = @_;
+    my ($self) = @_;
     my $dbh    = $self->dbh;
     my $fh     = Path::Class::File->new( $self->post_ddl )->openr;
     my $data = do { local ($/); <$fh> };
