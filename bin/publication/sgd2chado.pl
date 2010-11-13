@@ -142,10 +142,10 @@ while ( my $ref = $itr->next ) {
         }
     }
 
-    for my $word ( @{ $ref->topics } ) {
-        $pub->add_keyword($word);
-        $file->print( "topic: ", $word, "\n" );
-    }
+    #for my $word ( @{ $ref->topics } ) {
+    #    $pub->add_keyword($word);
+    #    $file->print( "topic: ", $word, "\n" );
+    #}
 
     $file->print("\n==== Done ======= \n");
 
