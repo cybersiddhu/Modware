@@ -21,6 +21,17 @@ with 'Modware::Role::Chado::Helper::BCS::WithDataStash' => {
     }
 };
 
+has 'pub_id' => (
+    is      => 'ro',
+    isa     => 'Maybe[Int]',
+    lazy    => 1,
+    default => sub {
+        my $self = shift;
+        return if $self->new_record;
+        $self->dbrow->pub_id;
+    }
+);
+
 has 'resultset_class' => (
     is      => 'ro',
     isa     => 'Str',
