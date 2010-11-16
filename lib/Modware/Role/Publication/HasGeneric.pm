@@ -98,7 +98,7 @@ has 'id' => (
     column  => 'uniquename',
     default => sub {
         my $uuid = Data::UUID->new;
-        return $uuid->create_from_name_str( NameSpace_DNS, 'gmod.org' );
+        return $uuid->create_from_name_str( NameSpace_DNS, 'gmod.org'.int(rand(900000000)) );
     }
 );
 
