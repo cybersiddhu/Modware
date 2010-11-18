@@ -20,6 +20,12 @@ $pub->abstract('One of the best abstract ever');
 $pub->status('unpublished');
 $pub->cv($test_cv);
 $pub->add_author( { first_name => 'Mumbo', last_name => 'Jumbo' } );
+$pub->first_page(50);
+$pub->last_page(100);
+
+#my $page_attr = $pub->meta->get_attribute('pages');
+#is($page_attr->get_value($pub), '50--100',  'got attribute value from meta');
+#is($page_attr->get_raw_value($pub), '50--100');
 
 dies_ok { $pub->create }
 'It cannot create record without setting journal name';
@@ -44,6 +50,10 @@ is( $pub_from_db->journal, $pub->journal,
     'persisted record matches in journal name' );
 is( $pub_from_db->status, $pub->status,
     'persisted record matches in status' );
+is($pub_from_db->first_page,  50,  'got data for first page');
+is($pub_from_db->last_page,  100,  'got data for first page');
+is($pub_from_db->pages,  '50--100',  'It has pages with first and last name');
+
 is( $pub_from_db->total_authors, 1, 'has got one author' );
 
 my $author = $pub_from_db->get_from_authors(0);

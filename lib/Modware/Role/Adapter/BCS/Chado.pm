@@ -227,6 +227,9 @@ sub create {
 
 PERSISTENT:
     for my $attr ( $meta->get_all_attributes ) {
+    	if ($attr->is_lazy) {
+    		$attr->get_value($self);
+    	}
         next PERSISTENT if !$attr->has_value($self);
     TRAIT:
         for my $traits ( $self->all_create_hooks ) {
