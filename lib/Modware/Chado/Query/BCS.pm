@@ -221,7 +221,17 @@ sub find {
     }
 }
 
-before 'find' => sub {
+sub find_by_pub_id {
+    my $class = shift;
+    my ($id) = pos_validated_list( \@_, { isa => 'Int' } );
+    my $row = $class->chado->resultset( $class->resultset_name )->find($id);
+    if ($row) {
+        load $class->data_class;
+        return $class->data_class->new( dbrow => $row );
+    }
+}
+
+before [qw/find find_by_pub_id/] => sub {
     my $class = shift;
     confess "resultset_name must be defined in your query class\n"
         if !$class->has_resultset_name;
