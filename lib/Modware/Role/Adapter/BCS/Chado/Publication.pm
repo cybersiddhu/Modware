@@ -145,7 +145,7 @@ sub read_authors {
         my $author = $author_obj->new;
         for my $col ( keys %column_map ) {
             my $accessor = $column_map{$col};
-            $author->$accessor( $row->$col );
+            $author->$accessor( $row->$col ) if defined $row->$col;
         }
         push @$collection, $author;
     }
