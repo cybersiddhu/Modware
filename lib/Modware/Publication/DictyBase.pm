@@ -35,7 +35,7 @@ class_has 'query' => (
     isa     => 'Str',
     is      => 'rw',
     lazy    => 1,
-    handles => [qw/find count search find_by_pubmed_id/]
+    handles => [qw/find count search find_by_pubmed_id find_by_pub_id/]
 );
 
 sub citation {
