@@ -83,6 +83,51 @@ sub citation {
     return $str;
 }
 
+sub formatted_citation {
+	my ($self) = @_;
+	my $author_count = $self->total_authors;
+    my $author_str;
+    if ( $author_count == 1 ) {
+        $author_str = $self->get_from_authors(0)->last_name;
+    }
+    elsif ( $author_count == 2 ) {
+        $author_str = $self->get_from_authors(0)->last_name . ' & '
+            . $self->get_from_authors(1)->last_name;
+    }
+    else {
+        my $penultimate = $author_count - 2;
+        for my $i ( 0 .. $penultimate ) {
+            if ( $i == $penultimate ) {
+                $author_str
+                    .= $self->get_from_authors($i)->last_name . ' & ';
+                next;
+            }
+            $author_str
+                .= $self->get_from_authors($i)->last_name . ', ';
+        }
+        $author_str .= $self->get_from_authors(-1)->last_name;
+    }
+    my $str = '<b>'. $author_str . ' (' . $self->year . ')</b>';
+    if ( $self->has_title ) {
+        $str .= " '" . $self->title . "' ";
+    }
+
+    if ( $self->has_abbreviation ) {
+        $str .= ' <i>'.$self->abbreviation. '</i>';
+    }
+
+    if ( $self->has_volume ) {
+        $str .= $self->volume;
+    }
+
+    if ( $self->has_pages ) {
+        my $pages = $self->pages;
+        $pages =~ s/\-\-/\-/;
+        $str .= ':' . $pages;
+    }
+    return $str;
+}
+
 __PACKAGE__->meta->make_immutable;
 
 1;    # Magic true value required at end of module
