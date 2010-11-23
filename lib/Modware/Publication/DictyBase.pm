@@ -113,7 +113,7 @@ sub formatted_citation {
     }
 
     if ( $self->has_abbreviation ) {
-        $str .= ' <i>'.$self->abbreviation. '</i>';
+        $str .= ' <i>'.$self->abbreviation. '</i> ';
     }
 
     if ( $self->has_volume ) {
