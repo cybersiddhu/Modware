@@ -92,7 +92,6 @@ sub read_pubprop {
     my $type_id = $self->find_cvterm_id(
         cvterm => $cvterm,
         cv     => $attr->cv,
-        db     => $attr->db
     );
     return if !$type_id;    #no record in the database
     my $rs = $dbrow->search_related( 'pubprops', { 'type_id' => $type_id } );
@@ -158,6 +157,7 @@ sub create_pubprop {
     my $pubprop = {
         type_id => $self->find_or_create_cvterm_id(
             cvterm => $cvterm,
+            dbxref => $cvterm,
             cv     => $attr->cv,
             db     => $attr->db
         ),
@@ -173,6 +173,7 @@ sub create_dicty_pubprops {
         my $pubprop = {
             type_id => $self->find_or_create_cvterm_id(
                 cvterm => $value,
+                dbxref => $value,
                 cv     => $attr->cv,
                 db     => $attr->db
             ),
@@ -225,6 +226,7 @@ sub update_pubprop {
     my $pubprop = {
         type_id => $self->find_or_create_cvterm_id(
             cvterm => $cvterm,
+            dbxref => $cvterm,
             cv     => $attr->cv,
             db     => $attr->db
         ),
@@ -241,6 +243,7 @@ sub update_dicty_pubprops {
         my $pubprops = {
             type_id => $self->find_or_create_cvterm_id(
                 cvterm => $value,
+                dbxref => $value,
                 cv     => $attr->cv,
                 db     => $attr->db
             ),

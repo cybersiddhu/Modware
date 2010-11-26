@@ -49,12 +49,18 @@ sub _build_cvrow {
 }
 
 sub find_or_create_cvterm_id {
-    my ( $self, $cvterm, $cv, $db ) = validated_list(
+    my ( $self, $cvterm, $cv, $db,  $dbxref ) = validated_list(
         \@_,
         cvterm => { isa => 'Str' },
         cv     => { isa => 'Str' },
-        db     => { isa => 'Str' }
+        db     => { isa => 'Str' },
+        dbxref => {
+            isa      => 'Str',
+            optional => 1
+        }
     );
+
+    $dbxref ||= $cv . '-' . $db . '-' . $cvterm;
 
     if ( $self->exist_cvterm_row($cvterm) ) {
         my $row = $self->get_cvterm_row($cvterm);
@@ -62,8 +68,10 @@ sub find_or_create_cvterm_id {
     }
 
     #otherwise try to retrieve from database
-    my $rs = $self->chado->resultset('Cv::Cvterm')
-        ->search( { 'me.name' => $cvterm, 'cv.name' => $cv }, { join => 'cv' } );
+    my $rs
+        = $self->chado->resultset('Cv::Cvterm')
+        ->search( { 'me.name' => $cvterm, 'cv.name' => $cv },
+        { join => 'cv' } );
     if ( $rs->count > 0 ) {
         $self->set_cvterm_row( $cvterm => $rs->first );
         return $rs->first->cvterm_id;
@@ -74,7 +82,7 @@ sub find_or_create_cvterm_id {
         {   name   => $cvterm,
             cv     => $cv,
             db     => $db,
-            dbxref => $cv . '-' . $db . '-' . $cvterm
+            dbxref => $dbxref
         }
     );
     $self->set_cvterm_row( $cvterm, $row );
@@ -82,11 +90,11 @@ sub find_or_create_cvterm_id {
 }
 
 sub find_cvterm_id {
-    my ( $self, $cvterm, $cv, $db ) = validated_list(
+    my ( $self, $cvterm, $cv ) = validated_list(
         \@_,
         cvterm => { isa => 'Str' },
         cv     => { isa => 'Str' },
-        db     => { isa => 'Str' }
+      #  db     => { isa => 'Str' }
     );
 
     if ( $self->exist_cvterm_row($cvterm) ) {
@@ -95,12 +103,15 @@ sub find_cvterm_id {
     }
 
     #otherwise try to retrieve from database
-    my $rs = $self->chado->resultset('Cv::Cvterm')
-        ->search( { 'me.name' => $cvterm, 'cv.name' => $cv }, { join => 'cv' } );
+    my $rs
+        = $self->chado->resultset('Cv::Cvterm')
+        ->search( { 'me.name' => $cvterm, 'cv.name' => $cv },
+        { join => 'cv' } );
     if ( $rs->count > 0 ) {
         $self->set_cvterm_row( $cvterm => $rs->first );
         return $rs->first->cvterm_id;
     }
+
     #croak "no cvterm id found for $cvterm\n";
 }
 

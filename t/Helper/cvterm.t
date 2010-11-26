@@ -60,7 +60,6 @@ like( $type_id, qr/\d+/, 'it returns a cvterm_id' );
 
 my $id_from_db = $helper->find_cvterm_id(
     cvterm => 'piano',
-    db     => 'music',
     cv     => 'instrument'
 );
 is( $type_id, $id_from_db, 'it got back the cvterm id from database' );

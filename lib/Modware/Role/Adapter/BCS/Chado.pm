@@ -160,6 +160,7 @@ sub create_cvterm {
         $self->find_or_create_cvterm_id(
             cvterm => $attr->get_value($self),
             cv     => $attr->cv,
+            dbxref => $attr->get_value($self),
             db     => $attr->db
         )
     );
@@ -177,6 +178,7 @@ sub update_cvterm {
     $dbrow->$column(
         $self->find_or_create_cvterm_id(
             cvterm => $attr->get_value($self),
+            dbxref => $attr->get_value($self),
             cv     => $attr->cv,
             db     => $attr->db
         )

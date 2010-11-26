@@ -24,6 +24,7 @@ role {
             'mapped_columns' => 'keys',
             'get_map'        => 'get',
             'empty_mapper'   => 'is_empty',
+            'clear_mapper'   => 'clear'
         }
     );
 
@@ -137,6 +138,23 @@ role {
         }
     }
 
+    method 'clear_stashes' => sub {
+        my ($self) = @_;
+        $self->clear_mapper;
+        for my $name ( @{ $p->create_stash_for } ) {
+            my $method = '_clear_' . $name;
+            $self->$method;
+        }
+        my $stash = $p->update_stash_for;
+        for my $types (qw/has_many many_to_many/) {
+            if ( defined $stash->{$types} ) {
+                for my $name ( @{ $stash->{$types} } ) {
+                    my $method = '_clear_' . $name;
+                    $self->$method;
+                }
+            }
+        }
+    };
 };
 
 1;    # Magic true value required at end of module
