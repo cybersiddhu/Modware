@@ -29,11 +29,11 @@ has 'cvterm_row' => (
 );
 
 has 'cvrow' => (
-    is         => 'rw',
-    isa        => 'HashRef[Bio::Chado::Schema::Cv::Cv]',
-    traits     => ['Hash'],
-    lazy_build => 1,
-    handles    => {
+    is      => 'rw',
+    isa     => 'HashRef[Bio::Chado::Schema::Cv::Cv]',
+    traits  => ['Hash'],
+    default => sub { {} },
+    handles => {
         get_cvrow   => 'get',
         set_cvrow   => 'set',
         exist_cvrow => 'defined'
@@ -49,7 +49,7 @@ sub _build_cvrow {
 }
 
 sub find_or_create_cvterm_id {
-    my ( $self, $cvterm, $cv, $db,  $dbxref ) = validated_list(
+    my ( $self, $cvterm, $cv, $db, $dbxref ) = validated_list(
         \@_,
         cvterm => { isa => 'Str' },
         cv     => { isa => 'Str' },
@@ -94,7 +94,8 @@ sub find_cvterm_id {
         \@_,
         cvterm => { isa => 'Str' },
         cv     => { isa => 'Str' },
-      #  db     => { isa => 'Str' }
+
+        #  db     => { isa => 'Str' }
     );
 
     if ( $self->exist_cvterm_row($cvterm) ) {
