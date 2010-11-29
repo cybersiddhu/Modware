@@ -190,6 +190,11 @@ use Try::Tiny;
         predicate => 'has_node'
     );
 
+    has 'graph' => (
+        is  => 'rw',
+        isa => 'GOBO::Graph'
+    );
+
     has 'cv_namespace' => (
         is  => 'rw',
         isa => 'DBIx::Class::Row',
@@ -271,10 +276,10 @@ use Try::Tiny;
         traits  => [qw/Hash/],
         default => sub { {} },
         handles => {
-            add_to_term_cache => 'push',
+            add_to_term_cache => 'set',
             clean_term_cache  => 'clear',
             terms_in_cache    => 'count',
-            terms_from_cache  => 'elements',
+            terms_from_cache  => 'keys',
             is_term_in_cache  => 'defined'
         }
     );
@@ -335,22 +340,43 @@ use Try::Tiny;
             return;
         }
 
-        if ($node->isa('GOBO::TermNode')) {
-        	if ($self->is_term_in_cache($node->label)) {
-        		$self->skipped_message("Node is already processed");
-        		return;
-        	}
+        if ( $node->isa('GOBO::TermNode') ) {
+            if ( $self->is_term_in_cache( $node->label ) ) {
+                $self->skipped_message("Node is already processed");
+                return;
+            }
         }
 
         $self->add_to_mapper(
             'dbxref' => { accession => $accession, db_id => $db_id } );
         $self->add_to_mapper( 'name', $node->label );
-        $self->add_to_term_cache($node->label, 1) if $node->isa('GOBO::TermNode');
+        $self->add_to_term_cache( $node->label, 1 )
+            if $node->isa('GOBO::TermNode');
         if ( $node->definition ) {
             $self->add_to_mapper( 'definition',
                 encode( "UTF-8", $node->definition ) );
         }
-        $self->add_to_mapper( 'cv_id', $self->cv_namespace->cv_id );
+
+        #logic if node has its own namespace defined
+        if ( $node->namespace ne $self->cv_namespace->name) {
+            if ( $self->helper->exist_cvrow( $node->namespace ) ) {
+                $self->add_to_mapper( 'cv_id',
+                    $self->helper->get_cvrow( $node->namespace )->cv_id );
+            }
+            else {
+                my $row = $self->helper->chado->txn_do(
+                    sub {
+                        $self->helper->chado->resultset('Cv::Cv')
+                            ->create( { name => $node->namespace } );
+                    }
+                );
+                $self->helper->set_cvrow( $node->namespace, $row );
+                $self->add_to_mapper( 'cv_id', $row->cv_id );
+            }
+        }
+        else {
+            $self->add_to_mapper( 'cv_id', $self->cv_namespace->cv_id );
+        }
         $self->add_to_mapper( 'is_relationshiptype', 1 )
             if ref $node eq 'GOBO::RelationNode';
         if ( $node->obsolete ) {
@@ -511,15 +537,18 @@ use Try::Tiny;
     }
 
     sub handle_relation {
-        my ($self)  = @_;
-        my $node    = $self->node;
-        my $type    = $node->relation;
-        my $subject = $node->node;
-        my $object  = $node->target;
-        my $cv      = $self->cv_namespace->name;
+        my ($self)     = @_;
+        my $node       = $self->node;
+        my $graph      = $self->graph;
+        my $type       = $node->relation;
+        my $subject    = $node->node;
+        my $object     = $node->target;
+        my $subj_inst  = $graph->get_node($subject);
+        my $obj_inst   = $graph->get_node($object);
+        my $default_cv = $self->cv_namespace->name;
 
         my $type_id = $self->helper->find_relation_term_id(
-            cv     => [ $cv, 'relationship', $self->other_cvs ],
+            cv     => [ $default_cv, 'relationship', $self->other_cvs ],
             cvterm => $type
         );
 
@@ -530,7 +559,7 @@ use Try::Tiny;
 
         my $subject_id = $self->helper->find_cvterm_id_by_term_id(
             term_id => $subject,
-            cv      => $cv
+            cv => $subj_inst->namespace 
         );
         if ( !$subject_id ) {
             $self->skipped_message("subject $subject not in storage");
@@ -539,7 +568,7 @@ use Try::Tiny;
 
         my $object_id = $self->helper->find_cvterm_id_by_term_id(
             term_id => $object,
-            cv      => $cv
+            cv => $obj_inst->namespace 
         );
 
         if ( !$object_id ) {
@@ -710,6 +739,7 @@ $loader->resultset('Cv::Cvterm');
 
 $onto_manager->cv_namespace($global_cv);
 $onto_manager->db_namespace($global_db);
+$onto_manager->graph($graph);
 
 my $rel_term_skipped = 0;
 my $rel_term_loaded  = 0;
@@ -824,6 +854,7 @@ my $rel_manager = OntoManager->new( helper => $onto_helper );
 my $rel_loader = OntoLoader->new( manager => $rel_manager );
 $rel_manager->cv_namespace($global_cv);
 $rel_manager->db_namespace($global_db);
+$rel_manager->graph($graph);
 $rel_loader->resultset('Cv::CvtermRelationship');
 
 my $edges      = $graph->statements;
