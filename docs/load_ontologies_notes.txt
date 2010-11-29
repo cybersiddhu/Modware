@@ -1,0 +1,101 @@
+Header stanza tags
+--------
+default-namesapce : cv.name
+idspace(opt): 
+	local: db.name
+	uri : db.url
+	description: db.description
+	* Note: If absent create db.name('_global') row and reuse that.
+
+Typedef stanza tags
+-----------
+
+name: cvterm.name
+id: dbxref.accession
+* Note: If the format of id is idspace.local:id store only id using idspace db row
+        instance. Otherwise,  use the _global row instance. 
+
+alt_id: dbxref.accession via (cvterm_dbxref linking table). Use any of the db row instance
+			  with idspace.
+def: cvterm.definition
+synonym:
+	: cvtermsynonym.synonym = tag value
+	: cvterm.name = scope of the tag(through cvtermsynonym.type_id)
+	: cv.name = 'synonym_type'
+  : dbxref.name = cvterm.name
+	: db = 'internal'
+xref:
+	: dbxref.name = first value of tag(linked via cvterm_dbxref)
+	  :: It should be parsed the same way as id tag.
+	: db.name = idspace if format is the same as id
+	            'URL' if format is URL
+	* Optional description and/or trailing modifiers seems to be getting ignored
+
+
+* The tags below describes relationship terms, few of them
+  might be built in(indicated by the tag builtin) 
+is_a:
+inverse_of: 
+transitive_over: 
+is_metadata_tag: 
+disjoint_from: allowed in OBO 1.4,  currently ignored
+union_of: allowed in OBO 1.4,  currently ignored
+intersection_of: allowed in OBO 1.4,  currently ignored
+
+builtin: Defines the built in relationship terms,  not sure anything needed to be stored
+here. 
+
+comment: cvtermprop.value 
+			: cvtermprop.value = tag value
+			: cvterm.name = 'comment' (through cvtermprop.type_id)
+			: cv.name = cvterm_property_type
+			: dbxref.name = cvterm.name
+			: db = 'internal'
+
+* The following tags stored identically as comment and are properties of relationship
+  terms
+			: cvtermprop.value = 1
+			: cvterm.name = tag name (through cvtermprop.type_id)
+			: cv.name = cvterm_property_type 
+			: dbxref.name = cvterm.name
+			: db = 'internal'
+is_cyclic: 
+is_reflexive: 
+is_transitive: 
+is_anonymous: 
+domain: 
+range: 
+
+
+is_obsolete: cvterm.is_obsolete
+
+****** Issues ******
+
+* The next two tags are always tied to obsolete terms and the default obo loader skips any
+  terms with these tags.
+  ?? How to store them ?
+consider: N/A
+replaced_by: How to handle this during update ?
+
+subset: Could not figure out ?
+
+* Note: For all typedef terms cvterm.is_relationshiptype = 1
+
+
+Term stanza tags
+---------------
+
+* Shares many of the tags as Typedef stanza. Some additonal ones given below: 
+
+disjoint_from:
+union_of:
+intersection_of:
+* The above describes various type of terms relationship,  at this point these are skipped
+
+relationship:
+ 	  : cvterm_relationship
+    : subject_id = cvterm instance from value of id tag 
+    : object_id = cvterm instance of target term
+    : type_id = instance of relationship term scoped either by current or relationship cv
+      namespace
+
