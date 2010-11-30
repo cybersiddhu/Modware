@@ -88,6 +88,28 @@ use Try::Tiny;
         }
     }
 
+    sub find_dbxref_id_by_cvterm {
+        my ( $self, $dbxref, $db, $cv, $cvterm ) = validated_list(
+            \@_,
+            dbxref => { isa => 'Str' },
+            db     => { isa => 'Str' },
+            cv     => { isa => 'Str' },
+            cvterm => { isa => 'Str' },
+        );
+
+        my $rs = $self->chado->resultset('General::Dbxref')->search(
+            {   'accession'   => $dbxref,
+                'db.name'     => $db,
+                'cvterm.name' => $cvterm,
+                'cv.name'     => $cv
+            },
+            { join => [ 'db', { 'cvterm' => 'cv' } ] }
+        );
+        if ( $rs->count ) {
+            return $rs->first->dbxref_id;
+        }
+    }
+
     sub find_relation_term_id {
         my ( $self, $cvterm, $cv ) = validated_list(
             \@_,
@@ -177,17 +199,28 @@ use Try::Tiny;
     package OntoManager;
     use namespace::autoclean;
     use Moose;
+    use Moose::Util qw/ensure_all_roles/;
     use Carp;
     use Encode;
     use utf8;
+    use Data::Dumper::Concise;
 
     with 'Modware::Role::Chado::Helper::BCS::WithDataStash' =>
         { create_stash_for =>
             [qw/cvterm_dbxrefs cvtermsynonyms cvtermprop_cvterms/] };
 
     has 'helper' => (
-        is  => 'rw',
-        isa => 'OntoHelper'
+        is      => 'rw',
+        isa     => 'OntoHelper',
+        trigger => sub {
+            my ( $self, $helper ) = @_;
+            $self->meta->make_mutable;
+            my $engine = 'OntoEngine::'
+                . ucfirst lc( $helper->chado->storage->sqlt_type );
+            ensure_all_roles( $self, $engine );
+            $self->meta->make_immutable;
+            $self->setup;
+        }
     );
 
     has 'node' => (
@@ -325,18 +358,29 @@ use Try::Tiny;
         if ( $self->helper->has_idspace( $node->id ) ) {
             my ( $db, $id ) = $self->helper->parse_id( $node->id );
             $db_id     = $self->helper->find_or_create_db_id($db);
-            $dbxref_id = $self->helper->find_dbxref_id(
+            $dbxref_id = $self->helper->find_dbxref_id_by_cvterm(
                 dbxref => $id,
-                db     => $db_id
+                db     => $db,
+                cvterm => $node->label,
+                cv     => $node->namespace
+                ? $node->namespace
+                : $self->cv_namespace->name
             );
             $accession = $id;
 
         }
         else {
-            $db_id     = $self->db_namespace->db_id;
-            $dbxref_id = $self->helper->find_dbxref_id(
+            my $namespace
+                = $node->namespace
+                ? $node->namespace
+                : $self->cv_namespace->name;
+
+            $db_id     = $self->helper->find_or_create_db_id( $namespace );
+            $dbxref_id = $self->helper->find_dbxref_id_by_cvterm(
                 dbxref => $node->id,
-                db     => $db_id
+                db     => $namespace,
+                cvterm => $node->label,
+                cv     => $namespace
             );
             $accession = $node->id;
         }
@@ -356,7 +400,9 @@ use Try::Tiny;
         }
 
         #logic if node has its own namespace defined
-        if ( $node->namespace ne $self->cv_namespace->name ) {
+        if ( $node->namespace
+            and ( $node->namespace ne $self->cv_namespace->name ) )
+        {
             if ( $self->helper->exist_cvrow( $node->namespace ) ) {
                 $self->add_to_mapper( 'cv_id',
                     $self->helper->get_cvrow( $node->namespace )->cv_id );
@@ -491,22 +537,7 @@ use Try::Tiny;
 
     sub handle_synonyms {
         my ($self) = @_;
-        my $node = $self->node;
-        return if !$node->synonyms;
-        my %uniq_syns = map { $_->label => $_->scope } @{ $node->synonyms };
-        for my $label ( keys %uniq_syns ) {
-            $self->add_to_insert_cvtermsynonyms(
-                {   synonym => $label,
-                    type_id => $self->helper->find_or_create_cvterm_id(
-                        cvterm => $uniq_syns{$label},
-                        cv     => 'synonym_type',
-                        dbxref => $uniq_syns{$label},
-                        db     => 'internal'
-                        )
-
-                }
-            );
-        }
+        $self->_handle_synonyms;
     }
 
     sub handle_comment {
@@ -571,6 +602,8 @@ use Try::Tiny;
 
         if ( !$type_id ) {
             $self->skipped_message("$type relation node not in storage");
+            warn "Passed the following cvs ",
+                Dumper [ $default_cv, 'relationship', $self->other_cvs ];
             return;
         }
 
@@ -600,6 +633,60 @@ use Try::Tiny;
     }
 
     __PACKAGE__->meta->make_immutable;
+
+    package OntoEngine::Oracle;
+    use namespace::autoclean;
+    use Moose::Role;
+
+    sub _handle_synonyms {
+        my ($self) = @_;
+        my $node = $self->node;
+        return if !$node->synonyms;
+        my %uniq_syns = map { $_->label => $_->scope } @{ $node->synonyms };
+        for my $label ( keys %uniq_syns ) {
+            $self->add_to_insert_cvtermsynonyms(
+                {   synonym => $label,
+                    type_id => $self->helper->find_or_create_cvterm_id(
+                        cvterm => $uniq_syns{$label},
+                        cv     => 'synonym_type',
+                        dbxref => $uniq_syns{$label},
+                        db     => 'internal'
+                        )
+
+                }
+            );
+        }
+    }
+
+    sub setup {
+        warn 'in Oracle';
+    }
+
+    package OntoEngine::Postgresql;
+    use namespace::autoclean;
+    use Moose::Role;
+
+    sub _handle_synonyms {
+        my ($self) = @_;
+        my $node = $self->node;
+        return if !$node->synonyms;
+        my %uniq_syns = map { $_->label => $_->scope } @{ $node->synonyms };
+        for my $label ( keys %uniq_syns ) {
+            $self->add_to_insert_cvtermsynonyms(
+                {   synonym => $label,
+                    type_id => $self->helper->find_or_create_cvterm_id(
+                        cvterm => $uniq_syns{$label},
+                        cv     => 'synonym_type',
+                        dbxref => $uniq_syns{$label},
+                        db     => 'internal'
+                    )
+                }
+            );
+        }
+    }
+
+    sub setup {
+    }
 
     package OntoLoader;
     use Moose;
@@ -765,7 +852,7 @@ my $term_loaded      = 0;
 my $rel_loaded       = 0;
 
 #### -- Relations/Typedef -------- ##
-my @rel_terms = grep { $_->id ne 'is_a' } @{ $graph->relations };
+my @rel_terms = @{ $graph->relations };
 my $rel_count = scalar @rel_terms;
 $logger->info("processing $rel_count relationship entries ....");
 
@@ -841,7 +928,8 @@ for my $term ( @{ $graph->terms } ) {
         $logger->info("going to load $entries terms ....");
 
         $loader->store_cache( $onto_manager->cache );
-        $dumper->print( Dumper $onto_manager->cache );
+
+        #$dumper->print( Dumper $onto_manager->cache );
         $onto_manager->clean_cache;
 
         $logger->info("loaded $entries terms ....");
@@ -853,7 +941,7 @@ if ( $onto_manager->entries_in_cache ) {
     my $entries = $onto_manager->entries_in_cache;
     $logger->info("going to load leftover $entries terms ....");
 
-    $dumper->print( Dumper $onto_manager->cache );
+    #$dumper->print( Dumper $onto_manager->cache );
     $loader->store_cache( $onto_manager->cache );
     $onto_manager->clean_cache;
     $loader->process_xref_cache;
@@ -876,7 +964,7 @@ $rel_loader->resultset('Cv::CvtermRelationship');
 
 my $edges      = $graph->statements;
 my $edge_count = scalar @$edges;
-$logger->info( "Going to load ", scalar @$edges, " term relations" );
+$logger->info( $edge_count, " relationships will be loaded" );
 
 RELATION:
 for my $link_node (@$edges) {
@@ -893,13 +981,18 @@ for my $link_node (@$edges) {
 
     if ( $rel_manager->entries_in_cache >= $commit_threshold ) {
         my $entries = $rel_manager->entries_in_cache;
-        $logger->info("going to load $entries term relations ....");
+        $logger->info("going to load $entries relationships ....");
         $rel_loader->store_cache( $rel_manager->cache );
 
         #$dumper->print( Dumper $onto_manager->cache );
         $rel_manager->clean_cache;
-        $logger->info("loaded $entries relationship records ....");
+        $logger->info("loaded $entries relationships ....");
         $rel_loaded += $entries;
+        $logger->info(
+            "Going to process ",
+            $edge_count - $rel_loaded,
+            " relationships ...."
+        );
     }
 }
 
