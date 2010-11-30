@@ -96,12 +96,19 @@ use Try::Tiny;
         );
 
         ## -- extremely redundant call have to cache later ontology
-        my $rs
-            = $self->chado->resultset('Cv::Cvterm')
-            ->search( { 'me.name' => $cvterm, 'cv.name' => { -in => $cv } },
-            { join => 'cv' } );
+        my $rs = $self->chado->resultset('Cv::Cvterm')->search(
+            {   -and => [
+                    -or => [
+                        'me.name'          => $cvterm,
+                        'dbxref.accession' => $cvterm
+                    ],
+                    'cv.name' => { -in => $cv }
+                ]
+            },
+            { join => [qw/cv dbxref/] }
+        );
 
-        if ( $rs->count > 0 ) {
+        if ( $rs->count ) {
             return $rs->first->cvterm_id;
         }
 
@@ -276,11 +283,12 @@ use Try::Tiny;
         traits  => [qw/Hash/],
         default => sub { {} },
         handles => {
-            add_to_term_cache => 'set',
-            clean_term_cache  => 'clear',
-            terms_in_cache    => 'count',
-            terms_from_cache  => 'keys',
-            is_term_in_cache  => 'defined'
+            add_to_term_cache   => 'set',
+            clean_term_cache    => 'clear',
+            terms_in_cache      => 'count',
+            terms_from_cache    => 'keys',
+            is_term_in_cache    => 'defined',
+            get_term_from_cache => 'get'
         }
     );
 
@@ -340,25 +348,15 @@ use Try::Tiny;
             return;
         }
 
-        if ( $node->isa('GOBO::TermNode') ) {
-            if ( $self->is_term_in_cache( $node->label ) ) {
-                $self->skipped_message("Node is already processed");
-                return;
-            }
-        }
-
         $self->add_to_mapper(
             'dbxref' => { accession => $accession, db_id => $db_id } );
-        $self->add_to_mapper( 'name', $node->label );
-        $self->add_to_term_cache( $node->label, 1 )
-            if $node->isa('GOBO::TermNode');
         if ( $node->definition ) {
             $self->add_to_mapper( 'definition',
                 encode( "UTF-8", $node->definition ) );
         }
 
         #logic if node has its own namespace defined
-        if ( $node->namespace ne $self->cv_namespace->name) {
+        if ( $node->namespace ne $self->cv_namespace->name ) {
             if ( $self->helper->exist_cvrow( $node->namespace ) ) {
                 $self->add_to_mapper( 'cv_id',
                     $self->helper->get_cvrow( $node->namespace )->cv_id );
@@ -379,12 +377,31 @@ use Try::Tiny;
         }
         $self->add_to_mapper( 'is_relationshiptype', 1 )
             if ref $node eq 'GOBO::RelationNode';
+
         if ( $node->obsolete ) {
             $self->add_to_mapper( 'is_obsolete', 1 );
         }
         else {
             $self->add_to_mapper( 'is_obsolete', 0 );
         }
+
+        if ( $node->isa('GOBO::TermNode') ) {
+            if ( $self->is_term_in_cache( $node->label ) ) {
+                my $term = $self->get_term_from_cache( $node->label );
+                if (    ( $term->[0] eq $self->get_map('cv_id') )
+                    and ( $term->[1] eq $self->get_map('is_obsolete') ) )
+                {
+                    $self->skipped_message("Node is already processed");
+                    return;
+                }
+            }
+        }
+
+        $self->add_to_mapper( 'name', $node->label );
+        $self->add_to_term_cache( $node->label,
+            [ $self->get_map('cv_id'), $self->get_map('is_obsolete') ] )
+            if $node->isa('GOBO::TermNode');
+
         return 1;
 
     }
@@ -559,7 +576,7 @@ use Try::Tiny;
 
         my $subject_id = $self->helper->find_cvterm_id_by_term_id(
             term_id => $subject,
-            cv => $subj_inst->namespace 
+            cv      => $subj_inst->namespace
         );
         if ( !$subject_id ) {
             $self->skipped_message("subject $subject not in storage");
@@ -568,7 +585,7 @@ use Try::Tiny;
 
         my $object_id = $self->helper->find_cvterm_id_by_term_id(
             term_id => $object,
-            cv => $obj_inst->namespace 
+            cv      => $obj_inst->namespace
         );
 
         if ( !$object_id ) {
