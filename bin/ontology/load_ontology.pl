@@ -645,7 +645,7 @@ use Try::Tiny;
         my %uniq_syns = map { $_->label => $_->scope } @{ $node->synonyms };
         for my $label ( keys %uniq_syns ) {
             $self->add_to_insert_cvtermsynonyms(
-                {   synonym => $label,
+                {   'synonym_' => $label,
                     type_id => $self->helper->find_or_create_cvterm_id(
                         cvterm => $uniq_syns{$label},
                         cv     => 'synonym_type',
@@ -659,7 +659,16 @@ use Try::Tiny;
     }
 
     sub setup {
-        warn 'in Oracle';
+    	my $self = shift;
+    	my $source = $self->helper->chado->source('Cv::Cvtermsynonym');
+    	$source->remove_column('synonym');
+    	$source->add_column(
+    		'synonym_' => {
+    			data_type => 'varchar', 
+    			is_nullable => 0, 
+    			size => 1024
+    		}
+    	);
     }
 
     package OntoEngine::Postgresql;
