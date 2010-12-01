@@ -63,7 +63,7 @@ my $build = Modware::Build->new(
             { default => catfile( 't', 'data', 'preset' ), type => ':s' },
         default => {},
     }, 
-    script_files => ['bin/ontology/*.pl']
+    script_files => ['bin/ontology/load_ontology.pl',  'bin/ontology/drop_ontology.pl']
 );
 
 $build->args( 'ddl_dir', catdir( $build->base_dir, 't', 'data', 'ddl' ) );
