@@ -792,7 +792,6 @@ use Try::Tiny;
 }
 
 my ( $dsn, $user, $password, $config, $log_file, $logger );
-my $dump_file        = 'dump.txt';
 my $commit_threshold = 1000;
 my $attr             = { AutoCommit => 1 };
 
@@ -804,7 +803,6 @@ GetOptions(
     'c|config:s'            => \$config,
     'l|log:s'               => \$log_file,
     'ct|commit_threshold:s' => \$commit_threshold,
-    'df|dump_file:s'        => \$dump_file,
     'a|attr:s%{1,}'         => \$attr
 );
 
@@ -833,9 +831,6 @@ else {
     $logger = $log_file ? Logger->handler($log_file) : Logger->handler;
 }
 
-my $dumper = IO::File->new( $dump_file, 'w' )
-    or die "cannot open file::$!";
-
 my $schema = Bio::Chado::Schema->connect( $dsn, $user, $password, $attr );
 
 $logger->info("parsing ontology ....");
@@ -845,13 +840,6 @@ my $graph = $parser->graph;
 $logger->info("parsing done ....");
 
 my $default_namespace = $parser->default_namespace;
-if ( $default_namespace ne 'relationship' )
-{    #need to have relation ontology loaded
-    if ( !$schema->resultset('Cv::Cv')->find( { name => 'relationship' } ) ) {
-        pod2usage("relationship ontology is not loaded");
-    }
-}
-
 if ( $schema->resultset('Cv::Cv')->count( { name => $default_namespace } ) ) {
     $logger->error(
         "Given ontology $default_namespace already exist in database");
@@ -920,8 +908,6 @@ for my $rel (@rel_terms) {
 if ( $onto_manager->entries_in_cache ) {
     my $entries = $onto_manager->entries_in_cache;
     $logger->info("going to load leftover $entries relationship nodes ....");
-
-    $dumper->print( Dumper $onto_manager->cache );
     $loader->store_cache( $onto_manager->cache );
     $onto_manager->clean_cache;
     $loader->process_xref_cache;
@@ -979,7 +965,6 @@ if ( $onto_manager->entries_in_cache ) {
 
 }
 $logger->info("Done processing terms ....");
-$dumper->close;
 
 ## ----- Relationship/Link Statements -------
 

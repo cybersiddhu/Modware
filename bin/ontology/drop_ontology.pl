@@ -110,6 +110,7 @@ $schema->txn_do(
     	  	$schema->storage->dbh_do(
     	  		sub {
     	  			my ($storage, $dbh,  @ids) = @_;
+    	  	        return if !@ids;
     	  			my $values = join(', ', @ids);
     	  			$dbh->do("DELETE FROM cvtermsynonym where cvterm_id IN ($values)");
     	  		},  @cvterm_ids
