@@ -10,6 +10,7 @@ tmp
 log
 *DS_Store*
 data
+obo
 
 #exclude Build.PL
 !Build.PL

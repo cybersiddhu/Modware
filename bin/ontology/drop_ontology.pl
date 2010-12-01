@@ -47,7 +47,8 @@ use Carp;
 }
 
 my ( $dsn, $user, $password, $config, $log_file, $logger );
-my $namespace;
+my $no_cascade;
+my $attr = { AutoCommit => 1 };
 
 GetOptions(
     'h|help'            => sub { pod2usage(1); },
@@ -56,6 +57,8 @@ GetOptions(
     'dsn:s'             => \$dsn,
     'c|config:s'        => \$config,
     'l|log:s'           => \$log_file,
+    'a|attr:s%{1,}'     => \$attr,
+    'nocascade'        => \$no_cascade
 );
 
 pod2usage("!! namespace is not given !!") if !$ARGV[0];
@@ -71,6 +74,7 @@ if ($config) {
     $dsn      = $str->{database}->{dsn};
     $user     = $str->{database}->{dsn} || undef;
     $password = $str->{database}->{dsn} || undef;
+    $attr     = $str->{database}->{attr} || $attr;
     $logger = $str->{log} ? Logger->handler( $str->{log} ) : Logger->handler;
 
 }
@@ -79,7 +83,7 @@ else {
     $logger = $log_file ? Logger->handler($log_file) : Logger->handler;
 }
 
-my $schema = Bio::Chado::Schema->connect( $dsn, $user, $password );
+my $schema = Bio::Chado::Schema->connect( $dsn, $user, $password, $attr );
 
 my $cv_rs = $schema->resultset('Cv::Cv')->search( { 'me.name' => $ARGV[0] } );
 $logger->logdie("namespace $ARGV[0] do not exist !!!!") if !$cv_rs->count;
@@ -96,6 +100,23 @@ my $dbxref_rs = $schema->resultset('General::Dbxref')
     ->search( { dbxref_id => { -in => $dbxref_ids } } );
 $schema->txn_do(
     sub {
+    	if ($no_cascade) {
+    	  $cvterm_rs->search_related('cvterm_dbxrefs',  {})->delete_all;	
+    	  $cvterm_rs->search_related('cvtermprop_cvterms',  {})->delete_all;	
+    	  $cvterm_rs->search_related('cvterm_relationship_subjects',  {})->delete_all;	
+    	  $cvterm_rs->search_related('cvterm_relationship_objects',  {})->delete_all;	
+    	  if ($schema->storage->sqlt_type eq 'Oracle') {
+    	  	my @cvterm_ids = map {$_->cvterm_id} $cvterm_rs->all;
+    	  	$schema->storage->dbh_do(
+    	  		sub {
+    	  			my ($storage, $dbh,  @ids) = @_;
+    	  			my $values = join(', ', @ids);
+    	  			$dbh->do("DELETE FROM cvtermsynonym where cvterm_id IN ($values)");
+    	  		},  @cvterm_ids
+    	  	);
+    	  }
+    	  $cvterm_rs->delete_all;
+    	}
         $cv_rs->delete_all;
         $dbxref_rs->delete_all;
         $logger->info("dropped ontology $ARGV[0]");
@@ -114,7 +135,7 @@ perl drop_ontology [options] <namespace>
 
 perl drop_ontology --dsn "dbi:Pg:dbname=gmod" -u tucker -p halo sequence
 
-perl drop_ontology --dsn "dbi:Oracle:sid=modbase" -u tucker -p halo go
+perl drop_ontology --dsn "dbi:Oracle:sid=modbase" -u tucker -p halo -a AutoCommit=1 LongTruncOk=1 go
 
 perl drop_ontology -c config.yaml -l output.txt relation
 
@@ -135,6 +156,11 @@ namespace                 ontology namespace
 
 -l,--log                 log file for writing output,  otherwise would go to STDOUT 
 
+-a,--attr                Additonal attribute(s) for database connection passed in key value pair 
+
+--nocascade              Run separate delete on all dependent table,  do not depend on
+                         database cascade,  by default is off. 
+
 -c,--config              yaml config file,  if given would take preference
 
 =head2 Yaml config file format
@@ -143,6 +169,7 @@ database:
   dsn:'....'
   user:'...'
   password:'.....'
+  attr: '.....'
 log: '...'
 
 

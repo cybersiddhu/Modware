@@ -375,7 +375,7 @@ use Try::Tiny;
                 ? $node->namespace
                 : $self->cv_namespace->name;
 
-            $db_id     = $self->helper->find_or_create_db_id( $namespace );
+            $db_id     = $self->helper->find_or_create_db_id($namespace);
             $dbxref_id = $self->helper->find_dbxref_id_by_cvterm(
                 dbxref => $node->id,
                 db     => $namespace,
@@ -525,9 +525,9 @@ use Try::Tiny;
                 my $insert_hash = {
                     dbxref => { accession => $accession, db_id => $db_id } };
 
-                if ( $xref->label ) {
-                    $insert_hash->{dbxref}->{description} = $xref->label;
-                }
+                #if ( $xref->label ) {
+                    #$insert_hash->{dbxref}->{description} = $xref->label;
+                #}
                 $self->add_to_insert_cvterm_dbxrefs($insert_hash);
                 $self->add_to_xref_tracker( $accession, 1 );
             }
@@ -602,8 +602,6 @@ use Try::Tiny;
 
         if ( !$type_id ) {
             $self->skipped_message("$type relation node not in storage");
-            warn "Passed the following cvs ",
-                Dumper [ $default_cv, 'relationship', $self->other_cvs ];
             return;
         }
 
@@ -636,6 +634,7 @@ use Try::Tiny;
 
     package OntoEngine::Oracle;
     use namespace::autoclean;
+    use Bio::Chado::Schema;
     use Moose::Role;
 
     sub _handle_synonyms {
@@ -646,7 +645,7 @@ use Try::Tiny;
         for my $label ( keys %uniq_syns ) {
             $self->add_to_insert_cvtermsynonyms(
                 {   'synonym_' => $label,
-                    type_id => $self->helper->find_or_create_cvterm_id(
+                    type_id    => $self->helper->find_or_create_cvterm_id(
                         cvterm => $uniq_syns{$label},
                         cv     => 'synonym_type',
                         dbxref => $uniq_syns{$label},
@@ -659,16 +658,32 @@ use Try::Tiny;
     }
 
     sub setup {
-    	my $self = shift;
-    	my $source = $self->helper->chado->source('Cv::Cvtermsynonym');
-    	$source->remove_column('synonym');
-    	$source->add_column(
-    		'synonym_' => {
-    			data_type => 'varchar', 
-    			is_nullable => 0, 
-    			size => 1024
-    		}
-    	);
+        my $self       = shift;
+        my $source     = $self->helper->chado->source('Cv::Cvtermsynonym');
+        my $class_name = 'Bio::Chado::Schema::' . $source->source_name;
+        $source->remove_column('synonym');
+        $source->add_column(
+            'synonym_' => {
+                data_type   => 'varchar',
+                is_nullable => 0,
+                size        => 1024
+            }
+        );
+        $class_name->add_column(
+            'synonym_' => {
+                data_type   => 'varchar',
+                is_nullable => 0,
+                size        => 1024
+            }
+        );
+        $class_name->register_column(
+            'synonym_' => {
+                data_type   => 'varchar',
+                is_nullable => 0,
+                size        => 1024
+            }
+        );
+
     }
 
     package OntoEngine::Postgresql;
@@ -779,6 +794,8 @@ use Try::Tiny;
 my ( $dsn, $user, $password, $config, $log_file, $logger );
 my $dump_file        = 'dump.txt';
 my $commit_threshold = 1000;
+my $attr             = { AutoCommit => 1 };
+
 GetOptions(
     'h|help'                => sub { pod2usage(1); },
     'u|user:s'              => \$user,
@@ -787,7 +804,8 @@ GetOptions(
     'c|config:s'            => \$config,
     'l|log:s'               => \$log_file,
     'ct|commit_threshold:s' => \$commit_threshold,
-    'df|dump_file:s'        => \$dump_file
+    'df|dump_file:s'        => \$dump_file,
+    'a|attr:s%{1,}'         => \$attr
 );
 
 pod2usage("!! obo input file is not given !!") if !$ARGV[0];
@@ -803,6 +821,7 @@ if ($config) {
     $dsn      = $str->{database}->{dsn};
     $user     = $str->{database}->{dsn} || undef;
     $password = $str->{database}->{dsn} || undef;
+    $attr     = $str->{database}->{attr} || $attr;
     $logger
         = $str->{log}
         ? Logger->handler( $str->{log} )
@@ -817,7 +836,7 @@ else {
 my $dumper = IO::File->new( $dump_file, 'w' )
     or die "cannot open file::$!";
 
-my $schema = Bio::Chado::Schema->connect( $dsn, $user, $password );
+my $schema = Bio::Chado::Schema->connect( $dsn, $user, $password, $attr );
 
 $logger->info("parsing ontology ....");
 my $parser = GOBO::Parsers::OBOParserDispatchHash->new( file => $ARGV[0] );
@@ -1040,6 +1059,8 @@ perl load_ontology --dsn "dbi:Pg:dbname=gmod" -u tucker -p halo rel.obo
 
 perl load_ontology --dsn "dbi:Oracle:sid=modbase" -u tucker -p halo so.obo
 
+perl drop_ontology --dsn "dbi:Oracle:sid=modbase" -u tucker -p halo -a AutoCommit=1 LongTruncOk=1 go
+
 perl load_ontology -c config.yaml -l output.txt go.obo
 
 
@@ -1058,6 +1079,8 @@ obo_file                 obo format file
 -p,--pass,--password     chado database password 
 
 -l,--log                 log file for writing output,  otherwise would go to STDOUT 
+
+-a,--attr                Additonal attribute(s) for database connection passed in key value pair 
 
 -ct,--commit-threshold   No of entries that will be cached before it is commited to
                          storage, default is 1000
