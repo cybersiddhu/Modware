@@ -58,7 +58,7 @@ GetOptions(
     'c|config:s'        => \$config,
     'l|log:s'           => \$log_file,
     'a|attr:s%{1,}'     => \$attr,
-    'nocascade'        => \$no_cascade
+    'force_cascade'        => \$no_cascade
 );
 
 pod2usage("!! namespace is not given !!") if !$ARGV[0];
@@ -159,7 +159,7 @@ namespace                 ontology namespace
 
 -a,--attr                Additonal attribute(s) for database connection passed in key value pair 
 
---nocascade              Run separate delete on all dependent table,  do not depend on
+--force_cascade          Run separate delete on all dependent table,  do not depend on
                          database cascade,  by default is off. 
 
 -c,--config              yaml config file,  if given would take preference
