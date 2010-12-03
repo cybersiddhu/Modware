@@ -1,0 +1,19 @@
+1 DB required 1 UniProtKB      				(Gene) [Done]
+2 DB Object ID required 1 P12345      (Gene) [Done]
+3 DB Object Symbol 	required 1 PHO3    (Gene) [Done]
+4 Qualifier optional 0 or greater NOT  (Annt) [Done]
+5 GO ID 	required 1 GO:0003993        (Term) [Done]
+6 DB:Reference (|DB:Reference) required 1 ordinary greater PMID:2676709 (Annt) [Done]
+7 Evidence Code required 1 IMP      (Annt) [Done]
+8 With (or)	From optional 0 or greater GO:0000346 (Annt) [Done]
+9 Aspect required 1 F  (Term) [Done]
+10 DB Object Name optional 0 or 1 Toll-like receptor 4 (Gene) 
+11 DB Object Sybasenonym (|Synonym) optional 0 or greater hToll|Tollbooth (Gene) [Done]
+12 DB Objects Type required 1 protein  (Gene) [Done]
+13 Taxon(|taxon) required 1 or 2 taxon:9606  (Gene) [Done]
+14 Date required 1 20090118  (Annt)
+15 Assigned By required 1 SGD  (Annt)
+*16 Annotation Extension optional 0 or greater part_of(CL:0000576) (??)
+*17 Gene Product Form ID optional 0 or 1 UniProtKB:P12345-2 		(Node) [Done]	
+
+* GAF(2.0)
