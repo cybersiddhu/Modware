@@ -92,6 +92,40 @@ sub parse_evcode {
     $evcode;
 }
 
+sub is_from_pubmed {
+    my ( $self, $id ) = @_;
+    return $id if $id =~ /^PMID/;
+}
+
+sub get_anno_ref_records {
+    my ( $self, $anno ) = @_;
+    my @ids;
+    for my $xref ( @{ $anno->provenance->xrefs } ) {
+        my ( $db, $id ) = $self->parse_id( $xref->id );
+        push @ids, $id;
+    }
+    return @ids;
+
+}
+
+sub get_db_pub_records {
+    my ( $self, $row ) = @_;
+    my $fcp_rs = $row->feature_cvterm_pubs;
+    if ( $fcp_rs->count ) {
+        my @ids = map { $_->pub->uniquename } $fcp_rs->all;
+        return @ids;
+    }
+}
+
+sub get_db_records {
+    my ( $self, $row ) = @_;
+    my $fcd_rs = $row->feature_cvterm_dbxrefs();
+    if ( $fcd_rs->count and $fcd_rs->count > 1 ) {
+        my @ids = map { $_->dbxref->accession } $fcd_rs->all;
+        return @ids;
+    }
+}
+
 __PACKAGE__->meta->make_immutable;
 
 1;
@@ -102,6 +136,10 @@ use Moose;
 use Carp;
 use Data::Dumper::Concise;
 use Moose::Util qw/ensure_all_roles/;
+with 'Modware::Role::Chado::Helper::BCS::WithDataStash' =>
+    { create_stash_for =>
+        [qw/feature_cvterm_dbxrefs feature_cvtermprops feature_cvterm_pubs/]
+    };
 
 has 'helper' => (
     is      => 'rw',
@@ -116,6 +154,16 @@ has 'helper' => (
         $self->setup;
         $self->meta->make_immutable;
         $self->_preload_evcode_cache;
+    },
+    handles => {
+        'is_from_pubmed'       => 'is_from_pubmed',
+        'has_idspace'          => 'has_idspace',
+        'chado'                => 'chado',
+        'parse_id'             => 'parse_id',
+        'get_anno_ref_records' => 'get_anno_ref_records',
+        'get_db_records'       => 'get_db_records',
+        'get_db_pub_records'   => 'get_db_pub_records',
+        'parse_evcode'         => 'parse_evcode'
     }
 );
 
@@ -126,11 +174,11 @@ has 'target' => (
     predicate => 'has_target'
 );
 
-has 'gene' => (
+has 'feature' => (
     is        => 'rw',
-    isa       => 'GOBO::Gene',
-    clearer   => 'clear_gene',
-    predicate => 'has_gene'
+    isa       => 'GOBO::Node',
+    clearer   => 'clear_feature',
+    predicate => 'has_feature'
 );
 
 has 'annotation' => (
@@ -142,13 +190,15 @@ has 'annotation' => (
 
 has 'feature_row' => (
     is        => 'rw',
-    isa       => 'Bio::Chado::Schema::Sequenece::FeatureCvterm',
-    predicate => 'has_feature_row'
+    isa       => 'Bio::Chado::Schema::Sequence::Feature',
+    predicate => 'has_feature_row',
+    clearer   => 'clear_feature_row'
 );
 
 has 'cvterm_row' => (
     is        => 'rw',
-    isa       => 'Bio::Chado::Schema::Cv:Cvterm',
+    isa       => 'Bio::Chado::Schema::Cv::Cvterm',
+    clearer   => 'clear_cvterm_row',
     predicate => 'has_cvterm_row'
 );
 
@@ -167,21 +217,6 @@ has 'cache' => (
         clean_cache      => 'clear',
         entries_in_cache => 'count',
         cache_entries    => 'elements'
-    }
-);
-
-has 'term_cache' => (
-    is      => 'rw',
-    isa     => 'HashRef',
-    traits  => [qw/Hash/],
-    default => sub { {} },
-    handles => {
-        add_to_term_cache   => 'set',
-        clean_term_cache    => 'clear',
-        terms_in_cache      => 'count',
-        terms_from_cache    => 'keys',
-        is_term_in_cache    => 'defined',
-        get_term_from_cache => 'get'
     }
 );
 
@@ -206,37 +241,56 @@ has 'skipped_message' => (
     clearer => 'clear_message'
 );
 
+has 'update_tags' => (
+    is      => 'rw',
+    isa     => 'ArrayRef',
+    traits  => [qw/Array/],
+    default => sub { [] },
+    handles => {
+        add_to_update_tags    => 'push',
+        get_all_update_tags   => 'elements',
+        clear_all_update_tags => 'clear'
+    }
+);
+
 sub find_annotated {
     my ($self) = @_;
-    my $anno   = $self->annotation;
-    my $gene   = $anno->gene;
-    $self->gene($gene);
+    my $anno = $self->annotation;
 
-    my $id = $gene->id;
-    if ( $self->helper->has_idspace($id) ) {
-        my @data = $self->helper->parse_id($id);
+    # In case of GAF2 try to look for entry in column 17
+    my $feature
+        = $anno->specific_node
+        ? $anno->specific_node
+        : $anno->gene;
+    $self->feature($feature);
+
+    my $id = $feature->id;
+    if ( $self->has_idspace($id) ) {
+        my @data = $self->parse_id($id);
         $id = $data[1];
     }
     my $rs
-        = $self->helper->chado->resultset('Sequence::Feature')
+        = $self->chado->resultset('Sequence::Feature')
         ->search(
-        { -or => [ 'uniquename' => $id, 'dbxref.accession' => $id ], },
+        { -or => [ 'uniquename' => $id, 'dbxref.accession' => $id ] },
         { join => 'dbxref', cache => 1 } );
 
     if ( !$rs->count ) {
-        $self->skipped_message( 'DB object id ', $gene->id, ' not found' );
+        $self->skipped_message(
+            'DB object id ' . $feature->id . ' not found' );
         return;
     }
     if ( $rs->count > 1 ) {
         $self->skipped_message(
             'Multiple object ids ',
             join( ' - ', map { $_->uniquename } $rs->all ),
-            ' is mapped to ', $gene->id
+            ' is mapped to ',
+            $feature->id
         );
         return;
     }
     $self->feature_row( $rs->first );
-    $rs->fist->feature_id;
+    $rs->first->feature_id;
 }
 
 sub find_term {
@@ -245,8 +299,8 @@ sub find_term {
     my $target = $anno->target;
     $self->target($target);
 
-    my ( $db, $id ) = $self->helper->parse_id( $target->id );
-    my $rs = $self->helper->chado->resultset('Cv::Cvterm')->search(
+    my ( $db, $id ) = $self->parse_id( $target->id );
+    my $rs = $self->chado->resultset('Cv::Cvterm')->search(
         {   'db.name'          => $db,
             'dbxref.accession' => $id,
             'cv.name'          => $target->namespace
@@ -267,7 +321,7 @@ sub find_term {
         );
         return;
     }
-    $self->target_row( $rs->first );
+    $self->cvterm_row( $rs->first );
     $rs->first->cvterm_id;
 
 }
@@ -275,8 +329,9 @@ sub find_term {
 sub check_for_evcode {
     my ( $self, $anno ) = @_;
     $anno ||= $self->annotation;
-    my $evcode = $self->helper->parse_evcode;
-    return 1 if $self->has_evcode_in_cache($evcode);
+    my $evcode = $self->parse_evcode($anno);
+    return $self->get_evcode_from_cache($evcode)
+        if $self->has_evcode_in_cache($evcode);
     $self->skipped_message("$evcode not found");
     return 0;
 }
@@ -285,22 +340,21 @@ sub find_annotation {
     my ($self)      = @_;
     my $anno        = $self->annotation;
     my $feature_row = $self->feature_row;
-    my $target_row  = $self->target_row;
+    my $target_row  = $self->cvterm_row;
     my $evcode      = $self->parse_evcode($anno);
     my $evcode_id = $self->get_evcode_from_cache($evcode)->cvterm->cvterm_id;
 
-    my $rs
-        = $self->helper->chado->resultset('Sequence::FeatureCvterm')->search(
+    my $rs = $self->chado->resultset('Sequence::FeatureCvterm')->search(
         {   feature_id                    => $feature_row->feature_id,
             cvterm_id                     => $target_row->cvterm_id,
             'feature_cvtermprops.type_id' => $evcode_id,
         },
         { join => 'feature_cvtermprops', cache => 1 }
-        );
+    );
 
     if ( !$rs->count ) {
         $self->skipped_message( "No existing annotation for ",
-            $self->gene->id, ' and ', $self->target->id );
+            $self->feature->id, ' and ', $self->target->id );
         return;
     }
     return $rs->first;
@@ -314,7 +368,73 @@ sub keep_state_in_cache {
 sub clear_current_state {
     my ($self) = @_;
     $self->clear_stashes;
-    $self->clear_node;
+    $self->clear_target;
+    $self->clear_feature;
+    $self->clear_annotation;
+    $self->clear_feature_row;
+    $self->clear_cvterm_row;
+}
+
+sub process_annotation {
+    my ($self) = @_;
+    my $anno = $self->annotation;
+
+    $self->add_to_mapper( 'feature_id', $self->feature_row->feature_id );
+    $self->add_to_mapper( 'cvterm_id',  $self->cvterm_row->cvterm_id );
+    $self->add_to_mapper( 'is_not',     1 ) if $anno->negated;
+
+    my $reference = $anno->provenance->id;
+    my ( $db, $ref_id ) = $self->parse_id($reference);
+    my $pub_row = $self->chado->resultset('Pub::Pub')
+        ->find( { uniquename => $ref_id } );
+    if ( !$pub_row ) {
+        $self->skipped_message("$reference Not found");
+        return;
+    }
+    $self->add_to_mapper( 'pub_id', $pub_row->pub_id );
+
+    ## -- Rest of the dbxrefs if any
+XREF:
+    for my $xref ( @{ $anno->provenance->xrefs } ) {
+        my ( $db, $ref_id ) = $self->parse_id( $xref->id );
+        my $pub_row = $self->chado->resultset('Pub::Pub')
+            ->find( { uniquename => $ref_id } );
+        if ($pub_row) {
+            $self->insert_to_feature_cvterm_pubs(
+                { 'pub_id' => $pub_row->pub_id } );
+        }
+        else {
+            my $dbxref_rs = $self->chado->resultset('General::Dbxref')
+                ->search( { accession => $ref_id } );
+            if ( !$dbxref_rs->count ) {
+                warn $xref->id, " Not found\n";
+                next XREF;
+            }
+            elsif ( $dbxref_rs->count > 1 ) {
+                warn $xref->id, " multiple map found\n";
+                next XREF;
+            }
+            else {
+                $self->add_to_insert_feature_cvterm_dbxrefs(
+                    { dbxref_id => $dbxref_rs->first->dbxref_id } );
+            }
+        }
+    }
+
+    if ( my $evcode_rs = $self->check_for_evcode($anno) ) {
+        $self->add_to_insert_feature_cvtermprops(
+            {   type_id => $evcode_rs->cvterm_id,
+                value   => 1
+            }
+        );
+    }
+    else {
+        $self->skip_message( $anno->evidence, ' not found' );
+        return;
+    }
+
+    return 1;
+
 }
 
 __PACKAGE__->meta->make_immutable;
@@ -357,7 +477,7 @@ sub setup {
 
 sub _preload_evcode_cache {
     my ($self) = @_;
-    my $chado  = $self->helper->chado;
+    my $chado  = $self->chado;
     my $rs     = $chado->resultset('Cv::Cv')
         ->search( { 'name' => { -like => 'evidence_code%' } } );
     return if !$rs->count;
@@ -379,29 +499,31 @@ use namespace::autoclean;
 use Moose::Role;
 
 sub setup {
+    return 1;
 }
 
-sub _preload_ecode_cache {
+sub _preload_evcode_cache {
     my ($self) = @_;
-    my $chado  = $self->helper->chado;
+    my $chado  = $self->chado;
     my $rs     = $chado->resultset('Cv::Cv')
         ->search( { 'name' => { -like => 'evidence_code%' } } );
     return if !$rs->count;
 
-    my $syn_rs = $rs->cvterms->search_related(
-        'cvtermsynonyms_cvterms',
+    my $syn_rs = $rs->first->cvterms->search_related(
+        'cvtermsynonym_cvterms',
         {   'type.name' => { -in => [qw/EXACT RELATED/] },
             'cv.name'   => 'synonym_type'
         },
         { join => [ { 'type' => 'cv' } ] }
     );
-    $self->add_to_ecode_cache( $_->synonym, $_ ) for $syn_rs->all;
+    $self->add_to_evcode_cache( $_->synonym, $_ ) for $syn_rs->all;
 }
 
 1;
 
 package GAFLoader;
 use namespace::autoclean;
+use MooseX::Params::Validate;
 use Moose;
 use Try::Tiny;
 use Carp;
@@ -415,8 +537,17 @@ has 'manager' => (
 );
 
 has 'helper' => (
-    is  => 'rw',
-    isa => 'GAFHelper'
+    is      => 'rw',
+    isa     => 'GAFHelper',
+    handles => {
+        'is_from_pubmed'       => 'is_from_pubmed',
+        'chado'                => 'chado',
+        'parse_id'             => 'parse_id',
+        'get_anno_ref_records' => 'get_anno_ref_records',
+        'get_db_pub_records'   => 'get_db_pub_records',
+        'get_db_records'       => 'get_db_records',
+        'has_idspace'          => 'has_idspace'
+    }
 );
 
 has 'resultset' => (
@@ -451,111 +582,103 @@ sub update {
     my $self = shift;
     my ($row)
         = pos_validated_list( \@_,
-        { isa => 'Bio::Chado::Schema::Sequenece::FeatureCvterm' } );
+        { isa => 'Bio::Chado::Schema::Sequence::FeatureCvterm' } );
 
-    my $anno = $self->manager->annotation;
+    my $anno        = $self->manager->annotation;
+    my $update_flag = 0;
 
     #compare and update qualifier(s) if any
     my $neg_flag = $anno->negated ? 1 : 0;
-    $row->update( { is_not => $neg_flag } ) if $neg_flag ne $row->is_not;
+    if ( $neg_flag != $row->is_not ) {
+        $row->update( { is_not => $neg_flag } );
+        $self->manager->add_to_update_tags('Negated-Qualifier:column 4');
+        warn "updating negated flag\n";
+        $update_flag++;
+    }
 
-    #check for references
-    # -- anything that has PMID considered literature reference
-    # -- rest of them considered database records in chado feature table
-    if (    $self->helper->is_from_pubmed( $anno->provenance->id )
-        and $row->pubmed_id )
-    { #there is pubmed_id in both places,  lets check and see if they need update
-        my $pubmed_id = $self->helper->parse_id( $anno->provenace->id );
-        if ( $pubmed_id ne $row->pub->uniquename ) {    #-- needs update
-            if ( $db_id
-                = $self->helper->chado->resultset('Pub::Pub')
-                ->find( { uniquename => $pubmed_id } ) )
+    my $ref_id = $anno->provenance->id;
+    if ( $self->has_idspace($ref_id) ) {
+        my ( $db, $id ) = $self->parse_id($ref_id);
+        $ref_id = $id;
+    }
+
+    #check for primary references
+    if ( $row->pub )
+    { #there are reference ids in both places,  lets check and see if they need update
+        if ( $ref_id ne $row->pub->uniquename ) {    #-- needs update
+            if ( my $db_id
+                = $self->chado->resultset('Pub::Pub')
+                ->find( { uniquename => $ref_id } ) )
             {
                 $row->update( { pub_id => $db_id } );
+                $self->add_to_update_tags('DB:Reference:PMID');
+                $update_flag++;
             }
             else {
-                $self->manager->skipped_message( 'Could not find reference ',
-                    $anno->provenance->id );
-                return;
-            }
-        }
-    }
-    else {
-        my ( $db, $id ) = $self->helper->parse_id( $anno->provenance->id );
-        my $cvt_dbxref_rs = $row->feature_cvterm_dbxrefs;
-        if ( !first_value { $id eq $_->dbxref->accession }
-            $cvt_dbxref_rs->all )
-        {    ## - needs update
-            my $dbxref_rs = $self->helper->chado->resultset('General::Dbxref')
-                ->search( { accession => $id }, { cache => 1 } );
-            if ( $dbxref_rs->count ) {
-                $row->update_or_create_related( 'feature_cvterm_dbxrefs',
-                    { dbxref_id => $dbxref_rs->first->dbxref_id } );
-            }
-            else {
-                $self->manager->skipped_message( 'Could not find reference ',
-                    $anno->provenance->id );
-                return;
+                warn 'Could not find reference for update ',
+                    $anno->provenance->id, "\n";
             }
         }
     }
 
-    my $anno_rec
-        = Set::Object->new( $self->helper->get_anno_db_records($anno) );
-    my $anno_pub
-        = Set::Object->new( $self->helper->get_anno_pub_records($anno) );
+    ## -- all annotation secondary references
+    my $anno_ref_rec = Set::Object->new( $self->get_anno_ref_records($anno) );
 
-    my $db_rec = Set::Object->new( $self->helper->db_records($row) );
-    my $db_pub = Set::Object->new( $self->helper->db_pub_records($row) );
+    ## -- database records that are stored through feature_cvterm_dbxref
+    my $db_rec = Set::Object->new( $self->get_db_records($row) );
+
+    ## -- database records that are stored through feature_cvterm_pubprop
+    my $db_pub = Set::Object->new( $self->get_db_pub_records($row) );
 
     ## -- removing reference
-    for my $db_id ( $db_rec->difference($anno_rec)->elements )
+    for my $db_id ( $db_rec->difference($anno_ref_rec)->elements )
     {    ## -- database reference removed from annotation
-        my $rs = $self->helper->chado->resultset('General::Dbxref')
+        my $rs = $self->chado->resultset('General::Dbxref')
             ->search( { accession => $db_id }, { cache => 1 } );
-
         if ( $rs->count ) {
             $row->feature_cvterm_dbxrefs(
                 { dbxref_id => $rs->first->dbxref_id } )->delete_all;
+            $self->manager->add_to_update_tags('DB:Reference-remove');
+            $update_flag++;
         }
     }
 
-    for my $pub_id ( $db_pub->difference($anno_pub)->elements )
+    for my $pub_id ( $db_pub->difference($anno_ref_rec)->elements )
     {    ## -- database pubmed removed from annotation
-        my $rs = $self->helper->chado->resultset('Pub::Pub')
+        my $rs = $self->chado->resultset('Pub::Pub')
             ->find( { uniquename => $pub_id }, { cache => 1 } );
         if ($rs) {
             $row->feature_cvterm_pubs( { pub_id => $rs->pub_id } )
                 ->delete_all;
+            $self->manager->add_to_update_tags('DB:Reference-remove');
+            $update_flag++;
         }
     }
 
-    ## -- adding reference with database id
-    for my $anno_id ( $anno_rec->difference($db_rec)->elements )
-    {    ## -- database reference removed from annotation
-        my $rs = $self->helper->chado->resultset('General::Dbxref')
-            ->search( { accession => $anno_id }, { cache => 1 } );
-        if ( $rs->count ) {
-            $row->create_related( 'feature_cvterm_dbxrefs',
-                { dbxref_id => $rs->first->dbxref_id } );
-        }
-        else {
-            warn "$db_id not found: no link created\n";
-        }
-    }
-
-	## -- adding reference with publication id
-    for my $anno_pub_id ( $anno_pub->difference($db_pub)->elements )
+    ## -- adding reference with publication id
+    my $db_all = $db_rec + $db_pub;
+    for my $anno_ref_id ( $anno_ref_rec->difference($db_all)->elements )
     {    ## -- database pubmed removed from annotation
-        my $rs = $self->helper->chado->resultset('Pub::Pub')
-            ->find( { uniquename => $anno_pub_id }, { cache => 1 } );
+        my $rs = $self->chado->resultset('Pub::Pub')
+            ->find( { uniquename => $anno_ref_id }, { cache => 1 } );
         if ($rs) {
             $row->add_to_feature_cvterm_pubs( { pub_id => $rs->pub_id } );
+            $self->manager->add_to_update_tags('DB:Reference-secondary_pub');
+            $update_flag++;
         }
         else {
-            warn "$anno_pub_id not found: no link created\n";
+            $rs = $self->chado->resultset('General::Dbxref')
+                ->search( { accession => $anno_ref_id }, { cache => 1 } );
+            if ( !$rs->count ) {
+                warn "$anno_ref_id not found: no link created\n";
+                next;
+            }
+            $row->add_to_feature_cvterm_dbxrefs(
+                { dbxref_id => $rs->first->dbxref_id } );
+            $update_flag++;
         }
     }
+    return $update_flag;
 
     ## -- Still don't know where to model *With colum 8* and *Qualifier column 4* other
     ## -- than NOT value.
@@ -615,7 +738,10 @@ if ($config) {
 }
 else {
     pod2usage("!!! dsn option is missing !!!") if !$dsn;
-    $logger = $log_file ? Logger->handler($log_file) : Logger->handler;
+    $logger
+        = $log_file
+        ? Logger->handler($log_file)
+        : Logger->handler;
 }
 
 my $schema = Bio::Chado::Schema->connect( $dsn, $user, $password, $attr );
@@ -624,7 +750,7 @@ my $helper = GAFHelper->new( chado => $schema );
 my $manager = GAFManager->new( helper => $helper );
 my $loader = GAFLoader->new( manager => $manager );
 $loader->helper($helper);
-$loader->resultset('Feature::Cvterm');
+$loader->resultset('Sequence::FeatureCvterm');
 
 # -- evidence ontology loaded
 if ( !$manager->evcodes_in_cache ) {
@@ -641,11 +767,11 @@ $logger->info("parsing done ....");
 
 $manager->graph($graph);
 
-my $skipped = 0;
-my $loaded  = 0;
-my $updated = 0;
+my $skipped        = 0;
+my $loaded         = 0;
+my $updated        = 0;
+my $update_skipped = 0;
 
-#### -- Relations/Typedef -------- ##
 my $all_anno   = $graph->annotations;
 my $anno_count = scalar @$all_anno;
 $logger->info("Got $anno_count annotations ....");
@@ -653,65 +779,78 @@ $logger->info("Got $anno_count annotations ....");
 ANNOTATION:
 for my $anno (@$all_anno) {
     $manager->annotation($anno);
-    if (    !$manager->find_annotated
-        and !$manager->find_term
-        and !$manager->check_for_evcode )
-    {
+    if (!(      $manager->find_annotated
+            and $manager->find_term
+            and $manager->check_for_evcode
+        )
+        )
+    {    # -- check the annotated entry and node
 
-        # -- check the annotated entry and node
-        $log->warn( $self->skipped_message );
+        $logger->warn( $manager->skipped_message );
+        $skipped++;
+        $manager->clear_message;
+        next ANNOTATION;
+    }
+
+    if ( my $result = $manager->find_annotation ) { # -- annotation is present
+        if ( !$loader->update($result) ) {
+            $logger->debug(
+                'No update for ', $anno->gene->id,
+                ' and ',          $anno->target->id
+            );
+            $update_skipped++;
+            next ANNOTATION;
+        }
+        $logger->info(
+            $anno->gene->id, ' and ', $anno->target->id,
+            ' been updated with ',
+            join( "\t", $manager->get_all_update_tags ), "\n"
+        );
+        $updated++;
+        $manager->clear_all_update_tags;
+        next ANNOTATION;
+    }
+
+    #process for new entries
+    if ( !$manager->process_annotation ) {
+        $logger->warn( $manager->skipped_message );
         $skipped++;
         next ANNOTATION;
     }
+    $manager->keep_state_in_cache;
+    $manager->clear_current_state;
 
-    if ( my $result = $manager->find_annotations )
-    {    # -- annotation is present
-        $loader->update($result);
-        $log->info(
-            $anno->gene->id, ' and ', $anno->term->id,
-            ' been updated with ',
-            join( "\t", $manager->update_tags ), "\n"
+    if ( $manager->entries_in_cache >= $commit_threshold ) {
+        my $entries = $manager->entries_in_cache;
+
+        $logger->info("going to load $entries annotations ....");
+
+        #$dumper->print( Dumper $onto_manager->cache );
+        $loader->store_cache( $manager->cache );
+        $manager->clean_cache;
+
+        $logger->info("loaded $entries annotations ....");
+        $loaded += $entries;
+        $logger->info(
+            "Going to process ",
+            $anno_count - $loaded,
+            " annotations"
         );
-        $updated++;
-        next ANNOTATION;
     }
-}
-
-#process for new entries
-$manager->process;
-$manager->keep_state_in_cache;
-$manager->clear_current_state;
-
-if ( $manager->entries_in_cache >= $commit_threshold ) {
-    my $entries = $manager->entries_in_cache;
-
-    $logger->info("going to load $entries annotations ....");
-
-    #$dumper->print( Dumper $onto_manager->cache );
-    $loader->store_cache( $manager->cache );
-    $manager->clean_cache;
-
-    $logger->info("loaded $entries annotations ....");
-    $loaded += $entries;
-    $logger->info(
-        "Going to process ",
-        $anno_count - $loaded,
-        " annotations"
-    );
-}
 }
 
 if ( $manager->entries_in_cache ) {
     my $entries = $manager->entries_in_cache;
     $logger->info("going to load leftover $entries annotations ....");
-    $loader->store_cache( $onto_manager->cache );
-    $onto_manager->clean_cache;
+    $loader->store_cache( $manager->cache );
+    $manager->clean_cache;
     $logger->info("loaded leftover $entries annotations ....");
     $loaded += $entries;
 }
 
 $logger->info(
-    "Annotations >> Processed:$anno_count Updated:$updated  New:$loaded");
+    "Annotations >> Processed:$anno_count Loaded:$loaded  Updated:$updated");
+$logger->info("Update-skipped:$update_skipped Loading-skipped:$skipped");
 
 =head1 NAME
 
