@@ -125,6 +125,17 @@ sub get_anno_ref_records {
 
 }
 
+sub get_anno_dicty_records {
+    my ( $self, $anno ) = @_;
+    my @ids;
+    for my $xref ( @{ $anno->provenance->xrefs } ) {
+        my ( $db, $id ) = $self->parse_id( $xref->id );
+        push @ids, $db eq 'dictyBase_REF' ? 'PUB' . $id : $id;
+    }
+    return @ids;
+
+}
+
 sub get_db_pub_records {
     my ( $self, $row ) = @_;
     my $fcp_rs = $row->feature_cvterm_pubs;
@@ -171,6 +182,7 @@ has 'helper' => (
         $self->setup;
         $self->meta->make_immutable;
         $self->_preload_evcode_cache;
+        $self->add_new_relation;
     },
     handles => {
         'is_from_pubmed'           => 'is_from_pubmed',
@@ -303,6 +315,18 @@ has 'update_tags' => (
     }
 );
 
+sub add_new_relation {
+    my ($self) = @_;
+    my $schema = $self->chado;
+    $schema->source('Sequence::Feature')->add_relationship(
+        'dbxref_inner',
+        'Bio::Chado::Schema::General::Dbxref',
+        { 'foreign.dbxref_id' => 'self.dbxref_id' },
+        { join_type           => 'INNER' }
+    );
+
+}
+
 sub find_annotated {
     my ($self) = @_;
     my $anno = $self->annotation;
@@ -322,8 +346,8 @@ sub find_annotated {
     my $rs
         = $self->chado->resultset('Sequence::Feature')
         ->search(
-        { -or => [ 'uniquename' => $id, 'dbxref.accession' => $id ] },
-        { join => 'dbxref', cache => 1 } );
+        { -or => [ 'uniquename' => $id, 'dbxref_inner.accession' => $id ] },
+        { join => 'dbxref_inner', cache => 1 } );
 
     if ( !$rs->count ) {
         $self->skipped_message(
@@ -527,6 +551,112 @@ XREF:
     return 1;
 }
 
+sub process_dicty_annotation {
+    my ($self) = @_;
+    my $anno = $self->annotation;
+
+    $self->add_to_mapper( 'feature_id', $self->feature_row->feature_id );
+    $self->add_to_mapper( 'cvterm_id',  $self->cvterm_row->cvterm_id );
+    $self->add_to_mapper( 'is_not',     1 ) if $anno->negated;
+
+    my $reference = $anno->provenance->id;
+    my ( $db, $ref_id ) = $self->parse_id($reference);
+    $ref_id = 'PUB' . $ref_id if $db eq 'dictyBase_REF';
+
+    my $pub_row = $self->chado->resultset('Pub::Pub')
+        ->find( { uniquename => $ref_id } );
+    if ( !$pub_row ) {
+        $self->skipped_message("$reference Not found");
+        return;
+    }
+    $self->add_to_mapper( 'pub_id', $pub_row->pub_id );
+
+    ## -- Rest of the dbxrefs if any
+XREF:
+    for my $xref ( @{ $anno->provenance->xrefs } ) {
+        my ( $db, $ref_id ) = $self->parse_id( $xref->id );
+        $ref_id = 'PUB' . $ref_id if $db eq 'dictyBase_REF';
+
+        my $pub_row = $self->chado->resultset('Pub::Pub')
+            ->find( { uniquename => $ref_id } );
+        if ($pub_row) {
+            $self->insert_to_feature_cvterm_pubs(
+                { 'pub_id' => $pub_row->pub_id } );
+        }
+        else {
+            my $dbxref_rs = $self->chado->resultset('General::Dbxref')
+                ->search( { accession => $ref_id } );
+            if ( !$dbxref_rs->count ) {
+                warn $xref->id, " Not found\n";
+                next XREF;
+            }
+            elsif ( $dbxref_rs->count > 1 ) {
+                warn $xref->id, " multiple map found\n";
+                next XREF;
+            }
+            else {
+                $self->add_to_insert_feature_cvterm_dbxrefs(
+                    { dbxref_id => $dbxref_rs->first->dbxref_id } );
+            }
+        }
+    }
+
+    if ( my $evcode_rs = $self->check_for_evcode($anno) ) {
+        $self->add_to_insert_feature_cvtermprops(
+            {   type_id => $evcode_rs->cvterm_id,
+                value   => 1
+            }
+        );
+    }
+    else {
+        $self->skip_message( $anno->evidence, ' not found' );
+        return;
+    }
+
+    ## -- date column 14
+    $self->add_to_insert_feature_cvtermprops(
+        {   type_id => $self->find_or_create_cvterm_id(
+                cv     => $self->extra_cv,
+                cvterm => $self->date_term,
+                dbxref => $self->date_term,
+                db     => $self->extra_db
+            ),
+            value => $anno->date_compact
+        }
+    );
+
+    ## -- source column 15
+    $self->add_to_insert_feature_cvtermprops(
+        {   type_id => $self->find_or_create_cvterm_id(
+                cv     => $self->extra_cv,
+                cvterm => $self->source_term,
+                dbxref => $self->source_term,
+                db     => $self->extra_db
+            ),
+            value => $anno->source->id
+        }
+    );
+
+    ## -- with column 8
+    if ( my $with_field = $self->has_with_field($anno) ) {
+        my $values = $self->parse_with_field($with_field);
+        for my $i ( 0 .. scalar @$values - 1 ) {
+            $self->add_to_insert_feature_cvtermprops(
+                {   type_id => $self->find_or_create_cvterm_id(
+                        cv     => $self->extra_cv,
+                        cvterm => $self->with_term,
+                        dbxref => $self->with_term,
+                        db     => $self->extra_db
+                    ),
+                    value => $values->[$i],
+                    rank  => $i
+                }
+            );
+        }
+    }
+    return 1;
+}
+
 __PACKAGE__->meta->make_immutable;
 
 1;
@@ -572,14 +702,14 @@ sub _preload_evcode_cache {
         ->search( { 'name' => { -like => 'evidence_code%' } } );
     return if !$rs->count;
 
-    my $syn_rs = $rs->cvterms->search_related(
-        'cvtermsynonyms_cvterms',
+    my $syn_rs = $rs->first->cvterms->search_related(
+        'cvtermsynonym_cvterms',
         {   'type.name' => { -in => [qw/EXACT RELATED/] },
             'cv.name'   => 'synonym_type'
         },
         { join => [ { 'type' => 'cv' } ] }
     );
-    $self->add_to_ecode_cache( $_->_synonym, $_ ) for $syn_rs->all;
+    $self->add_to_evcode_cache( $_->synonym_, $_ ) for $syn_rs->all;
 }
 
 1;
@@ -668,6 +798,111 @@ sub store_cache {
     };
 }
 
+sub dicty_update {
+    my $self = shift;
+    my ($row)
+        = pos_validated_list( \@_,
+        { isa => 'Bio::Chado::Schema::Sequence::FeatureCvterm' } );
+
+    my $anno        = $self->manager->annotation;
+    my $update_flag = 0;
+
+    #compare and update qualifier(s) if any
+    my $neg_flag = $anno->negated ? 1 : 0;
+    if ( $neg_flag != $row->is_not ) {
+        $row->update( { is_not => $neg_flag } );
+        $self->manager->add_to_update_tags('Negated-Qualifier:column 4');
+        warn "updating negated flag\n";
+        $update_flag++;
+    }
+
+    my $ref_id = $anno->provenance->id;
+    if ( $self->has_idspace($ref_id) ) {
+        my ( $db, $id ) = $self->parse_id($ref_id);
+        $ref_id = $db eq 'dictyBase_REF' ? 'PUB' . $id : $id;
+    }
+
+    #check for primary references
+    if ( $row->pub )
+    { #there are reference ids in both places,  lets check and see if they need update
+        if ( $ref_id ne $row->pub->uniquename ) {    #-- needs update
+            if ( my $db_row
+                = $self->chado->resultset('Pub::Pub')
+                ->find( { uniquename => $ref_id } ) )
+            {
+                $row->update( { pub_id => $db_row->pub_id } );
+                $self->add_to_update_tags('DB:Reference:PMID');
+                $update_flag++;
+            }
+            else {
+                warn 'Could not find reference for update ',
+                    $anno->provenance->id, "\n";
+            }
+        }
+    }
+
+    ## -- all annotation secondary references
+    my $anno_ref_rec
+        = Set::Object->new( $self->get_anno_dicty_records($anno) );
+
+    ## -- database records that are stored through feature_cvterm_dbxref
+    my $db_rec = Set::Object->new( $self->get_db_records($row) );
+
+    ## -- database records that are stored through feature_cvterm_pubprop
+    my $db_pub = Set::Object->new( $self->get_db_pub_records($row) );
+
+    ## -- removing reference
+    for my $db_id ( $db_rec->difference($anno_ref_rec)->elements )
+    {    ## -- database reference removed from annotation
+        my $rs = $self->chado->resultset('General::Dbxref')
+            ->search( { accession => $db_id }, { cache => 1 } );
+        if ( $rs->count ) {
+            $row->feature_cvterm_dbxrefs(
+                { dbxref_id => $rs->first->dbxref_id } )->delete_all;
+            $self->manager->add_to_update_tags('DB:Reference-remove');
+            $update_flag++;
+        }
+    }
+
+    for my $pub_id ( $db_pub->difference($anno_ref_rec)->elements )
+    {    ## -- database pubmed removed from annotation
+        my $rs = $self->chado->resultset('Pub::Pub')
+            ->find( { uniquename => $pub_id }, { cache => 1 } );
+        if ($rs) {
+            $row->feature_cvterm_pubs( { pub_id => $rs->pub_id } )
+                ->delete_all;
+            $self->manager->add_to_update_tags('DB:Reference-remove');
+            $update_flag++;
+        }
+    }
+
+    ## -- adding reference with publication id
+    my $db_all = $db_rec + $db_pub;
+    for my $anno_ref_id ( $anno_ref_rec->difference($db_all)->elements )
+    {    ## -- database pubmed removed from annotation
+        my $rs = $self->chado->resultset('Pub::Pub')
+            ->find( { uniquename => $anno_ref_id }, { cache => 1 } );
+        if ($rs) {
+            $row->add_to_feature_cvterm_pubs( { pub_id => $rs->pub_id } );
+            $self->manager->add_to_update_tags('DB:Reference-secondary_pub');
+            $update_flag++;
+        }
+        else {
+            $rs = $self->chado->resultset('General::Dbxref')
+                ->search( { accession => $anno_ref_id }, { cache => 1 } );
+            if ( !$rs->count ) {
+                warn "$anno_ref_id not found: no link created\n";
+                next;
+            }
+            $row->add_to_feature_cvterm_dbxrefs(
+                { dbxref_id => $rs->first->dbxref_id } );
+            $update_flag++;
+        }
+    }
+    return $update_flag;
+
+}
+
 sub update {
     my $self = shift;
     my ($row)
@@ -696,11 +931,11 @@ sub update {
     if ( $row->pub )
     { #there are reference ids in both places,  lets check and see if they need update
         if ( $ref_id ne $row->pub->uniquename ) {    #-- needs update
-            if ( my $db_id
+            if ( my $db_row
                 = $self->chado->resultset('Pub::Pub')
                 ->find( { uniquename => $ref_id } ) )
             {
-                $row->update( { pub_id => $db_id } );
+                $row->update( { pub_id => $db_row->pub_id } );
                 $self->add_to_update_tags('DB:Reference:PMID');
                 $update_flag++;
             }
@@ -792,6 +1027,7 @@ use Carp;
 use Try::Tiny;
 
 my ( $dsn, $user, $password, $config, $log_file, $logger );
+my $dicty;
 my $commit_threshold = 1000;
 my $attr = { AutoCommit => 1 };
 
@@ -803,6 +1039,7 @@ GetOptions(
     'c|config:s'            => \$config,
     'l|log:s'               => \$log_file,
     'ct|commit_threshold:s' => \$commit_threshold,
+    'dicty'                 => \$dicty,
     'a|attr:s%{1,}'         => \$attr
 );
 
@@ -866,6 +1103,14 @@ my $all_anno   = $graph->annotations;
 my $anno_count = scalar @$all_anno;
 $logger->info("Got $anno_count annotations ....");
 
+my $update_method  = 'update';
+my $process_method = 'process_annotation';
+
+if ($dicty) {    #dicty specific
+    $update_method  = 'dicty_update';
+    $process_method = 'process_dicty_annotation';
+}
+
 ANNOTATION:
 for my $anno (@$all_anno) {
     $manager->annotation($anno);
@@ -883,7 +1128,7 @@ for my $anno (@$all_anno) {
     }
 
     if ( my $result = $manager->find_annotation ) { # -- annotation is present
-        if ( !$loader->update($result) ) {
+        if ( !$loader->$update_method($result) ) {
             $logger->debug(
                 'No update for ', $anno->gene->id,
                 ' and ',          $anno->target->id
@@ -902,7 +1147,7 @@ for my $anno (@$all_anno) {
     }
 
     #process for new entries
-    if ( !$manager->process_annotation ) {
+    if ( !$manager->$process_method ) {
         $logger->warn( $manager->skipped_message );
         $skipped++;
         next ANNOTATION;
