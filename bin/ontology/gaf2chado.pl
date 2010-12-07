@@ -39,6 +39,7 @@ package GAFHelper;
 use namespace::autoclean;
 use Moose;
 use MooseX::Params::Validate;
+with 'Modware::Role::Chado::Helper::BCS::Cvterm';
 
 has 'chado' => (
     is  => 'rw',
@@ -90,6 +91,22 @@ sub parse_evcode {
     my ($anno) = pos_validated_list( \@_, { isa => 'GOBO::Annotation' } );
     my ($evcode) = ( ( split /\-/, $anno->evidence ) )[0];
     $evcode;
+}
+
+sub has_with_field {
+    my $self = shift;
+    my ($anno) = pos_validated_list( \@_, { isa => 'GOBO::Annotation' } );
+    my ($with_field) = ( ( split /\-/, $anno->evidence ) )[1];
+    return $with_field if $with_field;
+}
+
+sub parse_with_field {
+    my ( $self, $string ) = @_;
+    if ( $string =~ /\|/ ) {
+        my @with = split /\|/, $string;
+        return \@with;
+    }
+    return [$string];
 }
 
 sub is_from_pubmed {
@@ -156,15 +173,48 @@ has 'helper' => (
         $self->_preload_evcode_cache;
     },
     handles => {
-        'is_from_pubmed'       => 'is_from_pubmed',
-        'has_idspace'          => 'has_idspace',
-        'chado'                => 'chado',
-        'parse_id'             => 'parse_id',
-        'get_anno_ref_records' => 'get_anno_ref_records',
-        'get_db_records'       => 'get_db_records',
-        'get_db_pub_records'   => 'get_db_pub_records',
-        'parse_evcode'         => 'parse_evcode'
+        'is_from_pubmed'           => 'is_from_pubmed',
+        'has_idspace'              => 'has_idspace',
+        'chado'                    => 'chado',
+        'parse_id'                 => 'parse_id',
+        'get_anno_ref_records'     => 'get_anno_ref_records',
+        'get_db_records'           => 'get_db_records',
+        'get_db_pub_records'       => 'get_db_pub_records',
+        'parse_evcode'             => 'parse_evcode',
+        'find_or_create_cvterm_id' => 'find_or_create_cvterm_id',
+        'has_with_field'           => 'has_with_field',
+        'parse_with_field'         => 'parse_with_field'
     }
+);
+
+has 'extra_cv' => (
+    is      => 'rw',
+    isa     => 'Str',
+    default => 'gene_ontology_association'
+);
+
+has 'extra_db' => (
+    is      => 'rw',
+    isa     => 'Str',
+    default => 'GO'
+);
+
+has 'date_term' => (
+    is      => 'rw',
+    isa     => 'Str',
+    default => 'date'
+);
+
+has 'source_term' => (
+    is      => 'rw',
+    isa     => 'Str',
+    default => 'source'
+);
+
+has 'with_term' => (
+    is      => 'rw',
+    isa     => 'Str',
+    default => 'with'
 );
 
 has 'target' => (
@@ -433,8 +483,48 @@ XREF:
         return;
     }
 
-    return 1;
+    ## -- date column 14
+    $self->add_to_insert_feature_cvtermprops(
+        {   type_id => $self->find_or_create_cvterm_id(
+                cv     => $self->extra_cv,
+                cvterm => $self->date_term,
+                dbxref => $self->date_term,
+                db     => $self->extra_db
+            ),
+            value => $anno->date_compact
+        }
+    );
 
+    ## -- source column 15
+    $self->add_to_insert_feature_cvtermprops(
+        {   type_id => $self->find_or_create_cvterm_id(
+                cv     => $self->extra_cv,
+                cvterm => $self->source_term,
+                dbxref => $self->source_term,
+                db     => $self->extra_db
+            ),
+            value => $anno->source->id
+        }
+    );
+
+    ## -- with column 8
+    if ( my $with_field = $self->has_with_field($anno) ) {
+        my $values = $self->parse_with_field($with_field);
+        for my $i ( 0 .. scalar @$values - 1 ) {
+            $self->add_to_insert_feature_cvtermprops(
+                {   type_id => $self->find_or_create_cvterm_id(
+                        cv     => $self->extra_cv,
+                        cvterm => $self->with_term,
+                        dbxref => $self->with_term,
+                        db     => $self->extra_db
+                    ),
+                    value => $values->[$i],
+                    rank  => $i
+                }
+            );
+        }
+    }
+    return 1;
 }
 
 __PACKAGE__->meta->make_immutable;
