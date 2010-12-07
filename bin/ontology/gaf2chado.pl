@@ -750,6 +750,7 @@ use Carp;
 use Data::Dumper::Concise;
 use List::MoreUtils qw/uniq/;
 use Set::Object;
+use DateTime::Format::Strptime;
 
 has 'manager' => (
     is  => 'rw',
@@ -773,6 +774,14 @@ has 'helper' => (
 has 'resultset' => (
     is  => 'rw',
     isa => 'Str'
+);
+
+has 'datetime' => (
+    is      => 'rw',
+    isa     => 'DateTime::Format::Strptime',
+    default => sub {
+        DateTime::Format::Strptime->new( pattern => '%Y%m%d' );
+    }
 );
 
 sub store_cache {
@@ -911,6 +920,23 @@ sub update {
 
     my $anno        = $self->manager->annotation;
     my $update_flag = 0;
+
+    # -- updated annotation will have a different date flag
+    my $date_rs = $row->search_related(
+        'feature_cvtermsynonyms',
+        { 'type.name' => $self->manager->date_term },
+        { join        => 'type', cache => 1 }
+    );
+
+    my $exist_dt = $self->datetime->parse_datetime( $date_rs->first->value );
+    my $duration = $anno->date - $exist_dt;
+    if ( $duration->is_positive ) {    # -- updated annotation
+        $date_rs->first->update( { value => $anno->date_compact } );
+        $update_flag++;
+    }
+    else {
+        return $update_flag;
+    }
 
     #compare and update qualifier(s) if any
     my $neg_flag = $anno->negated ? 1 : 0;
