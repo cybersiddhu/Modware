@@ -1043,7 +1043,7 @@ perl load_ontology --dsn "dbi:Pg:dbname=gmod" -u tucker -p halo rel.obo
 
 perl load_ontology --dsn "dbi:Oracle:sid=modbase" -u tucker -p halo so.obo
 
-perl drop_ontology --dsn "dbi:Oracle:sid=modbase" -u tucker -p halo -a AutoCommit=1 LongTruncOk=1 go
+perl load_ontology --dsn "dbi:Oracle:sid=modbase" -u tucker -p halo -a AutoCommit=1 LongTruncOk=1 go.obo
 
 perl load_ontology -c config.yaml -l output.txt go.obo
 
