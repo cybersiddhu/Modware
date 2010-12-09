@@ -427,11 +427,17 @@ sub find_annotation {
     );
 
     if ( !$rs->count ) {
-        $self->skipped_message( "No existing annotation for ",
-            $self->feature->id, ' and ', $self->target->id );
         return;
     }
-    return $rs->first;
+
+    my ( $db, $id ) = $self->parse_id( $anno->provenance->id );
+    while ( my $row = $rs->next ) {
+        return GAFRow->new( row => $row ) if $row->pub->uniquename eq $id;
+    }
+
+    my @sorted = sort { $b->rank <=> $a->rank } $rs->all;
+    return GAFRow->new( row => $sorted[0], rank => 1 );
+
 }
 
 sub keep_state_in_cache {
@@ -447,6 +453,18 @@ sub clear_current_state {
     $self->clear_annotation;
     $self->clear_feature_row;
     $self->clear_cvterm_row;
+}
+
+sub process_annotation_with_rank {
+    my ($self,  $rank) = @_;
+    $self->add_to_mapper( 'rank',     $rank++ ) ;
+    return $self->process_annotation;
+}
+
+sub process_dicty_annotation_with_rank {
+    my ($self,  $rank) = @_;
+    $self->add_to_mapper( 'rank',     $rank++ ) ;
+    return $self->process_dicty_annotation;
 }
 
 sub process_annotation {
@@ -816,6 +834,23 @@ sub dicty_update {
     my $anno        = $self->manager->annotation;
     my $update_flag = 0;
 
+    # -- updated annotation will have a different date flag
+    my $date_rs = $row->search_related(
+        'feature_cvtermsynonyms',
+        { 'type.name' => $self->manager->date_term },
+        { join        => 'type', cache => 1 }
+    );
+
+    my $exist_dt = $self->datetime->parse_datetime( $date_rs->first->value );
+    my $duration = $anno->date - $exist_dt;
+    if ( $duration->is_positive ) {    # -- updated annotation
+        $date_rs->first->update( { value => $anno->date_compact } );
+        $update_flag++;
+    }
+    else {
+        return $update_flag;
+    }
+
     #compare and update qualifier(s) if any
     my $neg_flag = $anno->negated ? 1 : 0;
     if ( $neg_flag != $row->is_not ) {
@@ -823,31 +858,6 @@ sub dicty_update {
         $self->manager->add_to_update_tags('Negated-Qualifier:column 4');
         warn "updating negated flag\n";
         $update_flag++;
-    }
-
-    my $ref_id = $anno->provenance->id;
-    if ( $self->has_idspace($ref_id) ) {
-        my ( $db, $id ) = $self->parse_id($ref_id);
-        $ref_id = $db eq 'dictyBase_REF' ? 'PUB' . $id : $id;
-    }
-
-    #check for primary references
-    if ( $row->pub )
-    { #there are reference ids in both places,  lets check and see if they need update
-        if ( $ref_id ne $row->pub->uniquename ) {    #-- needs update
-            if ( my $db_row
-                = $self->chado->resultset('Pub::Pub')
-                ->find( { uniquename => $ref_id } ) )
-            {
-                $row->update( { pub_id => $db_row->pub_id } );
-                $self->add_to_update_tags('DB:Reference:PMID');
-                $update_flag++;
-            }
-            else {
-                warn 'Could not find reference for update ',
-                    $anno->provenance->id, "\n";
-            }
-        }
     }
 
     ## -- all annotation secondary references
@@ -905,6 +915,8 @@ sub dicty_update {
             }
             $row->add_to_feature_cvterm_dbxrefs(
                 { dbxref_id => $rs->first->dbxref_id } );
+            $self->manager->add_to_update_tags(
+                'DB:Reference-secondary_dbxref');
             $update_flag++;
         }
     }
@@ -947,32 +959,9 @@ sub update {
         $update_flag++;
     }
 
-    my $ref_id = $anno->provenance->id;
-    if ( $self->has_idspace($ref_id) ) {
-        my ( $db, $id ) = $self->parse_id($ref_id);
-        $ref_id = $id;
-    }
+    # primary reference should not be updated no need to check
 
-    #check for primary references
-    if ( $row->pub )
-    { #there are reference ids in both places,  lets check and see if they need update
-        if ( $ref_id ne $row->pub->uniquename ) {    #-- needs update
-            if ( my $db_row
-                = $self->chado->resultset('Pub::Pub')
-                ->find( { uniquename => $ref_id } ) )
-            {
-                $row->update( { pub_id => $db_row->pub_id } );
-                $self->add_to_update_tags('DB:Reference:PMID');
-                $update_flag++;
-            }
-            else {
-                warn 'Could not find reference for update ',
-                    $anno->provenance->id, "\n";
-            }
-        }
-    }
-
-    ## -- all annotation secondary references
+    ## -- secondary references
     my $anno_ref_rec = Set::Object->new( $self->get_anno_ref_records($anno) );
 
     ## -- database records that are stored through feature_cvterm_dbxref
@@ -1026,6 +1015,8 @@ sub update {
             }
             $row->add_to_feature_cvterm_dbxrefs(
                 { dbxref_id => $rs->first->dbxref_id } );
+            $self->manager->add_to_update_tags(
+                'DB:Reference-secondary_dbxref');
             $update_flag++;
         }
     }
@@ -1037,6 +1028,25 @@ sub update {
 }
 
 __PACKAGE__->meta->make_immutable;
+
+1;
+
+package GAFRow;
+use Moose;
+use namespace::autoclean;
+
+has 'row' => (
+    is  => 'rw',
+    isa => 'Bio::Chado::Schema::Sequence::FeatureCvterm'
+);
+
+has 'rank' => (
+    is      => 'rw',
+    isa     => 'Bool',
+    default => sub {0}
+);
+
+__PACKAGE__->meta->make_immmutable;
 
 1;
 
@@ -1129,16 +1139,20 @@ my $all_anno   = $graph->annotations;
 my $anno_count = scalar @$all_anno;
 $logger->info("Got $anno_count annotations ....");
 
-my $update_method  = 'update';
-my $process_method = 'process_annotation';
+my $update_method     = 'update';
+my $process_method    = 'process_annotation';
+my $process_with_rank = 'process_annotation_with_rank';
 
 if ($dicty) {    #dicty specific
-    $update_method  = 'dicty_update';
-    $process_method = 'process_dicty_annotation';
+    $update_method     = 'dicty_update';
+    $process_method    = 'process_dicty_annotation';
+    $process_with_rank = 'process_dicty_annotation_with_rank';
 }
 
 ANNOTATION:
 for my $anno (@$all_anno) {
+    $logger->debug( "going for ", $anno->target->id, "\t", $anno->gene->id,
+        "\t", $anno->evidence );
     $manager->annotation($anno);
     if (!(      $manager->find_annotated
             and $manager->find_term
@@ -1154,39 +1168,50 @@ for my $anno (@$all_anno) {
     }
 
     if ( my $result = $manager->find_annotation ) { # -- annotation is present
-        if ( !$loader->$update_method($result) ) {
-            $logger->debug(
-                'No update for ', $anno->gene->id,
-                ' and ',          $anno->target->id
+        if ( $result->rank ) { ## -- annotation probably with different reference
+            if ( $manager->$process_with_rank($result->row->rank) ) {
+                $manager->keep_state_in_cache;
+                $manager->clear_current_state;
+            }
+            else {
+                $logger->warn( $manager->skipped_message );
+                $skipped++;
+                next ANNOTATION;
+            }
+        }
+        else { ## -- annotation probably needs update
+            if ( !$loader->$update_method($result) ) {
+                $logger->debug(
+                    'No update for ', $anno->gene->id,
+                    ' and ',          $anno->target->id
+                );
+                $update_skipped++;
+                next ANNOTATION;
+            }
+            $logger->info(
+                $anno->gene->id, ' and ', $anno->target->id,
+                ' been updated with ',
+                join( "\t", $manager->get_all_update_tags ), "\n"
             );
-            $update_skipped++;
+            $updated++;
+            $manager->clear_all_update_tags;
             next ANNOTATION;
         }
-        $logger->info(
-            $anno->gene->id, ' and ', $anno->target->id,
-            ' been updated with ',
-            join( "\t", $manager->get_all_update_tags ), "\n"
-        );
-        $updated++;
-        $manager->clear_all_update_tags;
-        next ANNOTATION;
     }
-
-    #process for new entries
-    if ( !$manager->$process_method ) {
+    elsif ( $manager->$process_method ) {    #process for new entries
+        $manager->keep_state_in_cache;
+        $manager->clear_current_state;
+    }
+    else {
         $logger->warn( $manager->skipped_message );
         $skipped++;
         next ANNOTATION;
     }
-    $manager->keep_state_in_cache;
-    $manager->clear_current_state;
 
     if ( $manager->entries_in_cache >= $commit_threshold ) {
         my $entries = $manager->entries_in_cache;
 
         $logger->info("going to load $entries annotations ....");
-
-        #$dumper->print( Dumper $onto_manager->cache );
         $loader->store_cache( $manager->cache );
         $manager->clean_cache;
 
