@@ -20,15 +20,17 @@ extends qw/Modware::Import::Command/;
 subtype 'Email' => as 'Str' => where { Email::Valid->address($_) };
 
 has 'link_output' => (
-    is  => 'rw',
-    isa => 'Str', 
-    traits => [qw/Getopt/], 
+    is            => 'rw',
+    traits        => [qw/Getopt/],
+    cmd_aliases   => 'lo',
+    isa           => 'Str',
     documentation => 'file name where the elink output will be written'
 );
 
 has 'temp_file' => (
     is      => 'rw',
     isa     => 'Str',
+    traits  => [qw/NoGetopt/],
     default => sub {
         my $fh = File::Temp->new;
         $fh->filename;
@@ -36,27 +38,28 @@ has 'temp_file' => (
 );
 
 has 'genus' => (
-    is        => 'rw',
-    isa       => 'Str',
-    predicate => 'has_genus', 
-    traits => [qw/Getopt/], 
+    is          => 'rw',
+    isa         => 'Str',
+    predicate   => 'has_genus',
+    traits      => [qw/Getopt/],
     cmd_aliases => 'g',
-    required => 1, 
+    required    => 1,
 );
 
 has 'species' => (
-    traits => [qw/Getopt/], 
-    is        => 'rw',
-    isa       => 'Str',
-    predicate => 'has_species', 
+    is          => 'rw',
+    isa         => 'Str',
+    traits      => [qw/Getopt/],
+    predicate   => 'has_species',
     cmd_aliases => 'sp',
-    required => 1
+    required    => 1
 );
 
 has 'query' => (
-    is           => 'rw',
-    isa          => 'Maybe[Str]',
-    default      => sub {
+    is      => 'rw',
+    traits  => [qw/NoGetopt/],
+    isa     => 'Maybe[Str]',
+    default => sub {
         my $self = shift;
         if ( $self->has_genus and $self->has_species ) {
             return $self->genus . ' OR ' . $self->species . '[tw]';
@@ -65,7 +68,6 @@ has 'query' => (
 );
 
 has 'should_get_links' => (
-    traits => [qw/Getopt/], 
     is            => 'rw',
     isa           => 'Bool',
     default       => 1,
@@ -73,17 +75,16 @@ has 'should_get_links' => (
 );
 
 has 'do_copyright_patch' => (
-    traits => [qw/Getopt/], 
     is          => 'rw',
     isa         => 'Bool',
     default     => 1,
+    traits      => [qw/Getopt/],
     cmd_aliases => 'patch',
     documentation =>
         'flag to indicate to remove the copyright tag from pubmed xml'
 );
 
 has 'reldate' => (
-    traits => [qw/Getopt/], 
     is            => 'rw',
     isa           => 'Int',
     default       => 14,
@@ -91,7 +92,6 @@ has 'reldate' => (
 );
 
 has 'retmax' => (
-    traits => [qw/Getopt/], 
     is            => 'rw',
     isa           => 'Int',
     default       => 100,
@@ -99,18 +99,22 @@ has 'retmax' => (
 );
 
 has 'db' => (
-    traits => [qw/Getopt/], 
     is            => 'rw',
     isa           => 'Str',
     default       => 'PubMed',
     documentation => 'Name of entrez database,  default is PubMed'
 );
 
-has 'email' =>
-    ( is => 'rw', isa => 'Email', default => 'dictybase@northwestern.edu' );
+has 'email' => (
+    is      => 'rw',
+    isa     => 'Email',
+    traits  => [qw/NoGetopt/],
+    default => 'dictybase@northwestern.edu'
+);
 
 has 'date' => (
     is      => 'ro',
+    traits  => [qw/NoGetopt/],
     isa     => 'Time::Piece',
     default => sub {
         Time::Piece->new->mdy('');
@@ -165,7 +169,7 @@ sub execute {
             'pretty_print' => 'indented',
         )->parsefile( $self->temp_file );
         my $outhandler = IO::File->new( $self->output, 'w' )
-            or $logger->logdie( "cannot open file:$!" );
+            or $logger->logdie("cannot open file:$!");
         $twig->print($outhandler);
         $outhandler->close;
     }
