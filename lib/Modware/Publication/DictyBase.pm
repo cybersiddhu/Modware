@@ -128,6 +128,15 @@ sub formatted_citation {
     return $str;
 }
 
+sub short_citation {
+	my ($self) = @_;
+	my $str = '';
+	$str .= $self->get_from_authors(0)->last_name . ' et al.' if $self->has_authors;
+	$str .= ' (' . $self->year . ')' if $self->year;
+	$str .= ' , PMID:' . $self->pubmed_id . ' ' if $self->pubmed_id && $self->pubmed_id =~ m{^\d+$};
+    return $str;
+}
+
 __PACKAGE__->meta->make_immutable;
 
 1;    # Magic true value required at end of module
