@@ -1,13 +1,115 @@
-package Modware::Import;
+package Modware::Fetch::Command;
+
 use strict;
 
 # Other modules:
 use Moose;
 use namespace::autoclean;
-extends qw/MooseX::App::Cmd/;
+use Moose::Util::TypeConstraints;
+use Cwd;
+use File::Spec::Functions;
+use File::Basename;
+use Time::Piece;
+use Log::Log4perl;
+use Log::Log4perl::Appender;
+use Log::Log4perl::Level;
+use YAML qw/LoadFile/;
+extends qw/MooseX::App::Cmd::Command/;
+with 'MooseX::ConfigFromFile';
 
 # Module implementation
 #
+subtype 'DataDir'  => as 'Str' => where { -d $_ };
+subtype 'DataFile' => as 'Str' => where { -f $_ };
+
+has '+configfile' => (
+	cmd_aliases => 'c', 
+	documentation => 'yaml config file to specify all command line options', 
+	traits => [qw/Getopt/]
+);
+
+has 'data_dir' => (
+    is          => 'rw',
+    isa         => 'DataDir',
+    traits      => [qw/Getopt/],
+    cmd_flag    => 'dir',
+    cmd_aliases => 'd',
+    documentation =>
+        'Folder under which input and output files can be configured to be written',
+    builder => '_build_data_dir', 
+);
+
+has 'input' => (
+    is            => 'rw',
+    isa           => 'DataFile',
+    traits        => [qw/Getopt/],
+    cmd_aliases   => 'i',
+    documentation => 'Name of the input file'
+);
+
+has 'output' => (
+    is            => 'rw',
+    isa           => 'Str',
+    traits        => [qw/Getopt/],
+    cmd_aliases   => 'o',
+    required      => 1,
+    documentation => 'Name of the output file'
+);
+
+has 'logfile' => (
+    is            => 'rw',
+    isa           => 'DataFile',
+    predicate     => 'has_logfile',
+    traits        => [qw/Getopt/],
+    cmd_aliases   => 'l',
+    documentation => 'Name of logfile by default goes to STDIN'
+);
+
+sub _build_data_dir {
+    return rel2abs(cwd);
+}
+
+sub logger {
+    my $self = shift;
+    my $logger
+        = $self->has_logfile
+        ? $self->fetch_logger( $self->logfile )
+        : $self->fetch_logger;
+    $logger;
+}
+
+sub fetch_logger {
+    my ( $self, $file ) = @_;
+
+    my $appender;
+    if ($file) {
+        my $appender = Log::Log4perl::Appender->new(
+            'Log::Log4perl::Appender::File',
+            filename => $file,
+            mode     => 'clobber'
+        );
+    }
+    else {
+        $appender
+            = Log::Log4perl::Appender->new(
+            'Log::Log4perl::Appender::ScreenColoredLevels',
+            );
+    }
+
+    my $layout = Log::Log4perl::Layout::PatternLayout->new(
+        "[%d{MM-dd-yyyy hh:mm}] %p > %F{1}:%L - %m%n");
+
+    my $log = Log::Log4perl->get_logger();
+    $appender->layout($layout);
+    $log->add_appender($appender);
+    $log->level($DEBUG);
+    $log;
+}
+
+sub get_config_from_file {
+    my ( $self, $file ) = @_;
+    return LoadFile($file);
+}
 
 1;    # Magic true value required at end of module
 
@@ -15,7 +117,12 @@ __END__
 
 =head1 NAME
 
-<Modware::Import> - [Base application class for writing import command classes]
+<MODULE NAME> - [One line description of module's purpose here]
+
+
+=head1 VERSION
+
+This document describes <MODULE NAME> version 0.0.1
 
 
 =head1 SYNOPSIS

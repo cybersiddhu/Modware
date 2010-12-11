@@ -1,99 +1,197 @@
-package Modware::Import::Command;
-
+package Modware::Fetch::Command::publication;
 use strict;
 
 # Other modules:
 use Moose;
-use namespace::autoclean;
-use Moose::Util::TypeConstraints;
-use Cwd;
-use File::Spec::Functions;
-use File::Basename;
 use Time::Piece;
-use Log::Log4perl;
-use Log::Log4perl::Appender;
-use Log::Log4perl::Level;
-extends qw/MooseX::App::Cmd::Command/;
+use Email::Valid;
+use File::Temp;
+use Bio::DB::EUtilities;
+use XML::Twig;
+use Moose::Util::TypeConstraints;
+use IO::File;
+use namespace::autoclean;
+use File::Temp;
+use File::Spec::Functions;
+extends qw/Modware::Fetch::Command/;
 
 # Module implementation
 #
-subtype 'DataDir'  => as 'Str' => where { -d $_ };
-subtype 'DataFile' => as 'Str' => where { -f $_ };
 
-has 'data_dir' => (
+subtype 'Email' => as 'Str' => where { Email::Valid->address($_) };
+
+has '+output' => (
+    default => sub {
+        my $self = shift;
+        return catfile( $self->data_dir, 'pubmed_' . $self->date . '.xml' );
+    },
+    documentation =>
+        'It is written in the data_dir folder with the name [pubmed_(current_date).xml]'
+);
+
+has 'link_output' => (
     is          => 'rw',
-    isa         => 'DataDir',
     traits      => [qw/Getopt/],
-    cmd_flag    => 'dir',
-    cmd_aliases => 'd',
-    builder     => '_build_data_dir'
+    cmd_aliases => 'lo',
+    isa         => 'Str',
+    documentation =>
+        'file name where the elink output will be written,  by default it is written under the data_dir folder with the name [pubmed_links_(current_date) . xml ] ',
+    default => sub {
+        my $self = shift;
+        return catfile( $self->data_dir,
+            'pubmed_links_' . $self->date . '.xml' );
+    }
 );
 
-has 'input' => (
+has 'temp_file' => (
+    is      => 'rw',
+    isa     => 'Str',
+    traits  => [qw/NoGetopt/],
+    default => sub {
+        my $fh = File::Temp->new;
+        $fh->filename;
+    }
+);
+
+has 'genus' => (
+    is          => 'rw',
+    isa         => 'Str',
+    predicate   => 'has_genus',
+    traits      => [qw/Getopt/],
+    cmd_aliases => 'g',
+    required    => 1,
+);
+
+has 'species' => (
+    is          => 'rw',
+    isa         => 'Str',
+    traits      => [qw/Getopt/],
+    predicate   => 'has_species',
+    cmd_aliases => 'sp',
+    required    => 1
+);
+
+has 'query' => (
+    is  => 'rw',
+    isa => 'Maybe [Str]',
+    documentation =>
+        'query for getting the pubmed entries, by default it is [genus] OR [species][tw]',
+    default => sub {
+        my $self = shift;
+        if ( $self->has_genus and $self->has_species ) {
+            return $self->genus . ' OR ' . $self->species . ' [tw] ';
+        }
+    }
+);
+
+has 'should_get_links' => (
+    is      => 'rw',
+    isa     => 'Bool',
+    default => 1,
+    documentation =>
+        'flag to indicate if it is going to fetch the elinks, default is true'
+);
+
+has 'do_copyright_patch' => (
+    is          => 'rw',
+    isa         => 'Bool',
+    default     => 1,
+    traits      => [qw/Getopt/],
+    cmd_aliases => 'patch',
+    documentation =>
+        'flag to indicate to remove the copyright tag from pubmed xml,  default is true'
+);
+
+has 'reldate' => (
     is            => 'rw',
-    isa           => 'DataFile',
-    traits        => [qw/Getopt/],
-    cmd_aliases   => 'i',
-    documentation => 'Name of the input file'
+    isa           => 'Int',
+    default       => 14,
+    documentation => 'number of dates preceding todays date, default is 14'
 );
 
-has 'output' => (
+has 'retmax' => (
+    is            => 'rw',
+    isa           => 'Int',
+    default       => 100,
+    documentation => 'maximum no of entries to return, default is 100'
+);
+
+has 'db' => (
     is            => 'rw',
     isa           => 'Str',
-    traits        => [qw/Getopt/],
-    cmd_aliases   => 'o',
-    required => 1, 
-    documentation => 'Name of the output file'
+    default       => 'PubMed',
+    documentation => 'Name of entrez database, default is PubMed'
 );
 
-has 'logfile' => (
-    is            => 'rw',
-    isa           => 'DataFile',
-    predicate      => 'has_logfile',
-    traits        => [qw/Getopt/],
-    cmd_aliases   => 'l',
-    documentation => 'Name of logfile by default goes to STDIN'
+has 'email' => (
+    is      => 'rw',
+    isa     => 'Email',
+    default => 'dictybase@northwestern.edu',
+    documentation =>
+        'e-mail that will be passed to eutils for fetching default is dictybase@northwestern.edu'
 );
 
-sub _build_data_dir {
-    return rel2abs(cwd);
-}
-
-sub logger {
-    my $self = shift;
-    my $logger
-        = $self->has_logfile
-        ? $self->fetch_logger( $self->logfile )
-        : $self->fetch_logger;
-    $logger;
-}
-
-sub fetch_logger {
-    my ( $self, $file ) = @_;
-
-    my $appender;
-    if ($file) {
-        my $appender = Log::Log4perl::Appender->new(
-            'Log::Log4perl::Appender::File',
-            filename => $file,
-            mode     => 'clobber'
-        );
+has 'date' => (
+    is      => 'ro',
+    traits  => [qw/NoGetopt/],
+    isa     => 'Time::Piece',
+    default => sub {
+        Time::Piece->new->mdy('');
     }
-    else {
-        $appender
-            = Log::Log4perl::Appender->new(
-            'Log::Log4perl::Appender::ScreenColoredLevels',
-            );
+);
+
+sub execute {
+    my $self   = shift;
+    my $eutils = Bio::DB::EUtilities->new(
+        -eutil      => 'esearch',
+        -db         => $self->db,
+        -term       => $self->query,
+        -reldate    => $self->reldate,
+        -retmax     => $self->retmax,
+        -usehistory => 'y',
+        -email      => $self->email
+    );
+
+    my $logger = $self->logger;
+    my $hist = $eutils->next_History || $logger->logdie("no history");
+
+    my @ids = $eutils->get_ids;
+    $eutils->reset_parameters(
+        -eutils  => 'efetch',
+        -db      => $self->db,
+        -history => $hist
+    );
+
+    $eutils->get_Response(
+        -file => $self->do_copyright_patch
+        ? $self->temp_file
+        : $self->output
+    );
+
+    $eutils->reset_parameters(
+        -eutil  => 'elink',
+        -dbfrom => $self->db,
+        -cmd    => 'prlinks',
+        -id     => [@ids]
+    );
+
+    $eutils->get_Response( -file => $self->link_output );
+
+    if ( $self->do_copyright_patch ) {
+
+#patch to remove the CopyrightInformation node from pubmedxml
+#It contains a encoding that causes XML::Parser to throw therefore breaking bioperl parser
+        my $twig = XML::Twig->new(
+            twig_handlers => {
+                'CopyrightInformation' => sub { $_[1]->delete }
+            },
+            'pretty_print' => 'indented',
+        )->parsefile( $self->temp_file );
+        my $outhandler = IO::File->new( $self->output, 'w' )
+            or $logger->logdie("cannot open file:$!");
+        $twig->print($outhandler);
+        $outhandler->close;
     }
-
-    my $layout = Log::Log4perl::Layout::PatternLayout->new(
-        "[%d{MM-dd-yyyy hh:mm}] %p > %F{1}:%L - %m%n");
-
-    my $log = Log::Log4perl->get_logger();
-    $appender->layout($layout);
-    $log->add_appender($appender);
-    $log->level($DEBUG);
-    $log;
 }
 
 1;    # Magic true value required at end of module

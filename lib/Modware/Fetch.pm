@@ -1,179 +1,13 @@
-package Modware::Import::Command::publication;
+package Modware::Fetch;
 use strict;
 
 # Other modules:
 use Moose;
-use Time::Piece;
-use Email::Valid;
-use File::Temp;
-use Bio::DB::EUtilities;
-use XML::Twig;
-use Moose::Util::TypeConstraints;
-use IO::File;
 use namespace::autoclean;
-use File::Temp;
-extends qw/Modware::Import::Command/;
+extends qw/MooseX::App::Cmd/;
 
 # Module implementation
 #
-
-subtype 'Email' => as 'Str' => where { Email::Valid->address($_) };
-
-has 'link_output' => (
-    is            => 'rw',
-    traits        => [qw/Getopt/],
-    cmd_aliases   => 'lo',
-    isa           => 'Str',
-    documentation => 'file name where the elink output will be written'
-);
-
-has 'temp_file' => (
-    is      => 'rw',
-    isa     => 'Str',
-    traits  => [qw/NoGetopt/],
-    default => sub {
-        my $fh = File::Temp->new;
-        $fh->filename;
-    }
-);
-
-has 'genus' => (
-    is          => 'rw',
-    isa         => 'Str',
-    predicate   => 'has_genus',
-    traits      => [qw/Getopt/],
-    cmd_aliases => 'g',
-    required    => 1,
-);
-
-has 'species' => (
-    is          => 'rw',
-    isa         => 'Str',
-    traits      => [qw/Getopt/],
-    predicate   => 'has_species',
-    cmd_aliases => 'sp',
-    required    => 1
-);
-
-has 'query' => (
-    is      => 'rw',
-    traits  => [qw/NoGetopt/],
-    isa     => 'Maybe[Str]',
-    default => sub {
-        my $self = shift;
-        if ( $self->has_genus and $self->has_species ) {
-            return $self->genus . ' OR ' . $self->species . '[tw]';
-        }
-    }
-);
-
-has 'should_get_links' => (
-    is            => 'rw',
-    isa           => 'Bool',
-    default       => 1,
-    documentation => 'flag to indicate if it is going to fetch the elinks'
-);
-
-has 'do_copyright_patch' => (
-    is          => 'rw',
-    isa         => 'Bool',
-    default     => 1,
-    traits      => [qw/Getopt/],
-    cmd_aliases => 'patch',
-    documentation =>
-        'flag to indicate to remove the copyright tag from pubmed xml'
-);
-
-has 'reldate' => (
-    is            => 'rw',
-    isa           => 'Int',
-    default       => 14,
-    documentation => 'number of dates preceding todays date'
-);
-
-has 'retmax' => (
-    is            => 'rw',
-    isa           => 'Int',
-    default       => 100,
-    documentation => 'maximum no of entries to return'
-);
-
-has 'db' => (
-    is            => 'rw',
-    isa           => 'Str',
-    default       => 'PubMed',
-    documentation => 'Name of entrez database,  default is PubMed'
-);
-
-has 'email' => (
-    is      => 'rw',
-    isa     => 'Email',
-    traits  => [qw/NoGetopt/],
-    default => 'dictybase@northwestern.edu'
-);
-
-has 'date' => (
-    is      => 'ro',
-    traits  => [qw/NoGetopt/],
-    isa     => 'Time::Piece',
-    default => sub {
-        Time::Piece->new->mdy('');
-    }
-);
-
-sub execute {
-    my $self   = shift;
-    my $eutils = Bio::DB::EUtilities->new(
-        -eutil      => 'esearch',
-        -db         => $self->db,
-        -term       => $self->query,
-        -reldate    => $self->reldate,
-        -retmax     => $self->retmax,
-        -usehistory => 'y',
-        -email      => $self->email
-    );
-
-    my $logger = $self->logger;
-    my $hist = $eutils->next_History || $logger->logdie("no history");
-
-    my @ids = $eutils->get_ids;
-    $eutils->reset_parameters(
-        -eutils  => 'efetch',
-        -db      => $self->db,
-        -history => $hist
-    );
-
-    $eutils->get_Response(
-        -file => $self->do_copyright_patch
-        ? $self->temp_file
-        : $self->output
-    );
-
-    $eutils->reset_parameters(
-        -eutil  => 'elink',
-        -dbfrom => $self->db,
-        -cmd    => 'prlinks',
-        -id     => [@ids]
-    );
-
-    $eutils->get_Response( -file => $self->link_output );
-
-    if ( $self->do_copyright_patch ) {
-
-#patch to remove the CopyrightInformation node from pubmedxml
-#It contains a encoding that causes XML::Parser to throw therefore breaking bioperl parser
-        my $twig = XML::Twig->new(
-            twig_handlers => {
-                'CopyrightInformation' => sub { $_[1]->delete }
-            },
-            'pretty_print' => 'indented',
-        )->parsefile( $self->temp_file );
-        my $outhandler = IO::File->new( $self->output, 'w' )
-            or $logger->logdie("cannot open file:$!");
-        $twig->print($outhandler);
-        $outhandler->close;
-    }
-}
 
 1;    # Magic true value required at end of module
 
@@ -181,12 +15,7 @@ __END__
 
 =head1 NAME
 
-<MODULE NAME> - [One line description of module's purpose here]
-
-
-=head1 VERSION
-
-This document describes <MODULE NAME> version 0.0.1
+<Modware::Import> - [Base application class for writing import command classes]
 
 
 =head1 SYNOPSIS
