@@ -114,6 +114,11 @@ sub is_from_pubmed {
     return $id if $id =~ /^PMID/;
 }
 
+sub is_from_dicty {
+    my ( $self, $id ) = @_;
+    return $id if $id =~ /^PUB/;
+}
+
 sub get_anno_ref_records {
     my ( $self, $anno ) = @_;
     my @ids;
@@ -134,6 +139,12 @@ sub get_anno_dicty_records {
     }
     return @ids;
 
+}
+
+sub normalize_dicty_id {
+    my ( $self, $id ) = @_;
+    $id =~ s/^PUB//;
+    $id;
 }
 
 sub get_db_pub_records {
@@ -162,6 +173,7 @@ package GAFManager;
 use namespace::autoclean;
 use Moose;
 use Carp;
+use Digest;
 use Data::Dumper::Concise;
 use Moose::Util qw/ensure_all_roles/;
 with 'Modware::Role::Chado::Helper::BCS::WithDataStash' =>
@@ -186,6 +198,8 @@ has 'helper' => (
     },
     handles => {
         'is_from_pubmed'           => 'is_from_pubmed',
+        'is_from_dicty'            => 'is_from_dicty',
+        'normalize_dicty_id'       => 'normalize_dicty_id',
         'has_idspace'              => 'has_idspace',
         'chado'                    => 'chado',
         'parse_id'                 => 'parse_id',
@@ -211,19 +225,19 @@ has 'extra_db' => (
     default => 'GO'
 );
 
-has 'date_term' => (
+has 'date_column' => (
     is      => 'rw',
     isa     => 'Str',
     default => 'date'
 );
 
-has 'source_term' => (
+has 'source_column' => (
     is      => 'rw',
     isa     => 'Str',
     default => 'source'
 );
 
-has 'with_term' => (
+has 'with_column' => (
     is      => 'rw',
     isa     => 'Str',
     default => 'with'
@@ -297,21 +311,34 @@ has 'evcode_cache' => (
     }
 );
 
+has 'digest_cache' => (
+    is      => 'rw',
+    isa     => 'HashRef',
+    traits  => [qw/Hash/],
+    default => sub { {} },
+    handles => {
+        set_rank_in_digest_cache => 'set',
+        clean_digest_cache       => 'clear',
+        has_digest_in_cache      => 'defined',
+        rank_from_digest_cache   => 'get'
+    }
+);
+
 has 'skipped_message' => (
     is      => 'rw',
     isa     => 'Str',
     clearer => 'clear_message'
 );
 
-has 'update_tags' => (
+has 'update_message' => (
     is      => 'rw',
     isa     => 'ArrayRef',
     traits  => [qw/Array/],
     default => sub { [] },
     handles => {
-        add_to_update_tags    => 'push',
-        get_all_update_tags   => 'elements',
-        clear_all_update_tags => 'clear'
+        add_to_update_message    => 'push',
+        get_all_update_message   => 'elements',
+        clear_all_update_message => 'clear'
     }
 );
 
@@ -419,25 +446,153 @@ sub find_annotation {
     my $evcode_id = $self->get_evcode_from_cache($evcode)->cvterm->cvterm_id;
 
     my $rs = $self->chado->resultset('Sequence::FeatureCvterm')->search(
-        {   feature_id                    => $feature_row->feature_id,
-            cvterm_id                     => $target_row->cvterm_id,
-            'feature_cvtermprops.type_id' => $evcode_id,
+        {   feature_id => $feature_row->feature_id,
+            cvterm_id  => $target_row->cvterm_id,
         },
-        { join => 'feature_cvtermprops', cache => 1 }
     );
 
-    if ( !$rs->count ) {
-        return;
+    my ( $db, $id ) = $self->parse_id( $anno->provenance->id );
+    if ( $rs->count ) {
+        while ( my $row = $rs->next ) {
+            ## -- same evcode
+            ## 1. Identical pubmed id: Record need update
+            ## 2. Different pubmed id: New record
+            ## -- We don't need to check the graph because four parameters(goid, geneid,  evcode,
+            ## -- referernce) with identical value in the same GAF file signify identical record
+            ## -- which violates the GAF rules anyway. It might happen only when existing GAF
+            ## -- records are being updated.
+            my $evrow
+                = $row->feature_cvtermprops(
+                { 'cv.name' => { -like  => 'evidence_code%' } },
+                { join      => { 'type' => 'cv' } } )->first;
+
+            if ( $evrow->type->cvterm_id == $evcode_id ) {
+                return GAFRank->new( row => $row )
+                    if $row->pub->uniquename eq $id;
+            }
+        }
     }
+
+    ## -- should be a new record however we have determine if it need to be stored with
+    ## -- new rank
+    ## -- Different evcode
+    ## -- make a sha1 digest of three parameters
+    my $str    = $anno->target->id . $anno->gene->id . $id;
+    my $digest = Digest->new('SHA-1')->add($str)->digest;
+    if ( $self->has_digest_in_cache($digest) ) {
+        ## exist so its a new record with a new rank
+        my $rank = $self->rank_from_digest_cache($digest);
+        $self->set_rank_in_digest_cache( $digest, $rank + 1 );
+        return GAFRank->new( rank => $rank + 1 );
+    }
+    ## new record with default rank
+    $self->set_rank_in_digest_cache( $digest, 0 );
+    return;
+
+ # -- Get from database
+ #    my @type_ids_from_db = = map {
+ #        $_->feature_cvtermprops(
+ #            { 'cv.name' => { -like  => 'evidence_code%' } },
+ #            { join      => { 'type' => 'cv' } } )->first->type_id
+ #        }
+ #        grep { $_->pub->uniquename eq $id } $rs->all;
+ #
+ #    # -- from the graph
+ #    my @type_ids_from_graph
+ #        = map { $self->get_evcode_from_cache($_) }
+ #        map   { $self->parse_evcode( $_->evidence ) } grep {
+ #                ( $_->provenance->id eq $anno->provenance->id )
+ #            and ( $_->gene->id eq $anno->gene->id )
+ #            and ( $evcode ne $self->parse_evcode( $_->evidence ) )
+ #        } @{ $self->graph->get_annotations_by_target( $anno->target->id ) };
+ #
+ #    if ( @from_graph > 1 and @evcodes )
+ #    {    ## -- will always have the self annotation
+ #        my @db_records = $rank_count += $#from_graph;
+ #    }
+ #    return GAFRow->new( rank => $rank_count ) if $rank_rount;
+ #    return;
+}
+
+sub find_dicty_annotation {
+    my ($self)      = @_;
+    my $anno        = $self->annotation;
+    my $feature_row = $self->feature_row;
+    my $target_row  = $self->cvterm_row;
+    my $evcode      = $self->parse_evcode($anno);
+    my $evcode_id = $self->get_evcode_from_cache($evcode)->cvterm->cvterm_id;
+
+    my $rs = $self->chado->resultset('Sequence::FeatureCvterm')->search(
+        {   feature_id => $feature_row->feature_id,
+            cvterm_id  => $target_row->cvterm_id,
+        },
+    );
 
     my ( $db, $id ) = $self->parse_id( $anno->provenance->id );
-    while ( my $row = $rs->next ) {
-        return GAFRow->new( row => $row ) if $row->pub->uniquename eq $id;
+    if ( $rs->count ) {
+        while ( my $row = $rs->next ) {
+            ## -- same evcode
+            ## 1. Identical pubmed id: Record need update
+            ## 2. Different pubmed id: New record
+            ## -- We don't need to check the graph because four parameters(goid, geneid,  evcode,
+            ## -- referernce) with identical value in the same GAF file signify identical record
+            ## -- which violates the GAF rules anyway. It might happen only when existing GAF
+            ## -- records are being updated.
+            my $evrow
+                = $row->feature_cvtermprops(
+                { 'cv.name' => { -like  => 'evidence_code%' } },
+                { join      => { 'type' => 'cv' } } )->first;
+
+            if ( $evrow->type->cvterm_id == $evcode_id ) {
+                my $db_id
+                    = $self->is_from_dicty( $row->pub->uniquename )
+                    ? $self->normalize_dicty_id( $row->pub->uniquename )
+                    : $row->pub->uniquename;
+                return GAFRank->new( row => $row )
+                    if $id eq $db_id;
+            }
+        }
     }
 
-    my @sorted = sort { $b->rank <=> $a->rank } $rs->all;
-    return GAFRow->new( row => $sorted[0], rank => 1 );
+    ## -- should be a new record however we have determine if it need to be stored with
+    ## -- new rank
+    ## -- Different evcode
+    ## -- make a sha1 digest of three parameters
+    my $str    = $anno->target->id . $anno->gene->id . $id;
+    my $digest = Digest->new('SHA-1')->add($str)->digest;
+    if ( $self->has_digest_in_cache($digest) ) {
+        ## exist so its a new record with a new rank
+        my $rank = $self->rank_from_digest_cache($digest);
+        $self->set_rank_in_digest_cache( $digest, $rank + 1 );
+        return GAFRank->new( rank => $rank + 1 );
+    }
+    ## new record with default rank
+    $self->set_rank_in_digest_cache( $digest, 0 );
+    return;
 
+ # -- Get from database
+ #    my @type_ids_from_db = = map {
+ #        $_->feature_cvtermprops(
+ #            { 'cv.name' => { -like  => 'evidence_code%' } },
+ #            { join      => { 'type' => 'cv' } } )->first->type_id
+ #        }
+ #        grep { $_->pub->uniquename eq $id } $rs->all;
+ #
+ #    # -- from the graph
+ #    my @type_ids_from_graph
+ #        = map { $self->get_evcode_from_cache($_) }
+ #        map   { $self->parse_evcode( $_->evidence ) } grep {
+ #                ( $_->provenance->id eq $anno->provenance->id )
+ #            and ( $_->gene->id eq $anno->gene->id )
+ #            and ( $evcode ne $self->parse_evcode( $_->evidence ) )
+ #        } @{ $self->graph->get_annotations_by_target( $anno->target->id ) };
+ #
+ #    if ( @from_graph > 1 and @evcodes )
+ #    {    ## -- will always have the self annotation
+ #        my @db_records = $rank_count += $#from_graph;
+ #    }
+ #    return GAFRow->new( rank => $rank_count ) if $rank_rount;
+ #    return;
 }
 
 sub keep_state_in_cache {
@@ -456,14 +611,14 @@ sub clear_current_state {
 }
 
 sub process_annotation_with_rank {
-    my ($self,  $rank) = @_;
-    $self->add_to_mapper( 'rank',     $rank++ ) ;
+    my ( $self, $rank ) = @_;
+    $self->add_to_mapper( 'rank', $rank );
     return $self->process_annotation;
 }
 
 sub process_dicty_annotation_with_rank {
-    my ($self,  $rank) = @_;
-    $self->add_to_mapper( 'rank',     $rank++ ) ;
+    my ( $self, $rank ) = @_;
+    $self->add_to_mapper( 'rank', $rank );
     return $self->process_dicty_annotation;
 }
 
@@ -529,8 +684,8 @@ XREF:
     $self->add_to_insert_feature_cvtermprops(
         {   type_id => $self->find_or_create_cvterm_id(
                 cv     => $self->extra_cv,
-                cvterm => $self->date_term,
-                dbxref => $self->date_term,
+                cvterm => $self->date_column,
+                dbxref => $self->date_column,
                 db     => $self->extra_db
             ),
             value => $anno->date_compact
@@ -541,8 +696,8 @@ XREF:
     $self->add_to_insert_feature_cvtermprops(
         {   type_id => $self->find_or_create_cvterm_id(
                 cv     => $self->extra_cv,
-                cvterm => $self->source_term,
-                dbxref => $self->source_term,
+                cvterm => $self->source_column,
+                dbxref => $self->source_column,
                 db     => $self->extra_db
             ),
             value => $anno->source->id
@@ -556,8 +711,8 @@ XREF:
             $self->add_to_insert_feature_cvtermprops(
                 {   type_id => $self->find_or_create_cvterm_id(
                         cv     => $self->extra_cv,
-                        cvterm => $self->with_term,
-                        dbxref => $self->with_term,
+                        cvterm => $self->with_column,
+                        dbxref => $self->with_column,
                         db     => $self->extra_db
                     ),
                     value => $values->[$i],
@@ -635,8 +790,8 @@ XREF:
     $self->add_to_insert_feature_cvtermprops(
         {   type_id => $self->find_or_create_cvterm_id(
                 cv     => $self->extra_cv,
-                cvterm => $self->date_term,
-                dbxref => $self->date_term,
+                cvterm => $self->date_column,
+                dbxref => $self->date_column,
                 db     => $self->extra_db
             ),
             value => $anno->date_compact
@@ -647,8 +802,8 @@ XREF:
     $self->add_to_insert_feature_cvtermprops(
         {   type_id => $self->find_or_create_cvterm_id(
                 cv     => $self->extra_cv,
-                cvterm => $self->source_term,
-                dbxref => $self->source_term,
+                cvterm => $self->source_column,
+                dbxref => $self->source_column,
                 db     => $self->extra_db
             ),
             value => $anno->source->id
@@ -662,8 +817,8 @@ XREF:
             $self->add_to_insert_feature_cvtermprops(
                 {   type_id => $self->find_or_create_cvterm_id(
                         cv     => $self->extra_cv,
-                        cvterm => $self->with_term,
-                        dbxref => $self->with_term,
+                        cvterm => $self->with_column,
+                        dbxref => $self->with_column,
                         db     => $self->extra_db
                     ),
                     value => $values->[$i],
@@ -804,14 +959,14 @@ has 'datetime' => (
 
 sub store_cache {
     my ( $self, $cache ) = @_;
-    my $chado = $self->manager->helper->chado;
+    my $chado = $self->chado;
     my $index;
     try {
         $chado->txn_do(
             sub {
 
                 #$chado->resultset( $self->resultset )->populate($cache);
-                for my $i ( 0 .. scalar @$cache - 1 ) {
+                for my $i ( 0 .. $#$cache ) {
                     $index = $i;
                     $chado->resultset( $self->resultset )
                         ->create( $cache->[$i] );
@@ -820,8 +975,7 @@ sub store_cache {
         );
     }
     catch {
-        warn "error in creating: $_";
-        croak Dumper $cache->[$index];
+        croak $_, "\t", Dumper $cache->[$index];
     };
 }
 
@@ -836,8 +990,8 @@ sub dicty_update {
 
     # -- updated annotation will have a different date flag
     my $date_rs = $row->search_related(
-        'feature_cvtermsynonyms',
-        { 'type.name' => $self->manager->date_term },
+        'feature_cvtermprops',
+        { 'type.name' => $self->manager->date_column },
         { join        => 'type', cache => 1 }
     );
 
@@ -855,7 +1009,7 @@ sub dicty_update {
     my $neg_flag = $anno->negated ? 1 : 0;
     if ( $neg_flag != $row->is_not ) {
         $row->update( { is_not => $neg_flag } );
-        $self->manager->add_to_update_tags('Negated-Qualifier:column 4');
+        $self->manager->add_to_update_message('Negated-Qualifier:column 4');
         warn "updating negated flag\n";
         $update_flag++;
     }
@@ -878,7 +1032,7 @@ sub dicty_update {
         if ( $rs->count ) {
             $row->feature_cvterm_dbxrefs(
                 { dbxref_id => $rs->first->dbxref_id } )->delete_all;
-            $self->manager->add_to_update_tags('DB:Reference-remove');
+            $self->manager->add_to_update_message('DB:Reference-remove');
             $update_flag++;
         }
     }
@@ -890,7 +1044,7 @@ sub dicty_update {
         if ($rs) {
             $row->feature_cvterm_pubs( { pub_id => $rs->pub_id } )
                 ->delete_all;
-            $self->manager->add_to_update_tags('DB:Reference-remove');
+            $self->manager->add_to_update_message('DB:Reference-remove');
             $update_flag++;
         }
     }
@@ -903,7 +1057,8 @@ sub dicty_update {
             ->find( { uniquename => $anno_ref_id }, { cache => 1 } );
         if ($rs) {
             $row->add_to_feature_cvterm_pubs( { pub_id => $rs->pub_id } );
-            $self->manager->add_to_update_tags('DB:Reference-secondary_pub');
+            $self->manager->add_to_update_message(
+                'DB:Reference-secondary_pub');
             $update_flag++;
         }
         else {
@@ -915,7 +1070,7 @@ sub dicty_update {
             }
             $row->add_to_feature_cvterm_dbxrefs(
                 { dbxref_id => $rs->first->dbxref_id } );
-            $self->manager->add_to_update_tags(
+            $self->manager->add_to_update_message(
                 'DB:Reference-secondary_dbxref');
             $update_flag++;
         }
@@ -936,7 +1091,7 @@ sub update {
     # -- updated annotation will have a different date flag
     my $date_rs = $row->search_related(
         'feature_cvtermsynonyms',
-        { 'type.name' => $self->manager->date_term },
+        { 'type.name' => $self->manager->date_column },
         { join        => 'type', cache => 1 }
     );
 
@@ -954,7 +1109,7 @@ sub update {
     my $neg_flag = $anno->negated ? 1 : 0;
     if ( $neg_flag != $row->is_not ) {
         $row->update( { is_not => $neg_flag } );
-        $self->manager->add_to_update_tags('Negated-Qualifier:column 4');
+        $self->manager->add_to_update_message('Negated-Qualifier:column 4');
         warn "updating negated flag\n";
         $update_flag++;
     }
@@ -978,7 +1133,7 @@ sub update {
         if ( $rs->count ) {
             $row->feature_cvterm_dbxrefs(
                 { dbxref_id => $rs->first->dbxref_id } )->delete_all;
-            $self->manager->add_to_update_tags('DB:Reference-remove');
+            $self->manager->add_to_update_message('DB:Reference-remove');
             $update_flag++;
         }
     }
@@ -990,7 +1145,7 @@ sub update {
         if ($rs) {
             $row->feature_cvterm_pubs( { pub_id => $rs->pub_id } )
                 ->delete_all;
-            $self->manager->add_to_update_tags('DB:Reference-remove');
+            $self->manager->add_to_update_message('DB:Reference-remove');
             $update_flag++;
         }
     }
@@ -1003,7 +1158,8 @@ sub update {
             ->find( { uniquename => $anno_ref_id }, { cache => 1 } );
         if ($rs) {
             $row->add_to_feature_cvterm_pubs( { pub_id => $rs->pub_id } );
-            $self->manager->add_to_update_tags('DB:Reference-secondary_pub');
+            $self->manager->add_to_update_message(
+                'DB:Reference-secondary_pub');
             $update_flag++;
         }
         else {
@@ -1015,7 +1171,7 @@ sub update {
             }
             $row->add_to_feature_cvterm_dbxrefs(
                 { dbxref_id => $rs->first->dbxref_id } );
-            $self->manager->add_to_update_tags(
+            $self->manager->add_to_update_message(
                 'DB:Reference-secondary_dbxref');
             $update_flag++;
         }
@@ -1031,22 +1187,22 @@ __PACKAGE__->meta->make_immutable;
 
 1;
 
-package GAFRow;
-use Moose;
+package GAFRank;
 use namespace::autoclean;
+use Moose;
+
+has 'rank' => (
+    is        => 'rw',
+    isa       => 'Int',
+    predicate => 'has_rank'
+);
 
 has 'row' => (
     is  => 'rw',
     isa => 'Bio::Chado::Schema::Sequence::FeatureCvterm'
 );
 
-has 'rank' => (
-    is      => 'rw',
-    isa     => 'Bool',
-    default => sub {0}
-);
-
-__PACKAGE__->meta->make_immmutable;
+__PACKAGE__->meta->make_immutable;
 
 1;
 
@@ -1142,24 +1298,24 @@ $logger->info("Got $anno_count annotations ....");
 my $update_method     = 'update';
 my $process_method    = 'process_annotation';
 my $process_with_rank = 'process_annotation_with_rank';
+my $finder_method     = 'find_annotation';
 
 if ($dicty) {    #dicty specific
     $update_method     = 'dicty_update';
     $process_method    = 'process_dicty_annotation';
     $process_with_rank = 'process_dicty_annotation_with_rank';
+    $finder_method     = 'find_dicty_annotation';
 }
 
 ANNOTATION:
 for my $anno (@$all_anno) {
-    $logger->debug( "going for ", $anno->target->id, "\t", $anno->gene->id,
-        "\t", $anno->evidence );
     $manager->annotation($anno);
     if (!(      $manager->find_annotated
             and $manager->find_term
             and $manager->check_for_evcode
         )
         )
-    {    # -- check the annotated entry and node
+    {    # -- check if any one of the annotated entry, node and evcode exists
 
         $logger->warn( $manager->skipped_message );
         $skipped++;
@@ -1167,9 +1323,10 @@ for my $anno (@$all_anno) {
         next ANNOTATION;
     }
 
-    if ( my $result = $manager->find_annotation ) { # -- annotation is present
-        if ( $result->rank ) { ## -- annotation probably with different reference
-            if ( $manager->$process_with_rank($result->row->rank) ) {
+    if ( my $result = $manager->$finder_method ) {  # -- annotation is present
+        if ( $result->has_rank )
+        {    ## -- annotation probably with different rank
+            if ( $manager->$process_with_rank( $result->rank ) ) {
                 $manager->keep_state_in_cache;
                 $manager->clear_current_state;
             }
@@ -1179,8 +1336,8 @@ for my $anno (@$all_anno) {
                 next ANNOTATION;
             }
         }
-        else { ## -- annotation probably needs update
-            if ( !$loader->$update_method($result) ) {
+        else {    ## -- annotation probably needs update
+            if ( !$loader->$update_method( $result->row ) ) {
                 $logger->debug(
                     'No update for ', $anno->gene->id,
                     ' and ',          $anno->target->id
@@ -1189,12 +1346,15 @@ for my $anno (@$all_anno) {
                 next ANNOTATION;
             }
             $logger->info(
-                $anno->gene->id, ' and ', $anno->target->id,
+                $anno->gene->id,
+                ' and ',
+                $anno->target->id,
                 ' been updated with ',
-                join( "\t", $manager->get_all_update_tags ), "\n"
+                join( "\t", $manager->get_all_update_message ),
+                "\n"
             );
             $updated++;
-            $manager->clear_all_update_tags;
+            $manager->clear_all_update_message;
             next ANNOTATION;
         }
     }
