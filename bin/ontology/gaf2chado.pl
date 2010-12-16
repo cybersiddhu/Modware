@@ -243,6 +243,12 @@ has 'with_column' => (
     default => 'with'
 );
 
+has 'qualifier_column' => (
+    is      => 'rw',
+    isa     => 'Str',
+    default => 'qualifier'
+);
+
 has 'target' => (
     is        => 'rw',
     isa       => 'GOBO::Node',
@@ -341,6 +347,17 @@ has 'update_message' => (
         clear_all_update_message => 'clear'
     }
 );
+
+sub get_db_qual {
+    my $row = shift;
+    my $rs
+        = $row->feature_cvtermprops(
+        { 'type.name' => $self->qualifier_column },
+        { join        => 'type' } );
+    if ( $rs->count ) {
+        return [ map { $_->value } $rs->all ];
+    }
+}
 
 sub add_new_relation {
     my ($self) = @_;
@@ -721,6 +738,24 @@ XREF:
             );
         }
     }
+
+    ## -- extra qualifiers
+    if ( my $qual = $anno->qualifier_list ) {
+        for my $entry (@$qual) {
+            $self->add_to_insert_feature_cvtermprops(
+                {   type_id => $self->find_or_create_cvterm_id(
+                        cv     => $self->extra_cv,
+                        cvterm => $self->qualifier_column,
+                        dbxref => $self->qualifier_column,
+                        db     => $self->extra_db
+                    ),
+                    value => $entry->id,
+                }
+            );
+        }
+
+    }
+
     return 1;
 }
 
@@ -826,6 +861,23 @@ XREF:
                 }
             );
         }
+    }
+
+## -- extra qualifiers
+    if ( my $qual = $anno->qualifier_list ) {
+        for my $entry (@$qual) {
+            $self->add_to_insert_feature_cvtermprops(
+                {   type_id => $self->find_or_create_cvterm_id(
+                        cv     => $self->extra_cv,
+                        cvterm => $self->qualifier_column,
+                        dbxref => $self->qualifier_column,
+                        db     => $self->extra_db
+                    ),
+                    value => $entry->id,
+                }
+            );
+        }
+
     }
     return 1;
 }
@@ -1011,8 +1063,10 @@ sub dicty_update {
         $row->update( { is_not => $neg_flag } );
         $self->manager->add_to_update_message('Negated-Qualifier:column 4');
         warn "updating negated flag\n";
-        $update_flag++;
     }
+
+    ## -- qualifiers (other than negation)
+    $self->update_qualifier($row);
 
     ## -- all annotation secondary references
     my $anno_ref_rec
@@ -1111,11 +1165,12 @@ sub update {
         $row->update( { is_not => $neg_flag } );
         $self->manager->add_to_update_message('Negated-Qualifier:column 4');
         warn "updating negated flag\n";
-        $update_flag++;
     }
 
-    # primary reference should not be updated no need to check
+    ## -- qualifiers (other than negation)
+    $self->update_qualifier($row);
 
+    # primary reference should not be updated no need to check
     ## -- secondary references
     my $anno_ref_rec = Set::Object->new( $self->get_anno_ref_records($anno) );
 
@@ -1178,9 +1233,48 @@ sub update {
     }
     return $update_flag;
 
-    ## -- Still don't know where to model *With colum 8* and *Qualifier column 4* other
-    ## -- than NOT value.
-    ## -- Still don't know where to store *Date column 14* and *Assigned by column 15*
+}
+
+sub update_qualifier {
+    my ( $self, $row ) = @_;
+    my $anno = $self->manager->annotation;
+    if ( my $qual = $anno->qualifier_list ) {
+        my $anno_qual = Set::Object->new( [ map { $_->id } @$qual ] );
+        my $db_qual = Set::Object->new( $self->manager->get_db_qual($row) );
+        if ( $db_qual->members ) {
+            $row->search_related( 'feature_cvtermprops',
+                { value => { -like => $_ } } )->delete_all
+                for $db_qual->difference($anno_qual)->elements;
+
+            $self->create_qualifier( $row, $_ )
+                for $anno_qual->difference($db_qual)->elements;
+            $self->manager->add_to_update_message('Qualifier');
+        }
+        else {    ## -- new qualifiers to create
+            $self->create_qualifier( $row, $_ ) for $anno_qual->members;
+            $self->manager->add_to_update_message('Qualifier');
+        }
+    }
+}
+
+sub create_qualifier {
+    my ( $self, $row, $value ) = @_;
+    $self->manager->chado->txn_do(
+        sub {
+            $row->create_related(
+                'feature_cvtermprops',
+                {   value   => $value,
+                    type_id => $self->manager->find_or_create_cvterm_id(
+                        cv     => $self->manager->extra_cv,
+                        cvterm => $self->manager->qualifier_column,
+                        dbxref => $self->manager->qualifier_column,
+                        db     => $self->manager->extra_db
+                    ),
+
+                }
+            );
+        }
+    );
 }
 
 __PACKAGE__->meta->make_immutable;
