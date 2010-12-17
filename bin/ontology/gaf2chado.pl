@@ -349,7 +349,8 @@ has 'update_message' => (
 );
 
 sub get_db_qual {
-    my $row = shift;
+    my $self = shift;
+    my $row  = shift;
     my $rs
         = $row->feature_cvtermprops(
         { 'type.name' => $self->qualifier_column },
@@ -1313,7 +1314,7 @@ use Carp;
 use Try::Tiny;
 
 my ( $dsn, $user, $password, $config, $log_file, $logger );
-my $dicty;
+my ( $dicty, $prune );
 my $commit_threshold = 1000;
 my $attr = { AutoCommit => 1 };
 
@@ -1326,7 +1327,8 @@ GetOptions(
     'l|log:s'               => \$log_file,
     'ct|commit_threshold:s' => \$commit_threshold,
     'dicty'                 => \$dicty,
-    'a|attr:s%{1,}'         => \$attr
+    'a|attr:s%{1,}'         => \$attr,
+    'prune'               => \$prune
 );
 
 pod2usage("!! gaf input file is not given !!") if !$ARGV[0];
@@ -1370,6 +1372,12 @@ if ( !$manager->evcodes_in_cache ) {
     warn '!! Evidence codes ontology needed to be loaded !!!!';
     die
         'Download it from here: http://www.obofoundry.org/cgi-bin/detail.cgi?id=evidence_code';
+}
+
+if ($prune) {
+	$logger->warn("pruning all annotations ......");
+	$schema->txn_do(sub { $schema->resultset('Sequence::FeatureCvterm')->delete_all});
+	$logger->warn("done with pruning ......");
 }
 
 $logger->info("parsing gaf file ....");
@@ -1531,6 +1539,8 @@ gaf file                 gaf annotation file
                          storage, default is 1000
 
 -c,--config              yaml config file,  if given would take preference
+
+--prune               delete all annotations before loading,  default is off
 
 =head2 Yaml config file format
 
