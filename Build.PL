@@ -31,9 +31,9 @@ my $build = Modware::Build->new(
         'aliased'                     => '0.30',
         'File::Path'                  => '2.08',
         'MooseX::Role::Parameterized' => '0.19',
-        'Regexp::Common'              => '2.122', 
-        'MooseX::App::Cmd'              => '0.06', 
-        'MooseX::ConfigFromFile' => '0.02'
+        'Regexp::Common'              => '2.122',
+        'MooseX::App::Cmd'            => '0.06',
+        'MooseX::ConfigFromFile'      => '0.02'
     },
     build_requires => {
         'Test::More'            => 0.94,
@@ -64,8 +64,11 @@ my $build = Modware::Build->new(
         append_path =>
             { default => catfile( 't', 'data', 'preset' ), type => ':s' },
         default => {},
-    }, 
-    script_files => ['bin/ontology/load_ontology.pl',  'bin/ontology/drop_ontology.pl']
+    },
+    script_files => [
+        'bin/ontology/load_ontology.pl', 'bin/ontology/drop_ontology.pl',
+        'bin/ontology/gaf2chado.pl'
+    ]
 );
 
 $build->args( 'ddl_dir', catdir( $build->base_dir, 't', 'data', 'ddl' ) );

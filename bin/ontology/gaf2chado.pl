@@ -1500,11 +1500,11 @@ $logger->info(
     "Annotations >> Processed:$anno_count Loaded:$loaded  Updated:$updated");
 $logger->info("Update-skipped:$update_skipped Loading-skipped:$skipped");
 
+
+
 =head1 NAME
 
-
-B<gaf2chado.pl> - [Loads gaf annotations in chado database]
-
+B<gaf2chado.pl> - [Loads gafv1.0/2.0 annotations in chado database]
 
 =head1 SYNOPSIS
 
@@ -1544,11 +1544,11 @@ gaf file                 gaf annotation file
 
 =head2 Yaml config file format
 
-database:
+ database:
   dsn:'....'
   user:'...'
   password:'.....'
-log: '...'
+ log: '...'
 
 
 
