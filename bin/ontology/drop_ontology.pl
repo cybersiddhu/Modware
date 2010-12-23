@@ -1,5 +1,41 @@
-
 #!/usr/bin/perl -w
+
+package Logger;
+use Log::Log4perl;
+use Log::Log4perl::Appender;
+use Log::Log4perl::Level;
+
+sub handler {
+    my ( $class, $file ) = @_;
+
+    my $appender;
+    if ($file) {
+        my $appender = Log::Log4perl::Appender->new(
+            'Log::Log4perl::Appender::File',
+            filename => $file,
+            mode     => 'clobber'
+        );
+    }
+    else {
+        $appender
+            = Log::Log4perl::Appender->new(
+            'Log::Log4perl::Appender::ScreenColoredLevels',
+            );
+    }
+
+    my $layout = Log::Log4perl::Layout::PatternLayout->new(
+        "[%d{MM-dd-yyyy hh:mm}] %p > %F{1}:%L - %m%n");
+
+    my $log = Log::Log4perl->get_logger();
+    $appender->layout($layout);
+    $log->add_appender($appender);
+    $log->level($DEBUG);
+    $log;
+}
+
+1;
+
+package main;
 
 use strict;
 use Pod::Usage;
@@ -8,43 +44,6 @@ use YAML qw/LoadFile/;
 use Bio::Chado::Schema;
 use Data::Dumper::Concise;
 use Carp;
-
-{
-
-    package Logger;
-    use Log::Log4perl;
-    use Log::Log4perl::Appender;
-    use Log::Log4perl::Level;
-
-    sub handler {
-        my ( $class, $file ) = @_;
-
-        my $appender;
-        if ($file) {
-            my $appender = Log::Log4perl::Appender->new(
-                'Log::Log4perl::Appender::File',
-                filename => $file,
-                mode     => 'clobber'
-            );
-        }
-        else {
-            $appender
-                = Log::Log4perl::Appender->new(
-                'Log::Log4perl::Appender::ScreenColoredLevels',
-                );
-        }
-
-        my $layout = Log::Log4perl::Layout::PatternLayout->new(
-            "[%d{MM-dd-yyyy hh:mm}] %p > %F{1}:%L - %m%n");
-
-        my $log = Log::Log4perl->get_logger();
-        $appender->layout($layout);
-        $log->add_appender($appender);
-        $log->level($DEBUG);
-        $log;
-    }
-
-}
 
 my ( $dsn, $user, $password, $config, $log_file, $logger );
 my $no_cascade;
@@ -58,7 +57,7 @@ GetOptions(
     'c|config:s'        => \$config,
     'l|log:s'           => \$log_file,
     'a|attr:s%{1,}'     => \$attr,
-    'force_cascade'        => \$no_cascade
+    'force_cascade'     => \$no_cascade
 );
 
 pod2usage("!! namespace is not given !!") if !$ARGV[0];
@@ -100,24 +99,31 @@ my $dbxref_rs = $schema->resultset('General::Dbxref')
     ->search( { dbxref_id => { -in => $dbxref_ids } } );
 $schema->txn_do(
     sub {
-    	if ($no_cascade) {
-    	  $cvterm_rs->search_related('cvterm_dbxrefs',  {})->delete_all;	
-    	  $cvterm_rs->search_related('cvtermprop_cvterms',  {})->delete_all;	
-    	  $cvterm_rs->search_related('cvterm_relationship_subjects',  {})->delete_all;	
-    	  $cvterm_rs->search_related('cvterm_relationship_objects',  {})->delete_all;	
-    	  if ($schema->storage->sqlt_type eq 'Oracle') {
-    	  	my @cvterm_ids = map {$_->cvterm_id} $cvterm_rs->all;
-    	  	$schema->storage->dbh_do(
-    	  		sub {
-    	  			my ($storage, $dbh,  @ids) = @_;
-    	  	        return if !@ids;
-    	  			my $values = join(', ', @ids);
-    	  			$dbh->do("DELETE FROM cvtermsynonym where cvterm_id IN ($values)");
-    	  		},  @cvterm_ids
-    	  	);
-    	  }
-    	  $cvterm_rs->delete_all;
-    	}
+
+        if ($no_cascade) {
+            $cvterm_rs->search_related( 'cvterm_dbxrefs', {} )->delete_all;
+            $cvterm_rs->search_related( 'cvtermprop_cvterms', {} )
+                ->delete_all;
+            $cvterm_rs->search_related( 'cvterm_relationship_subjects', {} )
+                ->delete_all;
+            $cvterm_rs->search_related( 'cvterm_relationship_objects', {} )
+                ->delete_all;
+            if ( $schema->storage->sqlt_type eq 'Oracle' ) {
+                my @cvterm_ids = map { $_->cvterm_id } $cvterm_rs->all;
+                $schema->storage->dbh_do(
+                    sub {
+                        my ( $storage, $dbh, @ids ) = @_;
+                        return if !@ids;
+                        my $values = join( ', ', @ids );
+                        $dbh->do(
+                            "DELETE FROM cvtermsynonym where cvterm_id IN ($values)"
+                        );
+                    },
+                    @cvterm_ids
+                );
+            }
+            $cvterm_rs->delete_all;
+        }
         $cv_rs->delete_all;
         $dbxref_rs->delete_all;
         $logger->info("dropped ontology $ARGV[0]");
@@ -166,12 +172,12 @@ namespace                 ontology namespace
 
 =head2 Yaml config file format
 
-database:
+ database:
   dsn:'....'
   user:'...'
   password:'.....'
   attr: '.....'
-log: '...'
+ log: '...'
 
 
 
