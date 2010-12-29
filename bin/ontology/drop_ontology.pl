@@ -44,6 +44,7 @@ use YAML qw/LoadFile/;
 use Bio::Chado::Schema;
 use Data::Dumper::Concise;
 use Carp;
+use List::MoreUtils qw/natatime/;
 
 my ( $dsn, $user, $password, $config, $log_file, $logger );
 my $no_cascade;
@@ -95,8 +96,9 @@ my $dbxref_ids = [
         $cvterm_rs->search_related( 'cvterm_dbxrefs', {} )->all
     )
 ];
-my $dbxref_rs = $schema->resultset('General::Dbxref')
-    ->search( { dbxref_id => { -in => $dbxref_ids } } );
+
+#my $dbxref_rs = $schema->resultset('General::Dbxref')
+#    ->search( { dbxref_id => { -in => $dbxref_ids } } );
 $schema->txn_do(
     sub {
 
@@ -114,10 +116,13 @@ $schema->txn_do(
                     sub {
                         my ( $storage, $dbh, @ids ) = @_;
                         return if !@ids;
-                        my $values = join( ', ', @ids );
-                        $dbh->do(
-                            "DELETE FROM cvtermsynonym where cvterm_id IN ($values)"
-                        );
+                        my $itr = natatime 100, @ids;
+                        while ( my @rows = $itr->() ) {
+                            my $values = join( ', ', @rows );
+                            $dbh->do(
+                                "DELETE FROM cvtermsynonym where cvterm_id IN ($values)"
+                            );
+                        }
                     },
                     @cvterm_ids
                 );
@@ -125,7 +130,11 @@ $schema->txn_do(
             $cvterm_rs->delete_all;
         }
         $cv_rs->delete_all;
-        $dbxref_rs->delete_all;
+        my $dbitr = natatime 100, @$dbxref_ids;
+        while ( my @xrefs = $dbitr->() ) {
+            $schema->resultset('General::Dbxref')
+                ->search( { dbxref_id => { -in => [@xrefs] } } )->delete_all;
+        }
         $logger->info("dropped ontology $ARGV[0]");
     }
 );
