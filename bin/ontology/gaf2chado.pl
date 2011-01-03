@@ -741,7 +741,8 @@ XREF:
     }
 
     ## -- extra qualifiers
-    if ( my $qual = $anno->qualifier_list ) {
+    my $qual = [ grep { $_->id ne 'not' } $anno->qualifier_list ];
+    if ( defined $qual ) {
         for my $entry (@$qual) {
             $self->add_to_insert_feature_cvtermprops(
                 {   type_id => $self->find_or_create_cvterm_id(
@@ -865,7 +866,8 @@ XREF:
     }
 
 ## -- extra qualifiers
-    if ( my $qual = $anno->qualifier_list ) {
+    my $qual = [ grep { $_->id ne 'not' } $anno->qualifier_list ];
+    if ( defined $qual ) {
         for my $entry (@$qual) {
             $self->add_to_insert_feature_cvtermprops(
                 {   type_id => $self->find_or_create_cvterm_id(
@@ -1238,8 +1240,10 @@ sub update {
 
 sub update_qualifier {
     my ( $self, $row ) = @_;
+
     my $anno = $self->manager->annotation;
-    if ( my $qual = $anno->qualifier_list ) {
+    my $qual = [ grep { $_->id ne 'not' } $anno->qualifier_list ];
+    if ( defined $qual  ) {
         my $anno_qual = Set::Object->new( [ map { $_->id } @$qual ] );
         my $db_qual = Set::Object->new( $self->manager->get_db_qual($row) );
         if ( $db_qual->members ) {
@@ -1328,7 +1332,7 @@ GetOptions(
     'ct|commit_threshold:s' => \$commit_threshold,
     'dicty'                 => \$dicty,
     'a|attr:s%{1,}'         => \$attr,
-    'prune'               => \$prune
+    'prune'                 => \$prune
 );
 
 pod2usage("!! gaf input file is not given !!") if !$ARGV[0];
@@ -1375,9 +1379,10 @@ if ( !$manager->evcodes_in_cache ) {
 }
 
 if ($prune) {
-	$logger->warn("pruning all annotations ......");
-	$schema->txn_do(sub { $schema->resultset('Sequence::FeatureCvterm')->delete_all});
-	$logger->warn("done with pruning ......");
+    $logger->warn("pruning all annotations ......");
+    $schema->txn_do(
+        sub { $schema->resultset('Sequence::FeatureCvterm')->delete_all } );
+    $logger->warn("done with pruning ......");
 }
 
 $logger->info("parsing gaf file ....");
@@ -1499,8 +1504,6 @@ if ( $manager->entries_in_cache ) {
 $logger->info(
     "Annotations >> Processed:$anno_count Loaded:$loaded  Updated:$updated");
 $logger->info("Update-skipped:$update_skipped Loading-skipped:$skipped");
-
-
 
 =head1 NAME
 
