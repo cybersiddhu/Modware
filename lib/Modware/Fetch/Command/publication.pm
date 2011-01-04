@@ -26,7 +26,7 @@ has '+output' => (
         return catfile( $self->data_dir, 'pubmed_' . $self->date . '.xml' );
     },
     documentation =>
-        'It is written in the data_dir folder with the name [pubmed_(current_date).xml]'
+        'It is written in the data_dir folder with the name [ default is pubmed_(current_date).xml]'
 );
 
 has 'link_output' => (
@@ -35,7 +35,8 @@ has 'link_output' => (
     cmd_aliases => 'lo',
     isa         => 'Str',
     documentation =>
-        'file name where the elink output will be written,  by default it is written under the data_dir folder with the name [pubmed_links_(current_date) . xml ] ',
+        'file name where the elink output will be written,  by default it is written under
+        the data_dir folder with the name [default is pubmed_links_(current_date) . xml ] ',
     default => sub {
         my $self = shift;
         return catfile( $self->data_dir,
@@ -134,7 +135,7 @@ has 'email' => (
 has 'date' => (
     is      => 'ro',
     traits  => [qw/NoGetopt/],
-    isa     => 'Time::Piece',
+    isa     => 'Str',
     default => sub {
         Time::Piece->new->mdy('');
     }
