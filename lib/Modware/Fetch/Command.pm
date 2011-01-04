@@ -7,7 +7,7 @@ use Moose;
 use namespace::autoclean;
 use Moose::Util::TypeConstraints;
 use Cwd;
-use File::Spec::Functions;
+use File::Spec::Functions qw/catfile catdir rel2abs/;
 use File::Basename;
 use Time::Piece;
 use Log::Log4perl;
@@ -37,6 +37,7 @@ has 'data_dir' => (
     documentation =>
         'Folder under which input and output files can be configured to be written',
     builder => '_build_data_dir', 
+    lazy => 1
 );
 
 has 'input' => (
@@ -58,7 +59,7 @@ has 'output' => (
 
 has 'logfile' => (
     is            => 'rw',
-    isa           => 'DataFile',
+    isa           => 'Str',
     predicate     => 'has_logfile',
     traits        => [qw/Getopt/],
     cmd_aliases   => 'l',
@@ -83,7 +84,7 @@ sub fetch_logger {
 
     my $appender;
     if ($file) {
-        my $appender = Log::Log4perl::Appender->new(
+        $appender = Log::Log4perl::Appender->new(
             'Log::Log4perl::Appender::File',
             filename => $file,
             mode     => 'clobber'

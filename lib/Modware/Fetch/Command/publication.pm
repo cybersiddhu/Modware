@@ -13,6 +13,7 @@ use IO::File;
 use namespace::autoclean;
 use File::Temp;
 use File::Spec::Functions;
+use Carp::Always;
 extends qw/Modware::Fetch::Command/;
 
 # Module implementation
@@ -41,7 +42,8 @@ has 'link_output' => (
         my $self = shift;
         return catfile( $self->data_dir,
             'pubmed_links_' . $self->date . '.xml' );
-    }
+    }, 
+    lazy => 1
 );
 
 has 'temp_file' => (
@@ -143,6 +145,8 @@ has 'date' => (
 
 sub execute {
     my $self   = shift;
+    my $log = $self->logger;
+    $log->info("going for esearch");
     my $eutils = Bio::DB::EUtilities->new(
         -eutil      => 'esearch',
         -db         => $self->db,
@@ -152,22 +156,27 @@ sub execute {
         -usehistory => 'y',
         -email      => $self->email
     );
-
-    my $logger = $self->logger;
-    my $hist = $eutils->next_History || $logger->logdie("no history");
+    $log->info('done with esearch');
+    my $hist = $eutils->next_History || $log->logdie("no history");
 
     my @ids = $eutils->get_ids;
+    $log->info( 'got ids ', scalar @ids );
     $eutils->reset_parameters(
         -eutils  => 'efetch',
         -db      => $self->db,
         -history => $hist
     );
 
+    $log->info('done with efetch');
+
     $eutils->get_Response(
         -file => $self->do_copyright_patch
         ? $self->temp_file
         : $self->output
     );
+
+    $log->info('done writing efetch output');
+    $log->info('going for elink');
 
     $eutils->reset_parameters(
         -eutil  => 'elink',
@@ -177,6 +186,7 @@ sub execute {
     );
 
     $eutils->get_Response( -file => $self->link_output );
+    $log->info('done writing elink output');
 
     if ( $self->do_copyright_patch ) {
 
@@ -189,9 +199,10 @@ sub execute {
             'pretty_print' => 'indented',
         )->parsefile( $self->temp_file );
         my $outhandler = IO::File->new( $self->output, 'w' )
-            or $logger->logdie("cannot open file:$!");
+            or $log->logdie("cannot open file:$!");
         $twig->print($outhandler);
         $outhandler->close;
+        $log->info('done patching copyright');
     }
 }
 
