@@ -1,39 +1,58 @@
-package Modware::Chado::Query::BCS::Engine::Generic;
-
+package Modware::Chado::Query::BCS::Engine;
+use warnings;
 use strict;
-
-
-# Other modules:
 use namespace::autoclean;
 use Moose;
 use MooseX::ClassAttribute;
-extends 'Modware::Chado::Query::BCS::Engine';
+
+# Other modules:
 
 # Module implementation
+#
 
-
-sub query {
-    my ( $class, $attrs, $clause ) = @_;
-    $clause = lc $clause;
-
-    my $where;
-    my $nested_where ;
-    for my $param ( keys %$attrs ) {
-        $where->{$param}
-            = $attrs->{$param} =~ /\%/
-            ? { 'like', $attrs->{$param} }
-            : $attrs->{$param};
+class_has 'skip_column_stack' => (
+    is      => 'rw',
+    isa     => 'HashRef',
+    traits  => [qw/Hash/],
+    default => sub { {} },
+    handles => {
+        add_skip_column    => 'set',
+        has_skip_column    => 'defined',
+        remove_skip_column => 'delete',
+        all_skip_columns   => 'keys',
+        get_skip_column    => 'get'
     }
-    $nested_where->{ '-' . $clause } = [%$where];
-    $nested_where;
+);
 
-}
+class_has 'blob_column_stack' => (
+    is      => 'rw',
+    isa     => 'HashRef',
+    traits  => [qw/Hash/],
+    default => sub { {} },
+    handles => {
+        add_blob_column    => 'set',
+        is_blob_column    => 'defined',
+        remove_blob_column => 'delete',
+        all_blob_columns   => 'keys',
+        get_blob_column    => 'get'
+    }
+);
 
-before 'query' => sub {
-    my ( $class, $attrs ) = @_;
-    $attrs->{$_} =~ s/\*/\%/g for keys %$attrs;
-    $class->get_query_hook($_)->($class) for $class->all_query_hooks;
-};
+class_has 'query_hooks' => (
+    is      => 'rw',
+    isa     => 'HashRef',
+    traits  => [qw/Hash/],
+    default => sub { {} },
+    handles => {
+        add_query_hook    => 'set',
+        has_query_hook    => 'defined',
+        remove_query_hook => 'delete',
+        all_query_hooks   => 'keys',
+        get_query_hook    => 'get'
+    }
+);
+
+
 
 
 __PACKAGE__->meta->make_immutable;

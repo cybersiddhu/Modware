@@ -60,6 +60,13 @@ before 'search' => sub {
     $class->clause('and');
     $class->full_text(0);
     $class->add_arg( $_, $arg{$_} ) for keys %arg;
+    $class->query_engine->add_query_hook(
+        'title',
+        sub {
+            my $class = shift;
+            $class->add_blob_column( 'title', 1 );
+        }
+    );
 };
 
 sub search {

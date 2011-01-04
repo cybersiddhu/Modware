@@ -1,32 +1,18 @@
 package Modware::Chado::Query::BCS::Engine::Oracle;
-use warnings;
 use strict;
-use namespace::autoclean;
-use Moose;
-use MooseX::ClassAttribute;
 
 # Other modules:
+use namespace::autoclean;
+use Moose;
+extends 'Modware::Chado::Query::BCS::Engine';
 
 # Module implementation
 #
 
-class_has 'skip_column_stack' => (
-    is      => 'rw',
-    isa     => 'HashRef',
-    traits  => [qw/Hash/],
-    default => sub { {} },
-    handles => {
-        add_skip_column    => 'set',
-        has_skip_column    => 'defined',
-        remove_skip_column => 'delete',
-        all_skip_columns   => 'keys',
-        get_skip_column    => 'get'
-    }
-);
-
 before 'query' => sub {
     my ( $class, $attrs ) = @_;
     $attrs->{$_} =~ s/\*/\%/g for keys %$attrs;
+    $class->get_query_hook($_)->($class) for $class->all_query_hooks;
 };
 
 before 'full_text_query' => sub {
@@ -44,7 +30,7 @@ sub query {
 
     my $where;
     for my $param ( keys %$attrs ) {
-        if ( $attrs->{$param} =~ /\%/ ) {
+        if ( $attrs->{$param} =~ /\%/ or $class->is_blob_column($param) ) {
             $where->{ 'UPPER(' . $param . ')' }
                 = { 'like', uc $attrs->{$param} };
         }
