@@ -125,3 +125,9 @@ sub execute {
 
 1;    # Magic true value required at end of module
 
+__END__
+
+=head1 NAME
+
+Load pubmed records in dicty chado database
+
