@@ -56,26 +56,30 @@ has 'logfile' => (
     predicate     => 'has_logfile',
     traits        => [qw/Getopt/],
     cmd_aliases   => 'l',
-    documentation => 'Name of logfile by default goes to STDIN'
+    documentation => 'Name of logfile,  default goes to STDIN'
 );
 
 has 'dsn' => (
 	is => 'rw', 
-	isa => 'Dsn' 
+	isa => 'Dsn', 
+	documentation => 'database DSN', 
+	required => 1
 );
 
 has 'user' => (
 	is => 'rw', 
 	isa => 'Str', 
 	traits => [qw/Getopt/], 
-	cmd_aliases => 'u'
+	cmd_aliases => 'u', 
+	documentation => 'database user'
 );
 
 has 'password' => (
 	is => 'rw', 
 	isa => 'Str', 
 	traits => [qw/Getopt/], 
-	cmd_aliases => [qw/p pass/]
+	cmd_aliases => [qw/p pass/], 
+	documentation => 'database password'
 );
 
 has 'attribute' => (
@@ -83,6 +87,7 @@ has 'attribute' => (
 	isa => 'HashRef', 
 	traits => [qw/Getopt/], 
 	cmd_aliases => 'attr', 
+	documentation => 'Additional database attribute', 
 	default => sub {
 		{ 'LongReadLen' => 2**25,  AutoCommit => 1}
 	}
@@ -136,7 +141,6 @@ sub fetch_dual_logger {
     $log->level($DEBUG);
     $log;
 }
-
 
 sub logger {
     my $self = shift;

@@ -10,7 +10,33 @@ use Email::Sender::Transport::SMTP;
 # Module implementation
 #
 
-has [qw/host from to subject/] => ( is => 'rw', isa => 'Str' );
+has 'host' => (
+    is            => 'rw',
+    isa           => 'Str',
+    required      => 1,
+    documentation => 'SMTP host'
+);
+
+has 'to' => (
+    is  => 'rw',
+    isa => 'Str',
+    documentation =>
+        'e-mail parameter,  default is dictybase@northwestern.edu'
+);
+
+has 'from' => (
+    is  => 'rw',
+    isa => 'Str',
+    documentation =>
+        'e-mail parameter,  default is dictybase@northwestern.edu'
+);
+
+has 'subject' => (
+    is            => 'rw',
+    isa           => 'Str',
+    default       => 'e-mail from chicken robot',
+    documentation => 'e-mail parameter,  default is *email from chicken robot*'
+);
 
 sub robot_email {
     my ( $self, $msg ) = @_;
