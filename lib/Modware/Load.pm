@@ -1,99 +1,13 @@
-package Modware::Fetch::Command::pubmed2chado;
+package Modware::Load;
 use strict;
 
 # Other modules:
-use namespace::autoclean;
 use Moose;
-use Time::Piece;
-use Email::Valid;
-use Moose::Util::TypeConstraints;
-use IO::File;
-use File::Temp;
-use File::Spec::Functions;
-use File::Find::Rule;
-extends qw/Modware::Load::Command/;
+use namespace::autoclean;
+extends qw/MooseX::App::Cmd/;
 
 # Module implementation
 #
-
-subtype 'Email' => as 'Str' => where { Email::Valid->address($_) };
-
-has 'email' => (
-    is      => 'rw',
-    isa     => 'Email',
-    default => 'dictybase@northwestern.edu',
-    documentation =>
-        'e-mail that will be passed to eutils for fetching default is dictybase@northwestern.edu'
-);
-
-has '+input' => (
-	documentation => 'pubmedxml format file,  default is to pick up the latest from data
-	dir', 
-
-);
-
-sub execute {
-    my $self   = shift;
-    my $log = $self->logger;
-    $log->info("going for esearch");
-    my $eutils = Bio::DB::EUtilities->new(
-        -eutil      => 'esearch',
-        -db         => $self->db,
-        -term       => $self->query,
-        -reldate    => $self->reldate,
-        -retmax     => $self->retmax,
-        -usehistory => 'y',
-        -email      => $self->email
-    );
-    $log->info('done with esearch');
-    my $hist = $eutils->next_History || $log->logdie("no history");
-
-    my @ids = $eutils->get_ids;
-    $log->info( 'got ids ', scalar @ids );
-    $eutils->reset_parameters(
-        -eutils  => 'efetch',
-        -db      => $self->db,
-        -history => $hist
-    );
-
-    $log->info('done with efetch');
-
-    $eutils->get_Response(
-        -file => $self->do_copyright_patch
-        ? $self->temp_file
-        : $self->output
-    );
-
-    $log->info('done writing efetch output');
-    $log->info('going for elink');
-
-    $eutils->reset_parameters(
-        -eutil  => 'elink',
-        -dbfrom => $self->db,
-        -cmd    => 'prlinks',
-        -id     => [@ids]
-    );
-
-    $eutils->get_Response( -file => $self->link_output );
-    $log->info('done writing elink output');
-
-    if ( $self->do_copyright_patch ) {
-
-#patch to remove the CopyrightInformation node from pubmedxml
-#It contains a encoding that causes XML::Parser to throw therefore breaking bioperl parser
-        my $twig = XML::Twig->new(
-            twig_handlers => {
-                'CopyrightInformation' => sub { $_[1]->delete }
-            },
-            'pretty_print' => 'indented',
-        )->parsefile( $self->temp_file );
-        my $outhandler = IO::File->new( $self->output, 'w' )
-            or $log->logdie("cannot open file:$!");
-        $twig->print($outhandler);
-        $outhandler->close;
-        $log->info('done patching copyright');
-    }
-}
 
 1;    # Magic true value required at end of module
 
@@ -101,12 +15,7 @@ __END__
 
 =head1 NAME
 
-<MODULE NAME> - [One line description of module's purpose here]
-
-
-=head1 VERSION
-
-This document describes <MODULE NAME> version 0.0.1
+<Modware::Import> - [Base application class for writing import command classes]
 
 
 =head1 SYNOPSIS

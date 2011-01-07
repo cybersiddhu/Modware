@@ -1,184 +1,127 @@
-package Modware::Load::Command;
-
+package Modware::Fetch::Command::pubmed2dictychado;
 use strict;
 
 # Other modules:
-use Moose;
 use namespace::autoclean;
-use Moose::Util::TypeConstraints;
-use Cwd;
-use File::Spec::Functions qw/catfile catdir rel2abs/;
-use File::Basename;
+use Email::Sender::Simple qw/sendmail/;
+use Email::Simple;
+use Email::Sender::Transport::SMTP;
+use Moose;
 use Time::Piece;
-use Log::Log4perl;
-use Log::Log4perl::Appender;
-use Log::Log4perl::Level;
-use YAML qw/LoadFile/;
-extends qw/MooseX::App::Cmd::Command/;
-with 'MooseX::ConfigFromFile';
+use Email::Valid;
+use Moose::Util::TypeConstraints;
+use File::Find::Rule;
+use File::stat;
+use Bio::Biblio::IO;
+use Modware::DataSource::Chado;
+use Modware::Publication::DictyBase;
+use Try::Tiny;
+extends qw/Modware::Load::Command/;
+with 'Modware::Role::Command::WithEmail';
 
 # Module implementation
 #
-subtype 'DataDir'  => as 'Str' => where { -d $_ };
-subtype 'DataFile' => as 'Str' => where { -f $_ };
-subtype 'Dsn' => as 'Str' => where { /^dbi:(\w+).+$/ };
 
+subtype 'Email' => as 'Str' => where { Email::Valid->address($_) };
 
-has '+configfile' => (
-	cmd_aliases => 'c', 
-	documentation => 'yaml config file to specify all command line options', 
-	traits => [qw/Getopt/]
-);
-
-has 'data_dir' => (
-    is          => 'rw',
-    isa         => 'DataDir',
-    traits      => [qw/Getopt/],
-    cmd_flag    => 'dir',
-    cmd_aliases => 'd',
-    documentation =>
-        'Folder under which input and output files can be configured to be written',
-    builder => '_build_data_dir', 
-    lazy => 1
-);
-
-has 'input' => (
-    is            => 'rw',
-    isa           => 'DataFile',
-    traits        => [qw/Getopt/],
-    cmd_aliases   => 'i',
-    documentation => 'Name of the input file'
-);
-
-has 'logfile' => (
+has 'source' => (
     is            => 'rw',
     isa           => 'Str',
-    predicate     => 'has_logfile',
-    traits        => [qw/Getopt/],
-    cmd_aliases   => 'l',
-    documentation => 'Name of logfile by default goes to STDIN'
+    default       => 'PUBMED',
+    documentation => 'Primary source of the publication'
 );
 
-has 'dsn' => (
-	is => 'rw', 
-	isa => 'Dsn' 
+has 'type' => (
+    is            => 'rw',
+    isa           => 'Str',
+    default       => 'journal article',
+    documentation => 'The type of publication'
 );
 
-has 'user' => (
-	is => 'rw', 
-	isa => 'Str', 
-	traits => [qw/Getopt/], 
-	cmd_aliases => 'u'
+has 'email' => (
+    is      => 'rw',
+    isa     => 'Email',
+    default => 'dictybase@northwestern.edu',
+    documentation =>
+        'e-mail that will be passed to eutils for fetching default is dictybase@northwestern.edu'
 );
 
-has 'password' => (
-	is => 'rw', 
-	isa => 'Str', 
-	traits => [qw/Getopt/], 
-	cmd_aliases => [qw/p pass/]
+has '+input' => (
+    documentation =>
+        'pubmedxml format file,  default is to pick up the latest from data
+	dir,  file name that matches pubmed_[datestring].xml',
+    default => sub {
+        my $self = shift;
+        my @files = map { $_->[1] }
+            sort { $b->[0] <=> $a->[0] }
+            map { [ stat($_)->mtime, $_ ] }
+            File::Find::Rule->file->name(qr/^pubmed\_\d+\.xml$/)
+            ->in( $self->data_dir )->nonempty;
+        $files[0];
+    }
 );
 
-has 'attribute' => (
-	is => 'rw', 
-	isa => 'HashRef', 
-	traits => [qw/Getopt/], 
-	cmd_aliases => 'attr', 
-	default => sub {
-		{ 'LongReadLen' => 2**25,  AutoCommit => 1}
-	}
-);
-
-
-sub _build_data_dir {
-    return rel2abs(cwd);
-}
-
-sub dual_logger {
+sub execute {
     my $self = shift;
-    my $logger
-        = $self->has_logfile
-        ? $self->fetch_logger( $self->logfile )
-        : $self->fetch_logger;
-    $logger;
-}
+    my $log  = $self->dual_logger;
 
-sub fetch_dual_logger {
-    my ( $self, $file ) = @_;
+    Modware::DataSource::Chado->connect(
+        dsn      => $self->dsn,
+        user     => $self->user,
+        password => $self->password,
+        attr     => $self->attribute
+    );
+    my $biblio = Bio::Biblio::IO->new(
+        -format => 'pubmedxml',
+        -file   => $self->input
+    );
 
-	my $str_appender = Log::Log4perl::Appender->new(
-		'Log::Log4perl::Appender::String', 
-		name => 'message_stack'
-	);
+    my $loaded  = 0;
+    my $skipped = 0;
+    while ( my $ref = $biblio->next_bibref ) {
+        my $pubmed_id = $ref->pmid;
+        if ( Modware::Publication::DictyBase->find_by_pubmed_id($pubmed_id) )
+        {
+            $log->warn("Publication with $pubmed_id exist");
+            $skipped++;
+            next;
+        }
+        my $pub = Modware::Publication::DictyBase->new;
+        $pub->pubmed_id($pubmed_id);
+        $pub->$_( $self->$_ ) for qw/source type/;
+        $pub->$_( $ref->$_ )  for qw/title volume status/;
+        $pub->issue( $ref->issue )        if $ref->issue;
+        $pub->pages( $ref->medline_page ) if $ref->medline_page;
+        $pub->abstract( $ref->abstract )  if $ref->abstract;
+        $pub->issn($ref->journal->issn) if $ref->journal->issn;
 
-    my $appender;
-    if ($file) {
-        $appender = Log::Log4perl::Appender->new(
-            'Log::Log4perl::Appender::File',
-            filename => $file,
-            mode     => 'clobber'
-        );
-    }
-    else {
-        $appender
-            = Log::Log4perl::Appender->new(
-            'Log::Log4perl::Appender::ScreenColoredLevels',
+        for my $author ( @{ $citation->authors } ) {
+            $pub->add_author(
+                {   last_name  => $author->last_name,
+                    suffix     => $author->suffix,
+                    given_name => $author->initials . ' ' . $author->forename
+                }
             );
+        }
+
+        try {
+            $pub->create;
+            $loaded++;
+            $log->info("Loaded $pubmed_id");
+        }
+        catch {
+            $logger->fatal(
+                "Could not load entry with pubmed id $pubmed_id\n$_");
+        };
     }
+    $log->info("Loaded: $loaded\tSkipped: $skipped);
+    my $msg = $log->appender_by_name('message_stack')->string;
 
-    my $layout = Log::Log4perl::Layout::PatternLayout->new(
-        "[%d{MM-dd-yyyy hh:mm}] %p > %F{1}:%L - %m%n");
+	$self->subject('Pubmed loader robot');
+    $self->email($msg);
 
-    my $log = Log::Log4perl->get_logger();
-    $appender->layout($layout);
-    $str_appender->layout($layout);
-    $log->add_appender($str_appender);
-    $log->add_appender($appender);
-    $log->level($DEBUG);
-    $log;
 }
 
-
-sub logger {
-    my $self = shift;
-    my $logger
-        = $self->has_logfile
-        ? $self->fetch_logger( $self->logfile )
-        : $self->fetch_logger;
-    $logger;
-}
-
-sub fetch_logger {
-    my ( $self, $file ) = @_;
-
-    my $appender;
-    if ($file) {
-        $appender = Log::Log4perl::Appender->new(
-            'Log::Log4perl::Appender::File',
-            filename => $file,
-            mode     => 'clobber'
-        );
-    }
-    else {
-        $appender
-            = Log::Log4perl::Appender->new(
-            'Log::Log4perl::Appender::ScreenColoredLevels',
-            );
-    }
-
-    my $layout = Log::Log4perl::Layout::PatternLayout->new(
-        "[%d{MM-dd-yyyy hh:mm}] %p > %F{1}:%L - %m%n");
-
-    my $log = Log::Log4perl->get_logger();
-    $appender->layout($layout);
-    $log->add_appender($appender);
-    $log->level($DEBUG);
-    $log;
-}
-
-sub get_config_from_file {
-    my ( $self, $file ) = @_;
-    return LoadFile($file);
-}
 
 1;    # Magic true value required at end of module
 
