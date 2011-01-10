@@ -1,4 +1,4 @@
-package Modware::Load::Command::pub2dicty;
+package Modware::Load::Command::publink2dicty;
 use strict;
 
 # Other modules:
@@ -21,13 +21,13 @@ with 'Modware::Role::Command::WithEmail';
 
 has '+input' => (
     documentation =>
-        'pubmedxml format file,  default is to pick up the latest from data dir,  file name that matches pubmed_[datestring].xml',
+        'pubmedxml format file,  default is to pick up the latest from data dir,  file name that matches pubmed_links_[datestring].xml',
     default => sub {
         my $self = shift;
         my @files = map { $_->[1] }
             sort { $b->[0] <=> $a->[0] }
             map { [ stat($_)->mtime, $_ ] }
-            File::Find::Rule->file->name(qr/^pubmed\_links\d+\.xml$/)
+            File::Find::Rule->file->name(qr/^pubmed\_links\_\d+\.xml$/)
             ->in( $self->data_dir );
         croak "no input file found\n" if !@files;
         $files[0];
@@ -41,8 +41,8 @@ has 'xpath_query' => (
     lazy => 1,
     documentation =>
         'A XML::LibXML::XPathExpression object representing a query to find
-    the full text links in a pubmed xml file. Default expression is
-    <eLinkResult/LinkSet/IdUrlList/IdUrlSet[Id and ObjUrl/Url]',
+         the full text links in a pubmed xml file. Default expression is
+         <eLinkResult/LinkSet/IdUrlList/IdUrlSet[Id and ObjUrl/Url]',
     default => sub {
         return XML::LibXML::XPathExpression->new(
             'eLinkResult/LinkSet/IdUrlList/IdUrlSet[Id and ObjUrl/Url]');
