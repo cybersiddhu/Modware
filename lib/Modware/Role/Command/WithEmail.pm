@@ -19,7 +19,7 @@ has 'host' => (
     is            => 'rw',
     isa           => 'Str',
     required      => 1,
-    documentation => 'SMTP host'
+    documentation => 'SMTP host for sending e-mail'
 );
 
 has 'to' => (
