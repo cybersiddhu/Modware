@@ -6,9 +6,14 @@ use Moose::Role;
 use Email::Sender::Simple qw/sendmail/;
 use Email::Simple;
 use Email::Sender::Transport::SMTP;
+use Moose::Util::TypeConstraints;
+use Email::Valid;
 
 # Module implementation
 #
+
+
+subtype 'Email' => as 'Str' => where { Email::Valid->address($_) };
 
 has 'host' => (
     is            => 'rw',
@@ -19,14 +24,16 @@ has 'host' => (
 
 has 'to' => (
     is  => 'rw',
-    isa => 'Str',
+    isa => 'Email',
+    default => 'dictybase@northwestern.edu',
     documentation =>
         'e-mail parameter,  default is dictybase@northwestern.edu'
 );
 
 has 'from' => (
     is  => 'rw',
-    isa => 'Str',
+    isa => 'Email',
+    default => 'dictybase@northwestern.edu',
     documentation =>
         'e-mail parameter,  default is dictybase@northwestern.edu'
 );

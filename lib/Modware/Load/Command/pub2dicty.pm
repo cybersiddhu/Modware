@@ -5,7 +5,6 @@ use strict;
 use namespace::autoclean;
 use Moose;
 use Email::Valid;
-use Moose::Util::TypeConstraints;
 use File::Find::Rule;
 use File::stat;
 use Bio::Biblio::IO;
@@ -19,7 +18,6 @@ with 'Modware::Role::Command::WithEmail';
 # Module implementation
 #
 
-subtype 'Email' => as 'Str' => where { Email::Valid->address($_) };
 
 has 'source' => (
     is            => 'rw',
@@ -33,14 +31,6 @@ has 'type' => (
     isa           => 'Str',
     default       => 'journal article',
     documentation => 'The type of publication,  default is * journal article *'
-);
-
-has 'email' => (
-    is      => 'rw',
-    isa     => 'Email',
-    default => 'dictybase@northwestern.edu',
-    documentation =>
-        'e-mail that will be passed to eutils,  default is * dictybase@northwestern.edu *'
 );
 
 has '+input' => (
@@ -113,13 +103,11 @@ sub execute {
         };
     }
     $log->info("Loaded: $loaded\tSkipped: $skipped");
+
+
     my $msg = $log->appender_by_name('message_stack')->string;
-
-	$self->from || $self->from($self->email);
-	$self->to || $self->to($self->email);
 	$self->subject('Pubmed loader robot');
-    $self->email($msg);
-
+    $self->robot_email($msg);
 }
 
 
