@@ -77,7 +77,8 @@ sub execute {
         my $pub = Modware::Publication::DictyBase->new;
         $pub->pubmed_id($pubmed_id);
         $pub->$_( $self->$_ ) for qw/source type/;
-        $pub->$_( $ref->$_ )  for qw/title volume status/;
+        $pub->$_( $ref->$_ )  for qw/title volume/;
+        $pub->status($ref->pubmed_status);
         $pub->issue( $ref->issue )        if $ref->issue;
         $pub->pages( $ref->medline_page ) if $ref->medline_page;
         $pub->abstract( $ref->abstract )  if $ref->abstract;

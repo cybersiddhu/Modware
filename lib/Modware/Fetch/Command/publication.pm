@@ -82,7 +82,7 @@ has 'query' => (
     default => sub {
         my $self = shift;
         if ( $self->has_genus and $self->has_species ) {
-            return $self->genus . ' OR ' . $self->species . ' [tw] ';
+            return $self->genus . ' OR ' . $self->species . '[tw]';
         }
     }
 );
@@ -146,7 +146,7 @@ has 'date' => (
 sub execute {
     my $self   = shift;
     my $log = $self->logger;
-    $log->info("going for esearch");
+    $log->info("going for esearch with query ",  $self->query);
     my $eutils = Bio::DB::EUtilities->new(
         -eutil      => 'esearch',
         -db         => $self->db,
