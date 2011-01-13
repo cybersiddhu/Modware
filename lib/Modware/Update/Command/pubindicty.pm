@@ -12,6 +12,7 @@ use Carp;
 use XML::LibXML;
 extends qw/Modware::Update::Command/;
 with 'Modware::Role::Command::WithEmail';
+with 'Modware::Role::Command::WithLogger';
 
 # Module implementation
 #
@@ -47,6 +48,7 @@ has 'exist_count' => (
 sub execute {
     my $self = shift;
     my $log  = $self->dual_logger;
+    $self->subject('Pubmed loader robot');
 
     Modware::DataSource::Chado->connect(
         dsn      => $self->dsn,
@@ -88,9 +90,6 @@ PUB:
     $log->info( 'exist:',  $self->exist_count,
         ' updated:', $self->update_count, ' error:',   $self->error_count );
 
-    my $msg = $log->appender_by_name('message_stack')->string;
-    $self->subject('Pubmed loader robot');
-    $self->robot_email($msg);
 }
 
 sub process_id {

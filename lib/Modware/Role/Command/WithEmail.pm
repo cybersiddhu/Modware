@@ -12,8 +12,25 @@ use Email::Valid;
 # Module implementation
 #
 
+require [qw/execute/];
+
+after 'execute' => sub {
+    my ($self) = @_;
+    if ( $self->send_email ) {
+        my $msg = $log->appender_by_name('message_stack')->string;
+        $self->robot_email($msg);
+    }
+};
 
 subtype 'Email' => as 'Str' => where { Email::Valid->address($_) };
+
+has 'send_email' => (
+    is      => 'rw',
+    isa     => 'Bool',
+    default => 1,
+    documentation =>
+        'Whether or not the program will email the log,  default is true'
+);
 
 has 'host' => (
     is            => 'rw',

@@ -14,6 +14,7 @@ use Try::Tiny;
 use Carp;
 extends qw/Modware::Load::Command/;
 with 'Modware::Role::Command::WithEmail';
+with 'Modware::Role::Command::Logger';
 
 # Module implementation
 #
@@ -52,6 +53,7 @@ has '+input' => (
 sub execute {
     my $self = shift;
     my $log  = $self->dual_logger;
+	$self->subject('Pubmed loader robot');
 
     Modware::DataSource::Chado->connect(
         dsn      => $self->dsn,
@@ -104,11 +106,6 @@ sub execute {
         };
     }
     $log->info("Loaded: $loaded\tSkipped: $skipped");
-
-
-    my $msg = $log->appender_by_name('message_stack')->string;
-	$self->subject('Pubmed loader robot');
-    $self->robot_email($msg);
 }
 
 

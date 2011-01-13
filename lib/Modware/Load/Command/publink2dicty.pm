@@ -15,6 +15,7 @@ use Carp;
 use XML::LibXML;
 extends qw/Modware::Load::Command/;
 with 'Modware::Role::Command::WithEmail';
+with 'Modware::Role::Command::WithLogger';
 
 # Module implementation
 #
@@ -52,6 +53,7 @@ has 'xpath_query' => (
 sub execute {
     my $self = shift;
     my $log  = $self->dual_logger;
+    $self->subject('Pubmed loader robot');
 
     Modware::DataSource::Chado->connect(
         dsn      => $self->dsn,
@@ -97,13 +99,7 @@ sub execute {
             $log->warn("Cannot find publication with pubmed id: $pubmed_id");
         }
     }
-
     $log->info("Updated: $updated\tError: $error");
-
-    # e-mail part
-    my $msg = $log->appender_by_name('message_stack')->string;
-    $self->subject('Pubmed loader robot');
-    $self->robot_email($msg);
 }
 
 1;    # Magic true value required at end of module

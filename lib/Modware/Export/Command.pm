@@ -1,4 +1,4 @@
-package Modware::Fetch::Command;
+package Modware::Export::Command;
 
 use strict;
 
@@ -10,11 +10,7 @@ use Cwd;
 use File::Spec::Functions qw/catfile catdir rel2abs/;
 use File::Basename;
 use Time::Piece;
-use Log::Log4perl;
-use Log::Log4perl::Appender;
-use Log::Log4perl::Level;
 use YAML qw/LoadFile/;
-use Path::Class::File;
 extends qw/MooseX::App::Cmd::Command/;
 with 'MooseX::ConfigFromFile';
 
@@ -22,9 +18,7 @@ with 'MooseX::ConfigFromFile';
 #
 subtype 'DataDir'  => as 'Str' => where { -d $_ };
 subtype 'DataFile' => as 'Str' => where { -f $_ };
-subtype 'FileObject' => as class_type('Path::Class::File');
-coerce 'FileObject'  => from 'Str' =>
-    via { Path::Class::File->new($_) };
+subtype 'Dsn'      => as 'Str' => where {/^dbi:(\w+).+$/};
 
 has '+configfile' => (
     cmd_aliases   => 'c',
@@ -54,73 +48,83 @@ has 'input' => (
 
 has 'output' => (
     is            => 'rw',
-    isa           => 'FileObject',
+    isa           => 'Str',
     traits        => [qw/Getopt/],
     cmd_aliases   => 'o',
     required      => 1,
-    coerce        => 1,
     documentation => 'Name of the output file'
 );
 
-has 'output_handler' => (
-	is => 'ro', 
-	isa => 'IO::Handle', 
-	traits => [qw/NoGetopt/], 
-	lazy => 1, 
-	default => sub {
-		my ($self) = @_;
-		return $self->output->openw;
-	}
+
+has 'dsn' => (
+    is            => 'rw',
+    isa           => 'Dsn',
+    documentation => 'database DSN',
+    required      => 1
 );
 
-has 'logfile' => (
+has 'user' => (
     is            => 'rw',
     isa           => 'Str',
-    predicate     => 'has_logfile',
     traits        => [qw/Getopt/],
-    cmd_aliases   => 'l',
-    documentation => 'Name of logfile by default goes to STDIN'
+    cmd_aliases   => 'u',
+    documentation => 'database user'
+);
+
+has 'password' => (
+    is            => 'rw',
+    isa           => 'Str',
+    traits        => [qw/Getopt/],
+    cmd_aliases   => [qw/p pass/],
+    documentation => 'database password'
+);
+
+has 'attribute' => (
+    is            => 'rw',
+    isa           => 'HashRef',
+    traits        => [qw/Getopt/],
+    cmd_aliases   => 'attr',
+    documentation => 'Additional database attribute',
+    default       => sub {
+        { 'LongReadLen' => 2**25, AutoCommit => 1 };
+    }
+);
+
+has 'total_count' => (
+    is      => 'rw',
+    isa     => 'Num',
+    default => 0,
+    traits  => [qw/Counter NoGetopt/],
+    handles => {
+        set_total_count => 'set',
+        inc_total       => 'inc'
+    }
+);
+
+has 'process_count' => (
+    is      => 'rw',
+    isa     => 'Num',
+    default => 0,
+    traits  => [qw/Counter NoGetopt/],
+    handles => {
+        set_process_count => 'set',
+        inc_process       => 'inc'
+    }
+);
+
+has 'error_count' => (
+    is      => 'rw',
+    isa     => 'Num',
+    default => 0,
+    traits  => [qw/Counter NoGetopt/],
+    handles => {
+        set_error_count => 'set',
+        inc_error       => 'inc'
+    }
 );
 
 sub _build_data_dir {
     return rel2abs(cwd);
-}
-
-sub logger {
-    my $self = shift;
-    my $logger
-        = $self->has_logfile
-        ? $self->fetch_logger( $self->logfile )
-        : $self->fetch_logger;
-    $logger;
-}
-
-sub fetch_logger {
-    my ( $self, $file ) = @_;
-
-    my $appender;
-    if ($file) {
-        $appender = Log::Log4perl::Appender->new(
-            'Log::Log4perl::Appender::File',
-            filename => $file,
-            mode     => 'clobber'
-        );
-    }
-    else {
-        $appender
-            = Log::Log4perl::Appender->new(
-            'Log::Log4perl::Appender::ScreenColoredLevels',
-            );
-    }
-
-    my $layout = Log::Log4perl::Layout::PatternLayout->new(
-        "[%d{MM-dd-yyyy hh:mm}] %p > %F{1}:%L - %m%n");
-
-    my $log = Log::Log4perl->get_logger();
-    $appender->layout($layout);
-    $log->add_appender($appender);
-    $log->level($DEBUG);
-    $log;
 }
 
 sub get_config_from_file {
@@ -134,7 +138,7 @@ __END__
 
 =head1 NAME
 
-<MODULE NAME> - [One line description of module's purpose here]
+<Modware::Export::Command> - [Base class for writing export command module]
 
 
 =head1 VERSION
