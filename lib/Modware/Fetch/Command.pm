@@ -10,9 +10,6 @@ use Cwd;
 use File::Spec::Functions qw/catfile catdir rel2abs/;
 use File::Basename;
 use Time::Piece;
-use Log::Log4perl;
-use Log::Log4perl::Appender;
-use Log::Log4perl::Level;
 use YAML qw/LoadFile/;
 use Path::Class::File;
 extends qw/MooseX::App::Cmd::Command/;
@@ -58,7 +55,7 @@ has 'output' => (
     traits        => [qw/Getopt/],
     cmd_aliases   => 'o',
     required      => 1,
-    coerce        => 1,
+    coerce => 1, 
     documentation => 'Name of the output file'
 );
 
@@ -73,54 +70,9 @@ has 'output_handler' => (
 	}
 );
 
-has 'logfile' => (
-    is            => 'rw',
-    isa           => 'Str',
-    predicate     => 'has_logfile',
-    traits        => [qw/Getopt/],
-    cmd_aliases   => 'l',
-    documentation => 'Name of logfile by default goes to STDIN'
-);
 
 sub _build_data_dir {
     return rel2abs(cwd);
-}
-
-sub logger {
-    my $self = shift;
-    my $logger
-        = $self->has_logfile
-        ? $self->fetch_logger( $self->logfile )
-        : $self->fetch_logger;
-    $logger;
-}
-
-sub fetch_logger {
-    my ( $self, $file ) = @_;
-
-    my $appender;
-    if ($file) {
-        $appender = Log::Log4perl::Appender->new(
-            'Log::Log4perl::Appender::File',
-            filename => $file,
-            mode     => 'clobber'
-        );
-    }
-    else {
-        $appender
-            = Log::Log4perl::Appender->new(
-            'Log::Log4perl::Appender::ScreenColoredLevels',
-            );
-    }
-
-    my $layout = Log::Log4perl::Layout::PatternLayout->new(
-        "[%d{MM-dd-yyyy hh:mm}] %p > %F{1}:%L - %m%n");
-
-    my $log = Log::Log4perl->get_logger();
-    $appender->layout($layout);
-    $log->add_appender($appender);
-    $log->level($DEBUG);
-    $log;
 }
 
 sub get_config_from_file {

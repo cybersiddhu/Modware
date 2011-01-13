@@ -9,17 +9,16 @@ use File::Temp;
 use Bio::DB::EUtilities;
 use XML::Twig;
 use Moose::Util::TypeConstraints;
-use IO::File;
 use namespace::autoclean;
 use File::Temp;
 use File::Spec::Functions;
 use Carp::Always;
 extends qw/Modware::Fetch::Command/;
+with 'Modware::Role::Command::WithEmail';
+with 'Modware::Role::Command::WithLogger';
 
 # Module implementation
 #
-
-subtype 'Email' => as 'Str' => where { Email::Valid->address($_) };
 
 has '+output' => (
     default => sub {
@@ -145,8 +144,7 @@ has 'date' => (
 
 sub execute {
     my $self   = shift;
-    my $log = $self->logger;
-    $log->info("going for esearch with query ",  $self->query);
+    my $log = $self->dual_logger;
     my $eutils = Bio::DB::EUtilities->new(
         -eutil      => 'esearch',
         -db         => $self->db,
@@ -154,9 +152,8 @@ sub execute {
         -reldate    => $self->reldate,
         -retmax     => $self->retmax,
         -usehistory => 'y',
-        -email      => $self->email
+        -email      => $self->from
     );
-    $log->info('done with esearch');
     my $hist = $eutils->next_History || $log->logdie("no history");
 
     my @ids = $eutils->get_ids;
@@ -164,25 +161,22 @@ sub execute {
     $eutils->reset_parameters(
         -eutils  => 'efetch',
         -db      => $self->db,
-        -history => $hist
+        -history => $hist, 
+        -email => $self->from
     );
-
-    $log->info('done with efetch');
 
     $eutils->get_Response(
         -file => $self->do_copyright_patch
         ? $self->temp_file
-        : $self->output
+        : $self->output->stringify
     );
-
-    $log->info('done writing efetch output');
-    $log->info('going for elink');
 
     $eutils->reset_parameters(
         -eutil  => 'elink',
         -dbfrom => $self->db,
         -cmd    => 'prlinks',
-        -id     => [@ids]
+        -id     => [@ids], 
+        -email => $self->from
     );
 
     $eutils->get_Response( -file => $self->link_output );
@@ -198,10 +192,8 @@ sub execute {
             },
             'pretty_print' => 'indented',
         )->parsefile( $self->temp_file );
-        my $outhandler = IO::File->new( $self->output, 'w' )
-            or $log->logdie("cannot open file:$!");
-        $twig->print($outhandler);
-        $outhandler->close;
+        $twig->print($self->output_handler);
+        $self->output_handler->close;
         $log->info('done patching copyright');
     }
 }
