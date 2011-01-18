@@ -7,7 +7,7 @@ package Modware::DataSource::Chado::BCS::Engine::Oracle;
 use namespace::autoclean;
 use Moose;
 use MooseX::Params::Validate;
-
+use Carp;
 with 'Modware::Role::DataSource::Chado::BCS::Engine';
 
 sub transform {
@@ -20,6 +20,8 @@ sub transform {
         }
     );
     croak "need a schema for transformation\n" if !$schema;
+
+    $schema->source('Organism::Organism')->remove_column('comment');
 
     $schema->source('Sequence::Synonym')->name('synonym_');
     $schema->source('Sequence::FeatureSynonym')->add_relationship(
@@ -77,7 +79,7 @@ sub transform {
             default_value => 'false'
         }
     );
-    return;
+    return 1;
 }
 
 1;    # Magic true value required at end of module

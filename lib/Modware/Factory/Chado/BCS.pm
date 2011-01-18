@@ -8,17 +8,18 @@ use Module::Find;
 use Carp;
 use Class::MOP;
 use Try::Tiny;
+use List::MoreUtils qw/firstval/;
 
 # Module implementation
 #
 sub new {
     my ( $class, %arg ) = @_;
     my $engine = $arg{engine} ? ucfirst lc( $arg{engine} ) : 'Generic';
-    my $package = grep {/$engine$/}
+    my $package = firstval {/$engine$/}
         findsubmod('Modware::DataSource::Chado::BCS::Engine');
     croak "cannot find plugins for engine: $engine\n" if !$package;
     try {
-        load_class($package);
+        Class::MOP::load_class($package);
     }
     catch {
         croak "Issue in loading $package $_\n";

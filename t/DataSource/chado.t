@@ -6,7 +6,6 @@ use Path::Class::Dir;
 use FindBin qw/$Bin/;
 use DBI;
 use Try::Tiny;
-use lib '../lib';
 
 BEGIN {
     use_ok('Modware::DataSource::Chado');
@@ -98,23 +97,6 @@ unlink grep {/sqlite$/} map { $_->stringify } $folder->children;
 sub set_chado {
     my %arg = @_;
 
-    #my $handler = Test::Chado::Handler->new(
-    #    dsn => "dbi:SQLite:dbname=$arg{dbname}",
-    #    ddl => $arg{ddl}
-    #);
-    #$handler->loader('bcs');
-    #$handler->deploy_schema;
-    #my $loader = $handler->loader_instance;
-    #$loader->txn_do(
-    #    sub {
-    #        $loader->resultset('General::Db')->create(
-    #            {   name        => $arg{data}{name},
-    #                description => $arg{data}{description}
-    #            }
-    #        );
-    #    }
-    #);
-    #$loader->txn_commit;
     my $dbh = DBI->connect( "dbi:SQLite:dbname=$arg{dbname}",
         '', '', { AutoCommit => 0, RaiseError => 1 } );
     try {

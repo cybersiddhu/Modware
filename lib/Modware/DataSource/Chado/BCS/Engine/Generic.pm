@@ -7,6 +7,7 @@ package Modware::DataSource::Chado::BCS::Engine::Generic;
 use namespace::autoclean;
 use Moose;
 use MooseX::Params::Validate;
+use Carp;
 
 with 'Modware::Role::DataSource::Chado::BCS::Engine';
 
@@ -19,7 +20,9 @@ sub transform {
             optional => 1
         }
     );
-    return;
+
+    croak "need a schema for transformation\n" if !$schema;
+    return 1;
 }
 
 1;    # Magic true value required at end of module

@@ -7,7 +7,7 @@ use Moose::Role;
 # Module implementation
 #
 
-require 'transform';
+requires 'transform';
 has 'schema' => (
 	is => 'rw', 
 	isa => 'Bio::Chado::Schema'
