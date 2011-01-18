@@ -49,13 +49,6 @@ has 'base_query' => (
     }
 );
 
-has 'chado' => (
-    is      => 'rw',
-    isa     => 'Bio::Chado::Schema',
-    lazy    => 1,
-    builder => '_build_chado',
-);
-
 has 'spreadsheet' => (
     is       => 'rw',
     isa      => 'Bool',
@@ -66,35 +59,6 @@ has 'spreadsheet' => (
         'Dumping the output in spreadsheet format,  default is on'
 );
 
-sub _build_chado {
-    my ($self) = @_;
-    my $schema = Bio::Chado::Schema->connect( $self->dsn, $self->user,
-        $self->password, $self->attribute );
-    my $source     = $schema->source('Sequence::Feature');
-    my $class_name = 'Bio::Chado::Schema::' . $source->source_name;
-    $source->add_column(
-        'is_deleted' => {
-            data_type     => 'boolean',
-            is_nullable   => 0,
-            default_value => 'false'
-        }
-    );
-    $class_name->add_column(
-        'is_deleted' => {
-            data_type     => 'boolean',
-            is_nullable   => 0,
-            default_value => 'false'
-        }
-    );
-    $class_name->register_column(
-        'is_deleted' => {
-            data_type     => 'boolean',
-            is_nullable   => 0,
-            default_value => 'false'
-        }
-    );
-
-}
 
 sub execute {
     my $self   = shift;
@@ -102,7 +66,7 @@ sub execute {
     my $bcs    = $self->chado;
     my $output = $self->output_handler;
     $self->subject('Pubmed export robot');    # -- email subject
-    my ( $sp, $ws, $row );
+    my ( $sp, $ws, $row,  $spreadsheet );
     if ( $self->spreadsheet ) {
         $row = 0;
         $spreadsheet
@@ -133,9 +97,11 @@ PUB:
         my $gene_id   = $feature->dbxref->accession;
         my $gene_name = $feature->name;
         my $ddb_id    = $self->gene2ddb($gene_id);
-        $output->print( sprintf "%s\t%s\t%s\n", $pubmed_id, $name, $ddb_id );
+
+        $output->print( sprintf "%s\t%s\t%s\n", $pubmed_id, $gene_name, $ddb_id );
+
         if ( $self->spreadsheet ) {
-            $ws->write_row( $row++, 0, [ $pubmed_id, $name, $ddb_id ] );
+            $ws->write_row( $row++, 0, [ $pubmed_id, $gene_name, $ddb_id ] );
         }
         $self->inc_process;
     }
@@ -213,7 +179,7 @@ sub gene2ddb {
     }
     my @id = map { $_->get_column('id') }
         grep { $_->get_column('source') eq 'dictyBase Curator' } $rs->all;
-    my @id = map { $_->get_column('id') } $rs->all
+    @id = map { $_->get_column('id') } $rs->all
         if !@id;
     return $id[0];
 

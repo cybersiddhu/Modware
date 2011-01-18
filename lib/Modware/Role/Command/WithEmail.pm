@@ -12,12 +12,12 @@ use Email::Valid;
 # Module implementation
 #
 
-require [qw/execute/];
+requires 'execute';
 
 after 'execute' => sub {
     my ($self) = @_;
     if ( $self->send_email ) {
-        my $msg = $log->appender_by_name('message_stack')->string;
+        my $msg = $self->current_logger->appender_by_name('message_stack')->string;
         $self->robot_email($msg);
     }
 };

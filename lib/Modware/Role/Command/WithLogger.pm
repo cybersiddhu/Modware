@@ -7,7 +7,6 @@ use Log::Log4perl;
 use Log::Log4perl::Appender;
 use Log::Log4perl::Level;
 
-
 # Module implementation
 #
 has 'logfile' => (
@@ -17,6 +16,14 @@ has 'logfile' => (
     traits        => [qw/Getopt/],
     cmd_aliases   => 'l',
     documentation => 'Name of logfile,  default goes to STDIN'
+);
+
+has 'current_logger' => (
+    is      => 'ro',
+    isa     => 'Log::Log4perl',
+    default => sub { Log::Log4perl->get_logger(__PACKAGE__) },
+    lazy    => 1, 
+    traits => [qw/NoGetopt/]
 );
 
 sub dual_logger {
@@ -53,7 +60,7 @@ sub fetch_dual_logger {
     my $layout = Log::Log4perl::Layout::PatternLayout->new(
         "[%d{MM-dd-yyyy hh:mm}] %p > %F{1}:%L - %m%n");
 
-    my $log = Log::Log4perl->get_logger();
+    my $log = Log::Log4perl->get_logger(__PACKAGE__);
     $appender->layout($layout);
     $str_appender->layout($layout);
     $log->add_appender($str_appender);
@@ -98,8 +105,6 @@ sub fetch_logger {
     $log->level($DEBUG);
     $log;
 }
-
-
 
 1;    # Magic true value required at end of module
 
