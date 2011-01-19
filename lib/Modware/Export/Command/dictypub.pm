@@ -24,7 +24,7 @@ has 'topic2file' => (
     traits  => [qw/Hash NoGetopt/],
     default => sub {
         return {
-            'Genome-wide Analysis' => 'High_throughput_papers',
+            'Genome-wide Analysis' => 'High_throughput_papers.txt',
             'Reviews'              => 'Reviews.txt',
             'Reviews:Genome-wide Analysis' =>
                 'not_reviews_not_high_throughput_papers.txt',
@@ -41,11 +41,12 @@ has 'base_query' => (
     isa     => 'HashRef',
     traits  => [qw/Hash NoGetopt/],
     default => sub {
-        { 'cvterm.name' => 'dictyBase_literature_topic' };
+        { 'cv.name' => 'dictyBase_literature_topic' };
     },
     handles => {
         add_query       => 'set',
         get_query_value => 'get',
+        clean_queries => 'clear'
     }
 );
 
@@ -59,24 +60,23 @@ has 'spreadsheet' => (
         'Dumping the output in spreadsheet format,  default is on'
 );
 
-
 sub execute {
     my $self   = shift;
     my $log    = $self->dual_logger;
     my $bcs    = $self->chado;
     my $output = $self->output_handler;
     $self->subject('Pubmed export robot');    # -- email subject
-    my ( $sp, $ws, $row,  $spreadsheet );
+    my ( $sp, $ws, $row_count, $spreadsheet );
     if ( $self->spreadsheet ) {
-        $row = 0;
+        $row_count = 0;
         $spreadsheet
             = Spreadsheet::WriteExcel->new( $self->get_spreadsheet_name );
         $ws = $spreadsheet->add_worksheet;
-        $ws->write_row( $row++, 0,
+        $ws->write_row( $row_count++, 0,
             [ 'pubmed', 'gene_name', 'dictyBase id' ] );
     }
 
-    my $rs = $bcs->resultset('Sequence::FeatureCvterm')->search(
+    my $rs = $bcs->resultset('Sequence::FeaturePub')->search(
         {   'feature.is_deleted' => 0,
             'type.name'          => 'gene',
             'pub.pubplace'       => 'PUBMED'
@@ -85,54 +85,61 @@ sub execute {
     );
     $self->set_total_count( $rs->count );
 
-PUB:
-    while ( my $row = $rs->next ) {
-        my $pubmed_id = $row->pub->uniquename;
-        if ( $pubmed_id =~ /^PUB/ ) {
-            $log->error( 'Not pubmed id in my book for ', $row->pub->pub_id );
-            $self->inc_error;
-            next PUB;
-        }
-        my $feature   = $row->feature;
-        my $gene_id   = $feature->dbxref->accession;
-        my $gene_name = $feature->name;
-        my $ddb_id    = $self->gene2ddb($gene_id);
-
-        $output->print( sprintf "%s\t%s\t%s\n", $pubmed_id, $gene_name, $ddb_id );
-
-        if ( $self->spreadsheet ) {
-            $ws->write_row( $row++, 0, [ $pubmed_id, $gene_name, $ddb_id ] );
-        }
-        $self->inc_process;
-    }
-
-    $log->info( sprintf "total:%i\tprocess:%i\tfailed:%i\n",
-        $self->total_count, $self->process_count, $self->error_count );
-
+#PUB:
+#    while ( my $row = $rs->next ) {
+#        my $pubmed_id = $row->pub->uniquename;
+#        if ( $pubmed_id =~ /^PUB/ ) {
+#            $log->error( 'Not pubmed id in my book for ', $row->pub->pub_id );
+#            $self->inc_error;
+#            next PUB;
+#        }
+#        my $feature   = $row->feature;
+#        my $gene_id   = $feature->dbxref->accession;
+#        my $gene_name = $feature->name;
+#        my $ddb_id    = $self->gene2ddb($gene_id);
+#
+#        if ($ddb_id) {
+#            $output->print( sprintf "%s\t%s\t%s\n",
+#                $pubmed_id, $gene_name, $ddb_id );
+#            if ( $self->spreadsheet ) {
+#                $ws->write_row( $row_count++, 0,
+#                    [ $pubmed_id, $gene_name, $ddb_id ] );
+#            }
+#            $self->inc_process;
+#
+#        }
+#        else {
+#            $log->warn("Unable to fetch ddb id for $gene_id");
+#            $self->inc_error;
+#        }
+#
+#    }
+#
+#    $log->info( sprintf "total:%i\tprocess:%i\tfailed:%i\n",
+#        $self->total_count, $self->process_count, $self->error_count );
+#
     for my $name ( $self->topics ) {
         if ( $name =~ /:/ ) {
             my ( $param1, $param2 ) = split /:/, $name;
-            $self->add_query( 'cvterm.name' => { '!=', $param1 } );
-            $self->add_query( 'cvterm.name' => { '!=', $param2 } );
+            $self->add_query( 'type_2.name', { '!=', $param1 } );
+            $self->add_query( 'type_2.name', { '!=', $param2 } );
         }
         else {
-            $self->add_query( 'cvterm.name' => $name );
+            $self->add_query( 'type_2.name', $name );
         }
         my $topic_rs = $rs->search( $self->base_query,
             { join => { 'feature_pubprops' => { 'type' => 'cv' } } } );
         $self->export_with_topic( $topic_rs, $self->get_filename($name) );
+        $self->clean_queries;
     }
 }
 
 sub export_with_topic {
-    my ( $self, $rs, $file );
-    my $filehandle = Path::Class::File->new($file)->openw;
+    my ( $self, $rs, $file ) = @_;
+    my $dir = Path::Class::File->new( $self->output )->dir;
+    my $filehandle = Path::Class::File->new( $dir, $file )->openw;
     while ( my $row = $rs->next ) {
-        my $cvterm_rs = $row->feature_pubprops->search_related(
-            'type',
-            { 'cv.name' => 'dictyBase_literature_topic' },
-            { join      => 'cv' }
-        );
+        my $cvterm_rs = $row->feature_pubprops->search_related( 'type', {} );
         my $topic_string = join( ', ', map { $_->name } $cvterm_rs->all );
         $filehandle->print( $row->feature->dbxref->accession,
             "\t", $row->pub->uniquename, "\t$topic_string\n" );
@@ -142,8 +149,12 @@ sub export_with_topic {
 
 sub get_spreadsheet_name {
     my ($self) = @_;
-    my $name = ( ( split /\./, $self->output->basename ) )[0];
-    return catfile( $self->output->dir->stringify, $name . '.xls' );
+    my $name
+        = (
+        ( split /\./, Path::Class::File->new( $self->output )->basename ) )
+        [0];
+    return catfile( Path::Class::File->new( $self->output )->dir->stringify,
+        $name . '.xls' );
 }
 
 sub gene2ddb {
