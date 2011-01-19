@@ -13,12 +13,11 @@ use Modware::Publication::DictyBase;
 use Try::Tiny;
 use Carp;
 extends qw/Modware::Load::Command/;
+with 'Modware::Role::Command::WithLogger';
 with 'Modware::Role::Command::WithEmail';
-with 'Modware::Role::Command::Logger';
 
 # Module implementation
 #
-
 
 has 'source' => (
     is            => 'rw',
@@ -28,10 +27,11 @@ has 'source' => (
 );
 
 has 'type' => (
-    is            => 'rw',
-    isa           => 'Str',
-    default       => 'journal article',
-    documentation => 'The type of publication,  default is * journal article *'
+    is      => 'rw',
+    isa     => 'Str',
+    default => 'journal article',
+    documentation =>
+        'The type of publication,  default is * journal article *'
 );
 
 has '+input' => (
@@ -44,16 +44,15 @@ has '+input' => (
             map { [ stat($_)->mtime, $_ ] }
             File::Find::Rule->file->name(qr/^pubmed\_\d+\.xml$/)
             ->in( $self->data_dir );
-		croak "no input file found\n" if !@files;
+        croak "no input file found\n" if !@files;
         $files[0];
-    }, 
+    },
     lazy => 1
 );
 
 sub execute {
     my $self = shift;
     my $log  = $self->dual_logger;
-	$self->subject('Pubmed loader robot');
 
     Modware::DataSource::Chado->connect(
         dsn      => $self->dsn,
@@ -65,6 +64,8 @@ sub execute {
         -format => 'pubmedxml',
         -file   => $self->input
     );
+
+    $log->info( 'going to load file ', $self->input );
 
     my $loaded  = 0;
     my $skipped = 0;
@@ -80,15 +81,30 @@ sub execute {
         $pub->pubmed_id($pubmed_id);
         $pub->$_( $self->$_ ) for qw/source type/;
         $pub->$_( $ref->$_ )  for qw/title volume/;
-        $pub->status($ref->pubmed_status);
+        $pub->year( $ref->date );
+        $pub->status( $ref->pubmed_status );
         $pub->issue( $ref->issue )        if $ref->issue;
         $pub->pages( $ref->medline_page ) if $ref->medline_page;
         $pub->abstract( $ref->abstract )  if $ref->abstract;
-        $pub->issn($ref->journal->issn) if $ref->journal->issn;
+
+        if ( my $journal = $ref->journal ) {
+            my $abbr = $journal->abbreviation;
+            if ( my $name = $journal->name ) {
+                $pub->journal($name);
+            }
+            elsif ($abbr) {
+                $pub->journal($abbr);
+                $pub->abbreviation($abbr);
+            }
+            else {
+                $log->warn(
+                    "no journal name or abbreviation found for $pubmed_id");
+            }
+        }
 
         for my $author ( @{ $ref->authors } ) {
             $pub->add_author(
-                {   last_name  => $author->last_name,
+                {   last_name  => $author->lastname,
                     suffix     => $author->suffix,
                     given_name => $author->initials . ' ' . $author->forename
                 }
@@ -101,13 +117,12 @@ sub execute {
             $log->info("Loaded $pubmed_id");
         }
         catch {
-            $log->fatal(
-                "Could not load entry with pubmed id $pubmed_id\n$_");
+            $log->fatal("Could not load entry with pubmed id $pubmed_id\n$_");
         };
     }
     $log->info("Loaded: $loaded\tSkipped: $skipped");
+    $self->subject('Pubmed loader robot');    # -- email subject
 }
-
 
 1;    # Magic true value required at end of module
 

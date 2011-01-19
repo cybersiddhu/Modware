@@ -2,9 +2,12 @@ package  Modware::Types;
 
 # Other modules:
 use MooseX::Types -declare =>
-    [qw/CleanStr UnCleanStr ColumnMap Toggler URI UpdateStash/];
-use MooseX::Types::Moose qw/Int Str Any Object Bool HashRef ArrayRef/;
+    [qw/CleanStr UnCleanStr ColumnMap Toggler URI UpdateStash PubYear PubDate PubDateStr
+    PubDateHalfStr/
+    ];
+use MooseX::Types::Moose qw/Int Str Any Object Bool HashRef ArrayRef Maybe/;
 use Regexp::Common qw/URI/;
+use DateTime::Format::Strptime;
 use namespace::autoclean;
 
 # Module implementation
@@ -34,11 +37,27 @@ coerce Toggler, from Str, via {
 };
 
 subtype URI, as Str, where {
-    $RE{URI}{HTTP}{-scheme => 'https?'}->matches($_);
+    $RE{URI}{HTTP}{ -scheme => 'https?' }->matches($_);
 }, message {
     "$_ is not a HTTP URL";
 };
 
+subtype PubYear,    as Str, where {/^\d+$/};
+subtype PubDate,    as Str, where {/^\d{2,4}\-\d{1,2}\-\d{1,2}$/};
+subtype PubDateStr, as Str, where {/^\d{2,4}\-\w{3,6}\-\d{1,2}$/};
+subtype PubDateHalfStr, as Str, where {/^\d{2,4}\-\w{3,6}$/};
+coerce PubYear, from PubDate, via {
+    DateTime::Format::Strptime->new( pattern => '%Y-%m-%d' )
+        ->parse_datetime($_)->year;
+};
+coerce PubYear, from PubDateStr, via {
+    DateTime::Format::Strptime->new( pattern => '%Y-%b-%d' )
+        ->parse_datetime($_)->year;
+};
+coerce PubYear, from PubDateHalfStr, via {
+    DateTime::Format::Strptime->new( pattern => '%Y-%b' )
+        ->parse_datetime($_)->year;
+};
 
 1;    # Magic true value required at end of module
 

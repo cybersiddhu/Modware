@@ -85,39 +85,39 @@ sub execute {
     );
     $self->set_total_count( $rs->count );
 
-#PUB:
-#    while ( my $row = $rs->next ) {
-#        my $pubmed_id = $row->pub->uniquename;
-#        if ( $pubmed_id =~ /^PUB/ ) {
-#            $log->error( 'Not pubmed id in my book for ', $row->pub->pub_id );
-#            $self->inc_error;
-#            next PUB;
-#        }
-#        my $feature   = $row->feature;
-#        my $gene_id   = $feature->dbxref->accession;
-#        my $gene_name = $feature->name;
-#        my $ddb_id    = $self->gene2ddb($gene_id);
-#
-#        if ($ddb_id) {
-#            $output->print( sprintf "%s\t%s\t%s\n",
-#                $pubmed_id, $gene_name, $ddb_id );
-#            if ( $self->spreadsheet ) {
-#                $ws->write_row( $row_count++, 0,
-#                    [ $pubmed_id, $gene_name, $ddb_id ] );
-#            }
-#            $self->inc_process;
-#
-#        }
-#        else {
-#            $log->warn("Unable to fetch ddb id for $gene_id");
-#            $self->inc_error;
-#        }
-#
-#    }
-#
-#    $log->info( sprintf "total:%i\tprocess:%i\tfailed:%i\n",
-#        $self->total_count, $self->process_count, $self->error_count );
-#
+PUB:
+    while ( my $row = $rs->next ) {
+        my $pubmed_id = $row->pub->uniquename;
+        if ( $pubmed_id =~ /^PUB/ ) {
+            $log->error( 'Not pubmed id in my book for ', $row->pub->pub_id );
+            $self->inc_error;
+            next PUB;
+        }
+        my $feature   = $row->feature;
+        my $gene_id   = $feature->dbxref->accession;
+        my $gene_name = $feature->name;
+        my $ddb_id    = $self->gene2ddb($gene_id);
+
+        if ($ddb_id) {
+            $output->print( sprintf "%s\t%s\t%s\n",
+                $pubmed_id, $gene_name, $ddb_id );
+            if ( $self->spreadsheet ) {
+                $ws->write_row( $row_count++, 0,
+                    [ $pubmed_id, $gene_name, $ddb_id ] );
+            }
+            $self->inc_process;
+
+        }
+        else {
+            $log->warn("Unable to fetch ddb id for $gene_id");
+            $self->inc_error;
+        }
+
+    }
+
+    $log->info( sprintf "total:%i\tprocess:%i\tfailed:%i\n",
+        $self->total_count, $self->process_count, $self->error_count );
+
     for my $name ( $self->topics ) {
         if ( $name =~ /:/ ) {
             my ( $param1, $param2 ) = split /:/, $name;

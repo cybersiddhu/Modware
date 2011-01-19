@@ -138,7 +138,7 @@ PERSISTENT:
 sub read_generic {
     my ( $self, $attr, $dbrow ) = @_;
     my $column = $attr->has_column ? $attr->column : $attr->name;
-    $attr->set_value( $self, $dbrow->$column );
+    $attr->set_value( $self, $dbrow->$column ) if defined $dbrow->$column;
 }
 
 sub read_cvterm {
@@ -149,7 +149,8 @@ sub read_cvterm {
 sub create_generic {
     my ( $self, $attr ) = @_;
     my $column = $attr->has_column ? $attr->column : $attr->name;
-    $self->add_to_mapper( $column, $attr->get_value($self) );
+    my $value = $attr->get_value($self);
+    $self->add_to_mapper( $column, $value ) if $value;
 }
 
 sub create_cvterm {

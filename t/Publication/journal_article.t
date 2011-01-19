@@ -35,7 +35,11 @@ lives_ok { $pub->create }
 'It needs a author and journal names to create a new record';
 
 #lets find the record with our cool search API
-is( $Pub->count( title => '*Best title*', year => 2004, journal => '*Modware*' ),
+is( $Pub->count(
+        title   => '*Best title*',
+        year    => 2004,
+        journal => '*Modware*'
+    ),
     1,
     'has got one persisted record from database'
 );
@@ -50,9 +54,9 @@ is( $pub_from_db->journal, $pub->journal,
     'persisted record matches in journal name' );
 is( $pub_from_db->status, $pub->status,
     'persisted record matches in status' );
-is($pub_from_db->first_page,  50,  'got data for first page');
-is($pub_from_db->last_page,  100,  'got data for first page');
-is($pub_from_db->pages,  '50--100',  'It has pages with first and last name');
+is( $pub_from_db->first_page, 50,  'got data for first page' );
+is( $pub_from_db->last_page,  100, 'got data for first page' );
+is( $pub_from_db->pages, '50--100', 'It has pages with first and last name' );
 
 is( $pub_from_db->total_authors, 1, 'has got one author' );
 
@@ -61,14 +65,18 @@ isa_ok( $author, 'Modware::Publication::Author' );
 is( $author->first_name,, 'Mumbo', 'has got author first name' );
 
 $pub_from_db->delete( { cascade => 1 } );
-is( $Pub->count( title => '*Best title*', year => 2004, journal => '*Modware*' ),
+is( $Pub->count(
+        title   => '*Best title*',
+        year    => 2004,
+        journal => '*Modware*'
+    ),
     0,
     'got no record from database after deletion'
 );
 
 #another new record
 $pub = $Pub->new(
-    year     => 2010,
+    year     => '2010-08-11',
     title    => 'My title',
     abstract => 'My best abstract',
     status   => 'In press',
@@ -91,7 +99,8 @@ $pub->add_author(
 );
 
 lives_ok { $pub->create } 'create another new publication record';
-is( $Pub->count( year => '*2010*' ), 6, 'got six publications from database' );
+is( $Pub->count( year => '*2010*' ), 6,
+    'got six publications from database' );
 
 ($pub_from_db) = $Pub->search(
     year    => '2010',
@@ -125,3 +134,23 @@ is( $pub_after_update->issue, $pub_from_db->issue,
     'journal issue matches after update' );
 is( $pub_after_update->issn, $pub_from_db->issn,
     'journal issn matches after update' );
+
+#another new record with different date format
+$pub = $Pub->new(
+    year     => '2010-Mar-11',
+    title    => 'My new title',
+    abstract => 'My best abstract',
+    status   => 'In press',
+    cv       => $test_cv,
+    journal  => 'Best journal'
+);
+$pub->add_author(
+    {   first_name => 'Kenny',
+        last_name  => 'Bania',
+        suffix     => 'Mr.',
+        initials   => 'King'
+
+    }
+);
+lives_ok { $pub->create }
+'create another new publication record with different date format';

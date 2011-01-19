@@ -154,17 +154,20 @@ sub read_authors {
 sub create_pubprop {
     my ( $self, $attr ) = @_;
     my $cvterm = $attr->has_cvterm ? $attr->cvterm : $attr->name;
-    my $pubprop = {
-        type_id => $self->find_or_create_cvterm_id(
-            cvterm => $cvterm,
-            dbxref => $cvterm,
-            cv     => $attr->cv,
-            db     => $attr->db
-        ),
-        value => $attr->get_value($self),
-        rank  => $attr->rank
-    };
-    $self->add_to_insert_pubprops($pubprop);
+    my $value = $attr->get_value($self);
+    if ($value) {
+        my $pubprop = {
+            type_id => $self->find_or_create_cvterm_id(
+                cvterm => $cvterm,
+                dbxref => $cvterm,
+                cv     => $attr->cv,
+                db     => $attr->db
+            ),
+            value => $value,
+            rank  => $attr->rank
+        };
+        $self->add_to_insert_pubprops($pubprop);
+    }
 }
 
 sub create_dicty_pubprops {

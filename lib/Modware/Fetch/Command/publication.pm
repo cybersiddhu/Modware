@@ -13,8 +13,8 @@ use namespace::autoclean;
 use File::Temp;
 use File::Spec::Functions;
 extends qw/Modware::Fetch::Command/;
-with 'Modware::Role::Command::WithEmail';
 with 'Modware::Role::Command::WithLogger';
+with 'Modware::Role::Command::WithEmail';
 
 # Module implementation
 #
@@ -200,6 +200,9 @@ sub execute {
         $self->output_handler->close;
         $log->info('done patching copyright');
     }
+
+    $log->info('wrote output to file ',  $self->output->stringify);
+    $self->subject('weekly pubmed retrieval');
 }
 
 1;    # Magic true value required at end of module

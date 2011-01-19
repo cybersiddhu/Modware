@@ -150,6 +150,7 @@ sub _build_chado {
     my $engine = Modware::Factory::Chado::BCS->new(
         engine => $schema->storage->sqlt_type );
     $engine->transform($schema);
+    return $schema;
 }
 
 sub _build_data_dir {

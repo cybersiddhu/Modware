@@ -99,7 +99,7 @@ has 'common_name' => (
 sub execute {
     my ($self) = @_;
     my $schema = $self->chado;
-    my $log = $self->dual_logger;
+    my $log    = $self->dual_logger;
     my $graph  = GOBO::Graph->new;
 
     my $assoc_rs = $schema->resultset('Sequence::FeatureCvterm')->search(
@@ -115,10 +115,12 @@ sub execute {
         {   join => [ { 'cvterm' => 'cv' }, { 'feature' => 'organism' } ],
             prefetch => 'pub',
             cache    => 1,
-            rows     => 50
         }
     );
 
+    $log->info( 'going to process ', $assoc_rs->count, ' entries' );
+
+    my $increment = 1;
     while ( my $assoc = $assoc_rs->next ) {
         my $anno = GOBO::Annotation->new;
         my $gene = GOBO::Gene->new;
@@ -132,10 +134,12 @@ sub execute {
             $node->id( $feat->dbxref->accession );
             $gene_feat = $self->feat2gene($feat);
             $anno->specific_node($node);
+            $anno->description( $self->get_description($feat) );
         }
         else {
             $gene_feat = $feat;
             $gene->gp_type( $gene_feat->type->name );
+            $anno->description( $self->get_description($gene_feat) );
         }
         $gene->id(
             $self->source_database . ':' . $gene_feat->dbxref->accession );
@@ -192,7 +196,12 @@ sub execute {
         $anno->date( $self->get_date_column($fcvprop_rs) );
         $graph->add_annotation($anno);
 
-        $self->inc_total;
+        $self->inc_process;
+
+        if ( ( $self->process_count / 5000 ) >= $increment ) {
+            $log->info( "processed ", $self->process_count, " entries" );
+            $increment++;
+        }
     }
 
     my $writer = GOBO::Writers::GAFWriter->new( file => $self->output );
@@ -200,10 +209,14 @@ sub execute {
     $writer->graph($graph);
     $writer->write;
 
-    $log->info("written ",  $self->total_count,  " entries in GAF2.0 file");
+    $log->info( "written ", $self->process_count, " entries in GAF2.0 file" );
 }
 
 sub feat2gene {
+    return;
+}
+
+sub get_description {
     return;
 }
 
@@ -225,7 +238,7 @@ sub get_qualifiers {
     my ( $self, $rs ) = @_;
     my @qual;
     push @qual, GOBO::Node->new( id => $_->value )
-        for $rs->search( { 'type.name' => $self->qualifier_term } );
+        for $rs->search( { 'type.name' => $self->qual_term } );
     return @qual;
 
 }

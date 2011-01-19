@@ -8,6 +8,7 @@ use Email::Simple;
 use Email::Sender::Transport::SMTP;
 use Moose::Util::TypeConstraints;
 use Email::Valid;
+use Carp;
 
 # Module implementation
 #
@@ -19,6 +20,7 @@ requires 'msg_appender';
 after 'execute' => sub {
     my ($self) = @_;
     if ( $self->send_email ) {
+    	carp "Need *host* to send e-mail\n" if !$self->has_host;
         if ( $self->has_msg_appender ) {
             my $msg = $self->msg_appender->string;
             $self->robot_email($msg);
@@ -44,7 +46,8 @@ has 'send_email' => (
 has 'host' => (
     is            => 'rw',
     isa           => 'Str',
-    documentation => 'SMTP host for sending e-mail'
+    documentation => 'SMTP host for sending e-mail,  required if *send_email* is set', 
+    predicate => 'has_host'
 );
 
 has 'to' => (

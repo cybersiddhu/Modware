@@ -34,9 +34,9 @@ has 'data_dir' => (
     cmd_flag    => 'dir',
     cmd_aliases => 'd',
     documentation =>
-        'Folder under which input and output files can be configured to be written',
+        'Folder from where input files can be captured,  default to the folder of the running script',
     builder => '_build_data_dir', 
-    lazy => 1
+    lazy => 1, 
 );
 
 has 'input' => (
@@ -77,7 +77,7 @@ has 'attribute' => (
 	cmd_aliases => 'attr', 
 	documentation => 'Additional database attribute', 
 	default => sub {
-		{ 'LongReadLen' => 2**25,  AutoCommit => 1}
+		{ 'LongReadLen' => 2**15,  AutoCommit => 1}
 	}
 );
 

@@ -5,6 +5,7 @@ use namespace::autoclean;
 use Moose::Role;
 use Modware::Meta;
 use Data::UUID;
+use Modware::Types qw/PubYear/;
 
 #module implementation
 with 'Modware::Role::Data::WithDefault';
@@ -50,10 +51,11 @@ has 'title' => (
 
 has 'year' => (
     is        => 'rw',
-    isa       => 'Maybe[Str]',
+    isa       => PubYear,
     predicate => 'has_year',
     traits    => [qw/Persistent/],
-    column    => 'pyear'
+    column    => 'pyear', 
+    coerce => 1
 );
 
 has 'keywords_stack' => (

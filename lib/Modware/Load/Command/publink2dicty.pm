@@ -14,8 +14,8 @@ use Try::Tiny;
 use Carp;
 use XML::LibXML;
 extends qw/Modware::Load::Command/;
-with 'Modware::Role::Command::WithEmail';
 with 'Modware::Role::Command::WithLogger';
+with 'Modware::Role::Command::WithEmail';
 
 # Module implementation
 #
