@@ -13,12 +13,21 @@ use Email::Valid;
 #
 
 requires 'execute';
+requires 'current_logger';
+requires 'msg_appender';
 
 after 'execute' => sub {
     my ($self) = @_;
     if ( $self->send_email ) {
-        my $msg = $self->current_logger->appender_by_name('message_stack')->string;
-        $self->robot_email($msg);
+        if ( $self->has_msg_appender ) {
+            my $msg = $self->msg_appender->string;
+            $self->robot_email($msg);
+        }
+        else {
+            $self->current_logger->warn(
+                "No string/message log appender defined: e-mail will not be send"
+            );
+        }
     }
 };
 
@@ -39,26 +48,27 @@ has 'host' => (
 );
 
 has 'to' => (
-    is  => 'rw',
-    isa => 'Email',
+    is      => 'rw',
+    isa     => 'Email',
     default => 'dictybase@northwestern.edu',
     documentation =>
         'e-mail parameter,  default is dictybase@northwestern.edu'
 );
 
 has 'from' => (
-    is  => 'rw',
-    isa => 'Email',
+    is      => 'rw',
+    isa     => 'Email',
     default => 'dictybase@northwestern.edu',
     documentation =>
         'e-mail parameter,  default is dictybase@northwestern.edu'
 );
 
 has 'subject' => (
-    is            => 'rw',
-    isa           => 'Str',
-    default       => 'e-mail from chicken robot',
-    documentation => 'e-mail parameter,  default is *email from chicken robot*'
+    is      => 'rw',
+    isa     => 'Str',
+    default => 'e-mail from robot',
+    documentation =>
+        'e-mail parameter,  default is *email from chicken robot*'
 );
 
 sub robot_email {
