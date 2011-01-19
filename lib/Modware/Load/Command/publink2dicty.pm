@@ -53,7 +53,7 @@ has 'xpath_query' => (
 sub execute {
     my $self = shift;
     my $log  = $self->dual_logger;
-    $self->subject('Pubmed loader robot');
+    $self->subject('Pubmed link loader robot');
 
     Modware::DataSource::Chado->connect(
         dsn      => $self->dsn,
@@ -62,12 +62,11 @@ sub execute {
         attr     => $self->attribute
     );
 
+    $log->debug("going to parse file ",  $self->input);
+
     my $xml = XML::LibXML->new->parse_file( $self->input );
     if ( !$xml->exists( $self->xpath_query ) ) {
         $log->warn( 'No full text links found in ', $self->input, 'file' );
-        my $msg = $log->appender_by_name('message_stack')->string;
-        $self->subject('Pubmed loader robot');
-        $self->robot_email($msg);
         return;
     }
 
@@ -75,8 +74,8 @@ sub execute {
     my $error   = 0;
 
     for my $node ( $xml->findnodes( $self->xpath_query ) ) {
-        my $pubmed_id = $node->find('Id');
-        my $url       = $node->find('ObjUrl/Url');
+        my $pubmed_id = $node->findvalue('Id');
+        my $url       = $node->findvalue('ObjUrl/Url');
 
         if ( my $dicty_pub
             = Modware::Publication::DictyBase->find_by_pubmed_id($pubmed_id) )
