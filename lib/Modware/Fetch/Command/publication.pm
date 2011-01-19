@@ -12,13 +12,14 @@ use Moose::Util::TypeConstraints;
 use namespace::autoclean;
 use File::Temp;
 use File::Spec::Functions;
-use Carp::Always;
 extends qw/Modware::Fetch::Command/;
 with 'Modware::Role::Command::WithEmail';
 with 'Modware::Role::Command::WithLogger';
 
 # Module implementation
 #
+
+has '+input' => ( traits => [qw/NoGetopt/]);
 
 has '+output' => (
     default => sub {
@@ -83,7 +84,8 @@ has 'query' => (
         if ( $self->has_genus and $self->has_species ) {
             return $self->genus . ' OR ' . $self->species . '[tw]';
         }
-    }
+    }, 
+    lazy => 1
 );
 
 has 'should_get_links' => (
@@ -121,7 +123,7 @@ has 'retmax' => (
 has 'db' => (
     is            => 'rw',
     isa           => 'Str',
-    default       => 'PubMed',
+    default       => 'pubmed',
     documentation => 'Name of entrez database, default is PubMed'
 );
 
@@ -156,8 +158,10 @@ sub execute {
     );
     my $hist = $eutils->next_History || $log->logdie("no history");
 
+    $log->info('got ',  $eutils->get_count,  ' references');
+
     my @ids = $eutils->get_ids;
-    $log->info( 'got ids ', scalar @ids );
+
     $eutils->reset_parameters(
         -eutils  => 'efetch',
         -db      => $self->db,
