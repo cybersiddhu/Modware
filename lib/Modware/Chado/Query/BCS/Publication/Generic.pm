@@ -65,6 +65,7 @@ before 'search' => sub {
         sub {
             my $class = shift;
             $class->add_blob_column( 'title', 1 );
+            $class->add_blob_column('pubprops.value',  1);
         }
     );
 };
