@@ -35,7 +35,6 @@ has 'send_email' => (
 has 'host' => (
     is            => 'rw',
     isa           => 'Str',
-    required      => 1,
     documentation => 'SMTP host for sending e-mail'
 );
 
