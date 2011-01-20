@@ -11,27 +11,42 @@ use Try::Tiny;
 use Carp;
 use XML::LibXML;
 extends qw/Modware::Update::Command/;
-with 'Modware::Role::Command::WithEmail';
 with 'Modware::Role::Command::WithLogger';
+with 'Modware::Role::Command::WithEmail';
 
 # Module implementation
 #
 
-has '+input' => ( traits => [qw/NoGetopt/] );
+has '+input'    => ( traits => [qw/NoGetopt/] );
 has '+data_dir' => ( traits => [qw/NoGetopt/] );
 
 has 'threshold' => (
     is      => 'ro',
     isa     => 'Int',
-    default => 100,
+    default => 20,
     traits  => [qw/NoGetopt/]
 );
 
+has 'xpath_query' => (
+    is   => 'rw',
+    isa  => 'XML::LibXML::XPathExpression',
+    lazy => 1,
+    documentation =>
+        'A XML::LibXML::XPathExpression object representing a query to find
+         the full text links in a pubmed xml file. Default expression is
+         <eLinkResult/LinkSet/IdUrlList/IdUrlSet[Id and ObjUrl/Url]',
+    default => sub {
+        return XML::LibXML::XPathExpression->new(
+            'eLinkResult/LinkSet/IdUrlList/IdUrlSet[Id and ObjUrl/Url]');
+    }
+);
+
 has 'status' => (
-    is            => 'rw',
-    isa           => 'Str',
-    default       => 'aheadofprint',
-    documentation => 'Status of published article that will be searched for update,  default is *aheadofprint*'
+    is      => 'rw',
+    isa     => 'Str',
+    default => 'aheadofprint',
+    documentation =>
+        'Status of published article that will be searched for update,  default is *aheadofprint*'
 );
 
 has 'exist_count' => (
@@ -45,10 +60,22 @@ has 'exist_count' => (
     }
 );
 
+has 'update_flag' => (
+    is      => 'rw',
+    isa     => 'Bool',
+    default => 0,
+    traits  => [qw/Bool NoGetopt/],
+    handles => {
+        'set_update_flag'   => 'set',
+        'unset_update_flag' => 'unset',
+        'needs_no_update'   => 'not'
+    }
+);
+
 sub execute {
     my $self = shift;
     my $log  = $self->dual_logger;
-    $self->subject('Pubmed loader robot');
+    $self->subject('Pubmed update robot');
 
     Modware::DataSource::Chado->connect(
         dsn      => $self->dsn,
@@ -66,42 +93,34 @@ sub execute {
 
 PUB:
     while ( my $pub = $itr->next ) {
-        if ( $pub->has_full_text ) {
-        	$self->inc_exist;
-            next PUB;
-        }
         push @$ids, $pub->pubmed_id;
         if ( @$ids >= $self->threshold ) {
-            $self->process_id(
-                ids => $ids,
-                log => $log,
-            );
+            $log->info( "processing ids\n", join( "\n", @$ids ) );
+            $self->process_id($ids);
             undef $ids;
         }
     }
 
     if (@$ids) {    ## -- leftover
-        $self->process_id(
-            ids => $ids,
-            log => $log,
-        );
+        $log->info( "processing ids\n", join( "\n", @$ids ) );
+        $self->process_id($ids);
     }
 
-    $log->info( 'exist:',  $self->exist_count,
-        ' updated:', $self->update_count, ' error:',   $self->error_count );
+    $log->info( 'updated:', $self->update_count, ' error:',
+        $self->error_count );
 
 }
 
 sub process_id {
-    my ( $self, %arg ) = @_;
-    my $ids    = $arg{ids};
-    my $log    = $arg{log};
+    my ( $self, $ids ) = @_;
+    my $log = $self->current_logger;
 
     my $eutils = Bio::DB::EUtilities->new(
         -eutil  => 'elink',
         -dbfrom => 'pubmed',
         -cmd    => 'prlinks',
-        -id     => $ids
+        -id     => [$ids],
+        -email  => $self->from
     );
 
     my $res = $eutils->get_Response;
@@ -110,25 +129,56 @@ sub process_id {
         return;
     }
 
-    my $xml = XML::LibXML->new->parse_file( $res->content );
+    my $xml = XML::LibXML->load_xml( string => $res->content );
     if ( !$xml->exists( $self->xpath_query ) ) {
         $log->warn('No full text links found');
         return;
     }
 
+NODE:
     for my $node ( $xml->findnodes( $self->xpath_query ) ) {
-        my $pubmed_id = $node->find('Id');
-        my $url       = $node->find('ObjUrl/Url');
+        my $pubmed_id = $node->findvalue('Id');
+        my $url       = $node->findvalue('ObjUrl/Url');
 
         my $dicty_pub
             = Modware::Publication::DictyBase->find_by_pubmed_id($pubmed_id);
 
         if ($dicty_pub) {
-            $dicty_pub->full_text_url($url);
+            if ( $dicty_pub->has_full_text_url ) {
+                if ( $dicty_pub->full_text_url ne $url ) {
+                    $dicty_pub->full_text_url($url);
+                    $log->info( "updated full text url to $url" );
+                    $self->set_update_flag;
+                }
+            }
+            else {
+                $log->info(
+                    "$pubmed_id has no full text url: going for update to $url"
+                );
+                $dicty_pub->full_text_url($url);
+                $self->set_update_flag;
+            }
+
+  # -- status is always present for existing pubmed record so no need to check
+  # for its absence
+            if ( my $status = $self->fetch_pubmed_status($pubmed_id) ) {
+                if ( $status ne $dicty_pub->status ) {
+                    $dicty_pub->status($status);
+                    $log->info("updated status to $status");
+                    $self->set_update_flag;
+                }
+            }
+
+            if ( $self->needs_no_update ) {
+                $log->info("record $pubmed_id do not need update");
+                next NODE;
+            }
+
             try {
                 $dicty_pub->update;
-                $log->info("updated full text url for pubmed_id: $pubmed_id");
+                $log->info("updated record with pubmed id: $pubmed_id");
                 $self->inc_update;
+                $self->unset_update_flag;
             }
             catch {
                 $log->error(
@@ -143,6 +193,29 @@ sub process_id {
         }
     }
     return 1;
+}
+
+sub fetch_pubmed_status {
+    my ( $self, $id ) = @_;
+    my $eutil = Bio::DB::EUtilities->new(
+        -eutil => 'esummary',
+        -db    => 'pubmed',
+        -id    => $id,
+        -email => $self->from
+    );
+
+    my $res = $eutil->get_Response;
+    if ( $res->is_error ) {
+        $self->current_logger->error( $res->code, "\t", $res->message );
+        return;
+    }
+
+    my $dom = XML::LibXML->load_xml( string => $res->content );
+    if ( $dom->exists('//Item[@Name="PubStatus"]') ) {
+        my $status = $dom->findvalue('//Item[@Name="PubStatus"]');
+        return $status;
+    }
+
 }
 
 1;    # Magic true value required at end of module

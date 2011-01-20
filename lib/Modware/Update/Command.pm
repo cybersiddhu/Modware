@@ -27,7 +27,8 @@ has '+configfile' => (
 );
 
 has 'data_dir' => (
-    lazy        => 1 is => 'rw',
+    lazy        => 1,
+    is          => 'rw',
     isa         => 'DataDir',
     traits      => [qw/Getopt/],
     cmd_flag    => 'dir',
