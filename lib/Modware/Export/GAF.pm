@@ -114,7 +114,6 @@ sub execute {
         {   join => [ { 'cvterm' => 'cv' }, { 'feature' => 'organism' } ],
             prefetch => 'pub',
             cache    => 1,
-            rows => 1000
         }
     );
 

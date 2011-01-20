@@ -116,14 +116,14 @@ sub _build_legacy {
 sub get_description {
     my ( $self, $feat ) = @_;
     my $schema = $self->legacy;
-    my $rs     = $schema->search(
+    my $rs     = $schema->resultset('LocusGp')->search(
         { 'locus_no' => $feat->feature_id },
         { prefetch   => 'locus_gene_product' }
     );
 
     my @desc;
     while ( my $row = $rs->next ) {
-        push @desc, $row->locus_gene_product->product;
+        push @desc, $row->locus_gene_product->gene_product;
     }
 
     if (@desc) {
