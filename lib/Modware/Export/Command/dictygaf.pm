@@ -4,7 +4,10 @@ use strict;
 # Other modules:
 use namespace::autoclean;
 use Moose;
+use Modware::Legacy::Schema;
 extends qw/Modware::Export::GAF/;
+
+with 'Modware::Role::Command::WithLogger';
 with 'Modware::Role::Command::WithEmail';
 
 # Module implementation

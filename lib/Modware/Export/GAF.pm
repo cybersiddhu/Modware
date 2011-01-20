@@ -14,7 +14,6 @@ use GOBO::Gene;
 use GOBO::Graph;
 
 extends qw/Modware::Export::Command/;
-with 'Modware::Role::Command::WithLogger';
 
 # Module implementation
 #
@@ -115,6 +114,7 @@ sub execute {
         {   join => [ { 'cvterm' => 'cv' }, { 'feature' => 'organism' } ],
             prefetch => 'pub',
             cache    => 1,
+            rows => 1000
         }
     );
 

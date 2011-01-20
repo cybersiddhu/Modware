@@ -9,8 +9,8 @@ use Try::Tiny;
 use File::Spec::Functions;
 use Spreadsheet::WriteExcel;
 extends qw/Modware::Export::Command/;
-with 'Modware::Role::Command::WithEmail';
 with 'Modware::Role::Command::WithLogger';
+with 'Modware::Role::Command::WithEmail';
 
 # Module implementation
 #
