@@ -59,13 +59,74 @@ has '+common_name' => (
 
 );
 
-sub get_description {
-    my ($self, $feat) = @_;
-    my $rs = $feat->featureprops(
-        { 'type.name' => 'name description' },
-        { join        => 'type' }
+has 'legacy_dsn' => (
+    is            => 'rw',
+    isa           => 'Dsn',
+    documentation => 'legacy database DSN',
+    required      => 1
+);
+
+has 'legacy_user' => (
+    is            => 'rw',
+    isa           => 'Str',
+    traits        => [qw/Getopt/],
+    cmd_aliases   => 'lu',
+    documentation => 'legacy database user'
+);
+
+has 'legacy_password' => (
+    is            => 'rw',
+    isa           => 'Str',
+    traits        => [qw/Getopt/],
+    cmd_aliases   => [qw/lp lpass/],
+    documentation => 'legacy database password'
+);
+
+has 'legacy_attribute' => (
+    is            => 'rw',
+    isa           => 'HashRef',
+    traits        => [qw/Getopt/],
+    cmd_aliases   => 'lattr',
+    documentation => 'Additional legacy database attribute',
+    default       => sub {
+        { 'LongReadLen' => 2**25, AutoCommit => 1 };
+    }
+);
+
+has 'legacy' => (
+    is      => 'rw',
+    isa     => 'Modware::Legacy::Schema',
+    lazy    => 1,
+    traits  => [qw/NoGetopt/],
+    builder => '_build_legacy',
+);
+
+sub _build_legacy {
+    my ($self) = @_;
+    my $schema = Modware::Legacy::Schema->connect(
+        $self->legacy_dsn,      $self->legacy_user,
+        $self->legacy_password, $self->legacy_attribute
     );
-    return $rs->first->value if $rs->count;
+    return $schema;
+}
+
+sub get_description {
+    my ( $self, $feat ) = @_;
+    my $schema = $self->legacy;
+    my $rs     = $schema->search(
+        { 'locus_no' => $feat->feature_id },
+        { prefetch   => 'locus_gene_product' }
+    );
+
+    my @desc;
+    while ( my $row = $rs->next ) {
+        push @desc, $row->locus_gene_product->product;
+    }
+
+    if (@desc) {
+        return $desc[0] if @desc == 1;
+        return join( ",", @desc );
+    }
 }
 
 sub get_provenance {
