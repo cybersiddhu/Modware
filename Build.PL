@@ -1,10 +1,10 @@
 #!/usr/bin/perl -w
 use strict;
+use inc::latest 'Module::Load';
 use inc::latest 'Module::Build';
 use File::Spec::Functions;
 use FindBin qw/$Bin/;
 use File::Spec::Functions;
-use lib 'lib/';
 use Modware::Build;
 
 my $db_config      = catfile( $Bin, 't', 'data', 'config', 'database.yaml' );
@@ -32,13 +32,12 @@ my $build = Modware::Build->new(
         'MooseX::Role::Parameterized' => '0.19',
         'Regexp::Common'              => '2.122',
         'MooseX::ClassAttribute'      => '0.20',
-        'Archive::Tar'                => '1.66',
     },
     build_requires => {
         'Test::More'            => 0.94,
         'DBIx::Class::Fixtures' => '1.001010',
         'YAML'                  => '0.70',
-        'Module::Load'          => '0.16',
+        'Archive::Tar'                => '1.66',
     },
     recommends => {
         'MooseX::App::Cmd'       => '0.06',
@@ -48,6 +47,9 @@ my $build = Modware::Build->new(
         'Email::Valid'           => '0.184',
         'Log::Log4perl'          => '1.30'
     },
+    configure_requires => {
+        'Module::Load'          => '0.16',
+    }, 
     add_to_cleanup => ['Modware-*'],
     get_options    => {
         dsn            => { type    => ':s' },
