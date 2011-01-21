@@ -22,7 +22,6 @@ my $build = Modware::Build->new(
         'Try::Tiny'                   => '0.03',
         'Bio::Chado::Schema'          => '>= 0.05703,  <= 0.05801',
         'Bio::Root::Version'          => '1.0050021',
-        'Module::Load::Conditional'   => '0.38',
         'MooseX::Singleton'           => '0.22',
         'MooseX::Params::Validate'    => '0.14',
         'MooseX::Aliases'             => '0.08',
@@ -32,13 +31,14 @@ my $build = Modware::Build->new(
         'File::Path'                  => '2.08',
         'MooseX::Role::Parameterized' => '0.19',
         'Regexp::Common'              => '2.122',
-        'MooseX::ClassAttribute'      => '0.20'
+        'MooseX::ClassAttribute'      => '0.20',
+        'Archive::Tar'                => '1.66',
     },
     build_requires => {
         'Test::More'            => 0.94,
         'DBIx::Class::Fixtures' => '1.001010',
         'YAML'                  => '0.70',
-        'Archive::Tar'          => '1.66'
+        'Module::Load'          => '0.16',
     },
     recommends => {
         'MooseX::App::Cmd'       => '0.06',
