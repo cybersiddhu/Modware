@@ -32,14 +32,21 @@ my $build = Modware::Build->new(
         'File::Path'                  => '2.08',
         'MooseX::Role::Parameterized' => '0.19',
         'Regexp::Common'              => '2.122',
-        'MooseX::App::Cmd'            => '0.06',
-        'MooseX::ConfigFromFile'      => '0.02'
+        'MooseX::ClassAttribute'      => '0.20'
     },
     build_requires => {
         'Test::More'            => 0.94,
         'DBIx::Class::Fixtures' => '1.001010',
         'YAML'                  => '0.70',
         'Archive::Tar'          => '1.66'
+    },
+    recommends => {
+        'MooseX::App::Cmd'       => '0.06',
+        'MooseX::ConfigFromFile' => '0.02',
+        'Email::Simple'          => '2.10',
+        'Email::Sender::Simple'  => '0.102370',
+        'Email::Valid'           => '0.184',
+        'Log::Log4perl'          => '1.30'
     },
     add_to_cleanup => ['Modware-*'],
     get_options    => {
