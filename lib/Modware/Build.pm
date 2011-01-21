@@ -1,17 +1,12 @@
 package Modware::Build;
 use base qw/Module::Build/;
-use lib 'blib/lib';
-use Test::Chado;
 use File::Spec::Functions;
 use Module::Load;
-use Data::Dumper::Concise;
-use Archive::Tar;
-use File::Path qw/make_path remove_tree/;
+use Data::Dumper;
 use File::Basename;
 
 __PACKAGE__->add_property('chado');
 __PACKAGE__->add_property('handler');
-__PACKAGE__->add_property( 'tar' => Archive::Tar->new );
 
 my @feature_list = qw/setup_done is_db_created is_schema_loaded
     is_fixture_loaded/;
@@ -45,6 +40,7 @@ sub check_oracle {
 sub db_handler {
     my ($self) = @_;
     my $handler;
+    load Test::Chado;
     my $chado = Test::Chado->new;
     $chado->module_builder($self);
 
@@ -96,12 +92,14 @@ sub check_and_setup {
 
 sub ACTION_create_tmp {
     my ($self) = @_;
+    load File::Path qw/make_path remove_tree/;
     my $path = $self->args('tmp_dir');
     make_path($path) if !-e $path;
 }
 
 sub ACTION_cleanup_tmp {
     my $self = shift;
+    load File::Path qw/make_path remove_tree/;
     my $path = $self->args('tmp_dir');
     remove_tree($path) if -e $path;
 }
@@ -185,10 +183,12 @@ sub ACTION_load_fixture {
     my ($self) = @_;
     $self->check_oracle;
     if ( $self->args('preset') ) {
+    	load Archive::Tar;
         $self->depends_on('setup');
-        $self->tar->read( $self->args('preset_file') );
+        my $tar = Archive::Tar->new;
+        $tar->read( $self->args('preset_file') );
         chdir $self->args('tmp_dir');
-        $self->tar->extract;
+        $tar->extract;
         chdir $self->base_dir;
         $self->handler->load_fixture;
         $self->feature( 'is_fixture_loaded' => 1 );
