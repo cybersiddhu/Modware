@@ -1,6 +1,5 @@
 #!/usr/bin/perl -w
 use strict;
-use inc::latest 'Module::Load';
 use inc::latest 'Module::Build';
 use File::Spec::Functions;
 use FindBin qw/$Bin/;
