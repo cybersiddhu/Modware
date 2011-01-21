@@ -33,24 +33,25 @@ my $build = Modware::Build->new(
         'MooseX::ClassAttribute'      => '0.13',
     },
     build_requires => {
-        'Test::More'            => 0.94,
+        'Test::More'            => '0.94',
         'DBIx::Class::Fixtures' => '1.001010',
         'YAML'                  => '0.70',
-        'Archive::Tar'                => '1.66',
+        'Archive::Tar'          => '1.66',
     },
     recommends => {
-        'MooseX::App::Cmd'       => '0.06',
-        'MooseX::ConfigFromFile' => '0.02',
-        'Email::Simple'          => '2.10',
-        'Email::Sender::Simple'  => '0.102370',
-        'Email::Valid'           => '0.184',
-        'Log::Log4perl'          => '1.30'
+        'MooseX::App::Cmd'        => '0.06',
+        'MooseX::ConfigFromFile'  => '0.02',
+        'Email::Simple'           => '2.10',
+        'Email::Sender::Simple'   => '0.102370',
+        'Email::Valid'            => '0.184',
+        'Log::Log4perl'           => '1.30',
+        'XML::LibXML'             => '1.70',
+        'GOBO'                    => '0.03',
+        'Spreadsheet::WriteExcel' => '2.37'
     },
-    configure_requires => {
-        'Module::Load'          => '0.16',
-    }, 
-    add_to_cleanup => ['Modware-*'],
-    get_options    => {
+    configure_requires => { 'Module::Load' => '0.16', },
+    add_to_cleanup     => ['Modware- *'],
+    get_options        => {
         dsn            => { type    => ':s' },
         user           => { type    => ':s' },
         password       => { type    => ':s' },
@@ -69,8 +70,10 @@ my $build = Modware::Build->new(
         file_config    => { default => $file_config, type => ':s' },
         fixture_config => { default => $fixture_config, type => ':s' },
         preset         => { default => 1, type => '!' },
-        append_path =>
-            { default => catfile( 't', 'data', 'preset' ), type => ':s' },
+        append_path => {
+            default => catfile( 't', 'data', 'preset' ),
+            type    => ':s'
+        },
         default => {},
     },
     script_files => [
