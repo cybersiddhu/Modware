@@ -4,6 +4,7 @@ use inc::latest 'Module::Build';
 use File::Spec::Functions;
 use FindBin qw/$Bin/;
 use File::Spec::Functions;
+use lib 'lib';
 use Modware::Build;
 
 my $db_config      = catfile( $Bin, 't', 'data', 'config', 'database.yaml' );
