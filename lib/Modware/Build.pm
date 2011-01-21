@@ -4,6 +4,7 @@ use File::Spec::Functions;
 use Module::Load;
 use Data::Dumper;
 use File::Basename;
+use File::Path qw/make_path remove_tree/;
 
 __PACKAGE__->add_property('chado');
 __PACKAGE__->add_property('handler');
@@ -92,14 +93,12 @@ sub check_and_setup {
 
 sub ACTION_create_tmp {
     my ($self) = @_;
-    load File::Path qw/make_path remove_tree/;
     my $path = $self->args('tmp_dir');
     make_path($path) if !-e $path;
 }
 
 sub ACTION_cleanup_tmp {
     my $self = shift;
-    load File::Path qw/make_path remove_tree/;
     my $path = $self->args('tmp_dir');
     remove_tree($path) if -e $path;
 }

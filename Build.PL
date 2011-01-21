@@ -50,7 +50,7 @@ my $build = Modware::Build->new(
         'GOBO'                    => '0.03',
         'Spreadsheet::WriteExcel' => '2.37'
     },
-    configure_requires => { 'Module::Load' => '0.16', },
+    configure_requires => { 'Module::Load' => '0.16', File::Path => '2.08' },
     add_to_cleanup     => ['Modware- *'],
     get_options        => {
         dsn            => { type    => ':s' },
