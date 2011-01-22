@@ -20,7 +20,7 @@ my $build = Modware::Build->new(
         'A GMOD L<http://gmod.org> middleware toolkit for Chado L<http://gmod.org/wiki/Chado> relational database.',
     requires => {
         'Try::Tiny'                   => '0.03',
-        'Bio::Chado::Schema'          => '>= 0.05703,  <= 0.05801',
+        'Bio::Chado::Schema'          => '0.05800',
         'Bio::Root::Version'          => '1.0050021',
         'MooseX::Singleton'           => '0.22',
         'MooseX::Params::Validate'    => '0.14',
@@ -34,6 +34,7 @@ my $build = Modware::Build->new(
         'MooseX::ClassAttribute'      => '0.13',
     },
     build_requires => {
+        'ExtUtils::Depends'     => '0.302',
         'Test::More'            => '0.94',
         'DBIx::Class::Fixtures' => '1.001010',
         'YAML'                  => '0.70',
@@ -50,9 +51,10 @@ my $build = Modware::Build->new(
         'GOBO'                    => '0.03',
         'Spreadsheet::WriteExcel' => '2.37'
     },
-    configure_requires => { 'Module::Load' => '0.16', 'File::Path' => '2.08' },
-    add_to_cleanup     => ['Modware- *'],
-    get_options        => {
+    configure_requires =>
+        { 'Module::Load' => '0.16', 'File::Path' => '2.08' },
+    add_to_cleanup => ['Modware-*'],
+    get_options    => {
         dsn            => { type    => ':s' },
         user           => { type    => ':s' },
         password       => { type    => ':s' },
@@ -87,7 +89,7 @@ $build->args( 'ddl_dir', catdir( $build->base_dir, 't', 'data', 'ddl' ) );
 $build->args( 'preset_file',
     catdir( $build->base_dir, 't', 'data', 'preset.tar.gz' ) );
 $build->args( 'tmp_dir', catdir( 't', 'tmp' ) );
-$build->config_data( 'config' => 'custom' );
+$build->args( 'config' => 'custom' );
 $build->create_build_script;
 
 1;
