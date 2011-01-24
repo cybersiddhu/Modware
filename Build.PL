@@ -32,7 +32,7 @@ my $build = Modware::Build->new(
         'MooseX::Role::Parameterized' => '0.19',
         'Regexp::Common'              => '2.122',
         'MooseX::ClassAttribute'      => '0.13',
-		'DBIx::Class::Helpers'        => '2.005000'
+        'DBIx::Class::Helpers'        => '2.005000'
     },
     build_requires => {
         'ExtUtils::Depends'     => '0.302',
@@ -50,7 +50,9 @@ my $build = Modware::Build->new(
         'Log::Log4perl'           => '1.30',
         'XML::LibXML'             => '1.70',
         'GOBO'                    => '0.03',
-        'Spreadsheet::WriteExcel' => '2.37'
+        'Spreadsheet::WriteExcel' => '2.37',
+        'Math::Base36'            => '0.07',
+        'Math::BigInt'            => '1.89'
     },
     configure_requires =>
         { 'Module::Load' => '0.16', 'File::Path' => '2.08' },
