@@ -56,7 +56,7 @@ role {
                 },
                 lazy    => 1,
                 default => sub { [] },
-                clearer => '_clear_all' . $name
+                clearer => '_clear_all_' . $name
                 );
 
         }
@@ -132,7 +132,7 @@ role {
                     },
                     lazy    => 1,
                     default => sub { [] },
-                    clearer => '_clear_many' . $name
+                    clearer => '_clear_many_' . $name
                     );
             }
         }
@@ -142,14 +142,17 @@ role {
         my ($self) = @_;
         $self->clear_mapper;
         for my $name ( @{ $p->create_stash_for } ) {
-            my $method = '_clear_' . $name;
+            my $method = '_clear_all_' . $name;
             $self->$method;
         }
         my $stash = $p->update_stash_for;
         for my $types (qw/has_many many_to_many/) {
             if ( defined $stash->{$types} ) {
                 for my $name ( @{ $stash->{$types} } ) {
-                    my $method = '_clear_' . $name;
+                    my $method
+                        = $types eq 'many_to_many'
+                        ? '_clear_many_' . $name
+                        : '_clear_' . $name;
                     $self->$method;
                 }
             }
