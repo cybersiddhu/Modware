@@ -17,7 +17,7 @@ sub connect {
         password => { isa => 'Str', optional => 1 },
         attr     => {
             isa      => 'HashRef',
-            optional => 1
+            optional => 1,
         },
         extra            => { isa => 'HashRef', optional => 1 },
         source_name      => { isa => 'Str',     optional => 1 },

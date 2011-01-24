@@ -161,7 +161,7 @@ PARAM:
 sub handle_relation {
     my ( $class, $relation ) = @_;
     if ( !$class->has_join($relation) ) {
-        $class->add_join($relation);
+        $class->add_join($relation,  1);
         if ( $relation eq 'pubprops' ) {
             $class->add_relation( { 'pubprops' => 'type' } );
             return;

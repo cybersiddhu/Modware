@@ -31,7 +31,7 @@ has 'attr_hash' => (
     is      => 'rw',
     isa     => 'HashRef',
     traits  => ['Hash'],
-    default => sub { { AutoCommit => 0 } },
+    default => sub { { AutoCommit => 1 } },
     handles => { add_dbh_attribute => 'set' }
 );
 

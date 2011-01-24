@@ -56,7 +56,7 @@ role {
                 },
                 lazy    => 1,
                 default => sub { [] },
-                clearer => '_clear_' . $name
+                clearer => '_clear_all' . $name
                 );
 
         }
@@ -132,7 +132,7 @@ role {
                     },
                     lazy    => 1,
                     default => sub { [] },
-                    clearer => '_clear_' . $name
+                    clearer => '_clear_many' . $name
                     );
             }
         }

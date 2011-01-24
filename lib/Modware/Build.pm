@@ -20,8 +20,10 @@ sub connect_hash {
         $hash{$param} = $self->config_data($param)
             if $self->config_data($param);
     }
-    $hash{attr} = $self->config_data('db_attr')
-        if $self->config_data('db_attr');
+    $hash{attr}
+        = defined $self->config_data('db_attr')
+        ? $self->config_data('db_attr')
+        : { AutoCommit => 1 };
     return %hash;
 }
 
@@ -183,7 +185,7 @@ sub ACTION_load_fixture {
     my ($self) = @_;
     $self->check_oracle;
     if ( $self->args('preset') ) {
-    	load Archive::Tar;
+        load Archive::Tar;
         $self->depends_on('setup');
         my $tar = Archive::Tar->new;
         $tar->read( $self->args('preset_file') );

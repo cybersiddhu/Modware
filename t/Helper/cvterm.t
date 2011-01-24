@@ -1,7 +1,7 @@
 use strict;
 use Test::More qw/no_plan/;
 use Test::Exception;
-use Data::Dumper::Concise;
+use Data::Dumper;
 use aliased 'Modware::DataSource::Chado';
 use Modware::Build;
 
