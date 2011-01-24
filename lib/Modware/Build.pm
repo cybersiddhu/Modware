@@ -5,6 +5,7 @@ use Module::Load;
 use Data::Dumper;
 use File::Basename;
 use File::Path qw/make_path remove_tree/;
+use lib 'blib/lib';
 
 __PACKAGE__->add_property('chado');
 __PACKAGE__->add_property('handler');
