@@ -52,7 +52,8 @@ my $build = Modware::Build->new(
         'GOBO'                    => '0.03',
         'Spreadsheet::WriteExcel' => '2.37',
         'Math::Base36'            => '0.07',
-        'Math::BigInt'            => '1.89'
+        'Math::BigInt'            => '1.89', 
+        'File::Find::Rule' => '0.32'
     },
     configure_requires =>
         { 'Module::Load' => '0.16', 'File::Path' => '2.08' },

@@ -14,6 +14,7 @@ use Try::Tiny;
 use Carp;
 extends qw/Modware::Load::Command/;
 with 'Modware::Role::Command::WithLogger';
+with 'Modware::Role::Command::WithHTML';
 with 'Modware::Role::Command::WithEmail';
 
 # Module implementation
@@ -112,7 +113,8 @@ sub execute {
         }
 
         try {
-            $pub->create;
+            my $new_pub = $pub->create;
+            $self->add_publication($new_pub);
             $loaded++;
             $log->info("Loaded $pubmed_id");
         }
