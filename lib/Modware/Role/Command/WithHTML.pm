@@ -22,14 +22,11 @@ has '_update_stack' => (
     is      => 'rw',
     isa     => 'ArrayRef[Modware::Publication::DictyBase]',
     traits  => [qw/Array NoGetopt/],
-    default => sub {
-        return [ Modware::Publication::DictyBase->new ];
-    },
     handles => {
         'add_publication'  => 'push',
-        'all_publications' => 'elements'
+        'all_publications' => 'elements', 
+        'publications' => 'count'
     }, 
-    lazy => 1
 );
 
 after 'execute' => sub {
@@ -37,14 +34,14 @@ after 'execute' => sub {
     my $logger = $self->current_logger;
     my $output = Path::Class::File->new( $self->output_html )->openw;
     $output->print('<br/><h4>This week\'s new papers</h4>');
-    foreach my $ref ($self->all_publications) {
+    for my $new_pub ($self->all_publications) {
         my $link =
-            '/publication/'.$ref->pub_id;
-        my $citation = $ref->formatted_citation;
+            '/publication/'.$new_pub->pub_id;
+        my $citation = $new_pub->formatted_citation;
         $citation =~ s{<b>}{<a href=$link><b>};
         $citation =~ s{</b>}{</b></a>};
         $output->print( $citation, '<br/><hr/>' );
-        $logger->info('pubmed id: ', $ref->pubmed_id,  ' written to html output');
+        $logger->info('pubmed id: ', $new_pub->pubmed_id,  ' written to html output');
     }
     $output->close;
 };

@@ -77,7 +77,7 @@ has 'attribute' => (
 	cmd_aliases => 'attr', 
 	documentation => 'Additional database attribute', 
 	default => sub {
-		{ 'LongReadLen' => 2**15,  AutoCommit => 1}
+		{ 'LongReadLen' => 2**20,  AutoCommit => 1}
 	}
 );
 

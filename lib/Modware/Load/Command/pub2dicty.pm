@@ -72,7 +72,7 @@ sub execute {
     my $skipped = 0;
     while ( my $ref = $biblio->next_bibref ) {
         my $pubmed_id = $ref->pmid;
-        if ( Modware::Publication::DictyBase->find_by_pubmed_id($pubmed_id) )
+        if ( my $exist = Modware::Publication::DictyBase->find_by_pubmed_id($pubmed_id) )
         {
             $log->warn("Publication with $pubmed_id exist");
             $skipped++;
@@ -90,8 +90,14 @@ sub execute {
 
         if ( my $journal = $ref->journal ) {
             my $abbr = $journal->abbreviation;
-            if ( my $name = $journal->name ) {
+            my $name = $journal->name;
+            if ( $name and $abbr ) {
                 $pub->journal($name);
+                $pub->abbreviation($abbr);
+            }
+            elsif($name) {
+                $pub->journal($name);
+                $pub->abbreviation($name);
             }
             elsif ($abbr) {
                 $pub->journal($abbr);
