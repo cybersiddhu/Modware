@@ -17,6 +17,12 @@ has '+input'          => ( traits => [qw/NoGetopt/] );
 has '+data_dir'       => ( traits => [qw/NoGetopt/] );
 has '+output_handler' => ( traits => [qw/NoGetopt/] );
 
+has '+source_url' => (
+    default => 'www.dictybase.org',
+    documentation =>
+        'Canonical url for the source database,  default is www.dictybase.org'
+);
+
 has '+gafcv' => (
     default => 'gene_ontology_association',
     documentation =>
