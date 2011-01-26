@@ -12,6 +12,7 @@ use GOBO::Writers::GAFWriter;
 use GOBO::Evidence;
 use GOBO::Gene;
 use GOBO::Graph;
+use Time::Piece;
 
 extends qw/Modware::Export::Command/;
 
@@ -93,6 +94,12 @@ has 'common_name' => (
     is            => 'rw',
     isa           => 'Str',
     documentation => 'Common name of the organism'
+);
+
+has 'source_url' => (
+	is => 'rw', 
+	isa => 'Str', 
+	documentation => 'Canonical url for the source database'
 );
 
 sub execute {
@@ -205,6 +212,9 @@ sub execute {
 
     my $writer = GOBO::Writers::GAFWriter->new( file => $self->output );
     $writer->add_to_header('gaf-version: 2.0');
+    $writer->add_to_header(Time::Piece->new->mdy('/'));
+    $writer->add_to_header($self->source_database. ' ('.$self->source_url.')');
+    $writer->add_header(' ');
     $writer->graph($graph);
     $writer->write;
 
