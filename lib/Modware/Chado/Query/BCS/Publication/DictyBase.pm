@@ -4,9 +4,7 @@ package Modware::Chado::Query::BCS::Publication::DictyBase;
 use namespace::autoclean;
 use Moose;
 use MooseX::ClassAttribute;
-use Module::Load;
-use MooseX::Params::Validate;
-extends 'Modware::Chado::Query::BCS::Publication::Generic';
+extends 'Modware::Chado::Query::BCS::Publication::Pubmed';
 
 # Module implementation
 #
@@ -17,18 +15,6 @@ before 'search' => sub {
     my ($class) = @_;
     $class->add_related_param( 'keyword', 'pubprops.value' );
 };
-
-sub find_by_pubmed_id {
-    my $class = shift;
-    my ($id) = pos_validated_list( \@_, { isa => 'Int' } );
-    my $row
-        = $class->chado->resultset('Pub::Pub')->find( { uniquename => $id } );
-    if ($row) {
-        load $class->data_class;
-        return $class->data_class->new( dbrow => $row );
-    }
-}
-
 
 
 1;    # Magic true value required at end of module

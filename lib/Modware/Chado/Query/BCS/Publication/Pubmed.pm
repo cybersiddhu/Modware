@@ -17,7 +17,7 @@ sub find_by_pubmed_id {
     my $class = shift;
     my ($id) = pos_validated_list( \@_, { isa => 'Int' } );
     my $row
-        = $class->chado->resultset('Pub::Pub')->find( { uniquename => $id } );
+        = $class->resource->resultset('Pub::Pub')->find( { uniquename => $id } );
     if ($row) {
         load $class->data_class;
         return $class->data_class->new( dbrow => $row );
