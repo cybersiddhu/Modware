@@ -17,7 +17,7 @@ class_has 'query_option' => (
     is      => 'rw',
     isa     => 'HashRef',
     traits  => [qw/Hash/],
-    default => sub { {} },
+    default => sub { { cache => 1 } },
     handles => {
         'add_option'          => 'set',
         'all_options'         => 'keys',
@@ -97,8 +97,9 @@ class_has 'arg_stack' => (
 );
 
 class_has 'clause' => (
-    is  => 'rw',
-    isa => 'Str',
+    is      => 'rw',
+    isa     => 'Str',
+    default => 'and'
 );
 
 class_has 'match_type' => (
@@ -107,8 +108,9 @@ class_has 'match_type' => (
 );
 
 class_has 'full_text' => (
-    is  => 'rw',
-    isa => 'Bool',
+    is      => 'rw',
+    isa     => 'Bool',
+    default => 0
 );
 
 class_has 'related_query' => (
@@ -118,13 +120,13 @@ class_has 'related_query' => (
     default => sub {0}
 );
 
-class_has 'chado' => (
+class_has 'resource' => (
     is         => 'ro',
     isa        => 'Bio::Chado::Schema',
     lazy_build => 1
 );
 
-sub _build_chado {
+sub _build_resource {
     my ($class) = @_;
     my $chado
         = $class->has_datasource
@@ -144,7 +146,7 @@ class_has 'query_engine' => (
     isa     => 'Str',
     lazy    => 1,
     default => sub {
-        my $chado    = __PACKAGE__->chado;
+        my $chado    = __PACKAGE__->resource;
         my $sql_type = ucfirst lc( $chado->storage->sqlt_type );
         $sql_type = $sql_type eq 'Oracle' ? $sql_type : 'Generic';
         my $engine = 'Modware::Chado::Query::BCS::Engine::' . $sql_type;
@@ -183,6 +185,20 @@ class_has 'related_params_map' => (
     }
 );
 
+class_has 'related_group_params_map' => (
+    is      => 'rw',
+    isa     => 'HashRef',
+    traits  => [qw/Hash/],
+    lazy    => 1,
+    default => sub { {} },
+    handles => {
+        allowed_related_group_params  => 'keys',
+        related_group_param2col       => 'get',
+        has_related_group_param_value => 'defined',
+        add_related_group_param       => 'set'
+    }
+);
+
 class_has 'data_class' => (
     is  => 'rw',
     isa => 'Str'
@@ -193,6 +209,158 @@ class_has 'resultset_name' => (
     isa       => 'Str',
     predicate => 'has_resultset_name'
 );
+
+before 'search' => sub {
+    my ( $class, %arg ) = @_;
+    for my $name (
+        qw/query_options joins relations search_attributes
+        nested_search_attributes args/
+        )
+    {
+        my $method = 'clear_' . $name;
+        $class->$method;
+    }
+
+    $class->add_arg( $_, $arg{$_} ) for keys %arg;
+
+    my $cond = $class->get_arg_value('cond');
+    $class->full_text(1) if $cond->{full_text};
+    $class->clause( lc $cond->{clause} ) if defined $cond->{clause};
+};
+
+sub search {
+    my ($class) = @_;
+
+    my ( $nested, $where, $query );
+    my @all_params = (
+        $class->allowed_params,
+        $class->allowed_related_params,
+        $class->allowed_related_group_params
+    );
+
+PARAM:
+    for my $param (@all_params) {
+        next PARAM if !$class->has_arg($param);
+
+        # params that maps to related objects
+        if ( $class->has_related_param_value($param) ) {
+            $class->related_query(1);
+            if ( !$class->has_option('columns') ) {
+                $class->add_option( 'columns',  $class->distinct_columns );
+                $class->add_option( 'distinct', 1 );
+            }
+            my $relation
+                = ( ( split /\./, $class->related_param_value($param) ) )[0];
+            $class->handle_relation($relation);
+            $class->handle_query_attr( $class->related_param2col($param),
+                $param, $relation );
+        }
+
+        # params that maps to group of related objects
+        elsif ( $class->has_related_group_param_value($param) ) {
+            $class->related_query(1);
+            if ( !$class->has_option('columns') ) {
+                $class->add_option( 'columns',  $class->distinct_columns );
+                $class->add_option( 'distinct', 1 );
+            }
+            my $relation = (
+                (   split /\./,
+                    @{ $class->related_group_param2col($param) }[0]
+                )
+            )[0];
+            $class->handle_relation($relation);
+            $class->handle_nested_query_attr(
+                $class->related_group_param2col($param),
+                $param, $relation );
+            $nested = $class->rearrange_nested_query;
+        }
+
+        # direct map
+        else {
+            $class->handle_query_attr( $class->param2col($param), $param );
+        }
+    }
+
+    $where = $class->rearrange_query if $class->search_attributes;
+
+    if ( $nested and $where ) {
+        $query = { %$nested, %$where };
+    }
+    elsif ($nested) {
+        $query = $nested;
+    }
+    else {
+        $query = $where;
+    }
+
+# - If you want to know what's being done for building the query hash ,  please do a dump
+# - of the structure and also read the query syntax for DBIx::Class module
+    my $options = $class->query_option;
+    $options->{join} = [ $class->all_relations ];
+    my $rs = $class->generate_resultset( $query, $options );
+
+    if ( wantarray() ) {
+        load $class->data_class;
+        return map { $class->data_class->new( dbrow => $_ ) } $rs->all;
+    }
+
+    ResultSet->new(
+        collection        => $rs,
+        data_access_class => $class->data_class,
+        search_class      => $class
+    );
+}
+
+sub generate_resultset {
+    my ( $class, $query, $options ) = @_;
+    return $class->resource->resultset( $class->resultset_name )
+        ->search( $query, $options );
+}
+
+sub handle_relation {
+    my ( $class, $relation ) = @_;
+    my $method = 'handle_' . $relation;
+    if ( $class->can($method) ) {
+        $class->$method($relation);
+    }
+    else {
+        if ( !$class->has_join($relation) ) {
+            $class->add_join( $relation, 1 );
+            $class->add_relation($relation);
+        }
+    }
+}
+
+sub handle_query_attr {
+    my ( $class, $column, $param, $relation ) = @_;
+    if ( !$relation ) {
+        $class->add_search_attribute( $column, $class->get_arg_value($arg) )
+            if !$class->has_search_attribute($column);
+        return;
+    }
+
+    my $method = 'handle_' . $relation . '_attr';
+    if ( $class->can($method) ) {
+        $class->$method( $column, $param, $relation );
+    }
+    else {
+        $class->add_search_attribute( $column, $class->get_arg_value($arg) )
+            if !$class->has_search_attribute($column);
+    }
+}
+
+sub handle_nested_query_attr {
+    my ( $class, $columns, $param, $relation ) = @_;
+    my $method = 'handle_nested_' . $relation . '_attr';
+    if ( $class->can($method) ) {
+        $class->$method( $columns, $param, $relation );
+    }
+    else {
+        $class->add_nested_search_attribute( $_,
+            $class->get_arg_value($param) )
+            for @$columns;
+    }
+}
 
 sub rearrange_nested_query {
     my ($class) = @_;

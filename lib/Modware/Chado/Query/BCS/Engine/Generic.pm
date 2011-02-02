@@ -14,8 +14,6 @@ extends 'Modware::Chado::Query::BCS::Engine';
 
 sub query {
     my ( $class, $attrs, $clause ) = @_;
-    $clause = lc $clause;
-
     my $where;
     my $nested_where ;
     for my $param ( keys %$attrs ) {
