@@ -11,22 +11,34 @@ use Carp;
 #
 
 around 'delete' => sub {
-	my ($orig,  $self,  %arg) = @_;
-    if (defined $arg{force}) { ## -- call the original
-    	return $self->$orig(%arg);
-    }    
+    my ( $orig, $self, %arg ) = @_;
+    if ( defined $arg{force} ) {    ## -- call the original
+        return $self->$orig(%arg);
+    }
 
     confess "No data being fetched from storage: nothing to delete\n"
         if !$self->has_dbrow;
 
-	$self->chado->txn_do(
-		sub {
-			$self->dbrow->update({is_obsolete => 1});
-    		$self->_clear_dbrow;
-		}
-	);
+    $self->chado->txn_do(
+        sub {
+            $self->dbrow->update( { is_obsolete => 1 } );
+            $self->_clear_dbrow;
+        }
+    );
     return 1;
 };
+
+sub revive {
+    my ($self) = @_;
+    confess "No data being fetched from storage: nothing to delete\n"
+        if !$self->has_dbrow;
+    $self->chado->txn_do(
+        sub {
+            $self->dbrow->update( { is_obsolete => 0 } );
+        }
+    );
+    return 1;
+}
 
 1;    # Magic true value required at end of module
 
