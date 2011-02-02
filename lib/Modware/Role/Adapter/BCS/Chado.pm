@@ -345,32 +345,33 @@ PERSISTENT:
 }
 
 sub delete {
-    my ( $self, $cascade ) = @_;
+    my ( $self, %arg ) = @_;
     confess "No data being fetched from storage: nothing to delete\n"
         if !$self->has_dbrow;
-    if ( !$cascade ) {
+    if ( defined $arg{$cascade} ) {
         $self->chado->txn_do(
             sub {
-                $self->chado->resultset( $self->resultset_class )
-                    ->search( { pub_id => $self->dbrow->pub_id } )
-                    ->delete_all;
+            	$self->dbrow->delete;
+    			$self->_clear_dbrow;
             }
         );
     }
     else {
         $self->chado->txn_do(
             sub {
-                my $pub = $self->dbrow;
-                $pub->pubprops->delete_all;
-                $pub->pubauthors->delete_all;
-                $pub->pub_dbxrefs->delete_all;
-                $pub->pub_relationship_objects->delete_all;
-                $pub->pub_relationship_subjects->delete_all;
-                $self->dbrow->delete;
+                my $row = $self->dbrow;
+            	if ($self->can('all_object_relations')) {
+            		$row->$_->delete_all for $self->all_object_relations;
+            	}
+            	else {
+            	  my $source = $self->chado->source($self->resultset_class);	
+            	  $row->$_->delete_all for $source->relationships;
+            	}
+    			$self->_clear_dbrow;
             }
         );
     }
-    $self->_clear_dbrow;
+    return 1;
 }
 
 1;    # Magic true value required at end of module

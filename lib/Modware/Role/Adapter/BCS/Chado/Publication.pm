@@ -21,6 +21,19 @@ with 'Modware::Role::Chado::Helper::BCS::WithDataStash' => {
     }
 };
 
+has '_relation_stack' => (
+	is => 'rw', 
+	isa => 'ArrayRef', 
+	traits => [qw/Array/], 
+	default => sub {
+		[qw/pubpros pubauthors pub_dbxrefs/]
+	}, 
+	handles => {
+		'all_object_relations' => 'elements', 
+		'add_object_relation' => 'push'
+	}
+);
+
 has 'pub_id' => (
     is      => 'ro',
     isa     => 'Maybe[Int]',
