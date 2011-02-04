@@ -1,12 +1,12 @@
 package  Modware::Types;
 
 # Other modules:
-use MooseX::Types -declare =>
-    [qw/CleanStr UnCleanStr ColumnMap Toggler URI UpdateStash PubYear PubDate PubDateStr
-    PubDateHalfStr/
-    ];
+use MooseX::Types -declare => [
+    qw/CleanStr UnCleanStr ColumnMap Toggler URI UpdateStash PubYear PubDate PubDateStr
+        PubDateHalfStr OrderClause/
+];
 use MooseX::Types::Moose qw/Int Str Any Object Bool HashRef ArrayRef Maybe/;
-use Regexp::Common qw/URI/;
+use Regexp::Common qw/URI whitespace/;
 use DateTime::Format::Strptime;
 use namespace::autoclean;
 
@@ -42,9 +42,9 @@ subtype URI, as Str, where {
     "$_ is not a HTTP URL";
 };
 
-subtype PubYear,    as Str, where {/^\d+$/};
-subtype PubDate,    as Str, where {/^\d{2,4}\-\d{1,2}\-\d{1,2}$/};
-subtype PubDateStr, as Str, where {/^\d{2,4}\-\w{3,6}\-\d{1,2}$/};
+subtype PubYear,        as Str, where {/^\d+$/};
+subtype PubDate,        as Str, where {/^\d{2,4}\-\d{1,2}\-\d{1,2}$/};
+subtype PubDateStr,     as Str, where {/^\d{2,4}\-\w{3,6}\-\d{1,2}$/};
 subtype PubDateHalfStr, as Str, where {/^\d{2,4}\-\w{3,6}$/};
 coerce PubYear, from PubDate, via {
     DateTime::Format::Strptime->new( pattern => '%Y-%m-%d' )
@@ -55,8 +55,26 @@ coerce PubYear, from PubDateStr, via {
         ->parse_datetime($_)->year;
 };
 coerce PubYear, from PubDateHalfStr, via {
-    DateTime::Format::Strptime->new( pattern => '%Y-%b' )
-        ->parse_datetime($_)->year;
+    DateTime::Format::Strptime->new( pattern => '%Y-%b' )->parse_datetime($_)
+        ->year;
+};
+
+subtype OrderClause, as ArrayRef[HashRef] | ArrayRef[Str];
+coerce OrderClause, from Str, via {
+    my $array;
+    my $str = $_;
+    if ( $str =~ /\,/ ) {
+        my @cond = split /\,/, $str;
+        for my $c (@cond) {
+            $c =~ s/$RE{ws}{crop}//g;
+            push @$array, $c =~ /^(\w+)\s+(\w+)$/ ? { '-' . $2 => $1 } : $c;
+        }
+    }
+    else {
+        $str =~ s/$RE{ws}{crop}//g;
+        push @$array, $str =~ /^(\w+)\s+(\w+)$/ ? { '-' . $2 => $1 } : $str;
+    }
+    $array;
 };
 
 1;    # Magic true value required at end of module
