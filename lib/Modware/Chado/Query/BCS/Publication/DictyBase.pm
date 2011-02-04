@@ -16,6 +16,16 @@ class_has '+data_class' => ( default => 'Modware::Publication::DictyBase' );
 before 'search' => sub {
     my ($class) = @_;
     $class->add_related_param( 'keyword', 'pubprops.value' );
+	$class->query_engine->add_query_hook(
+        'author',
+        sub {
+            my $class = shift;
+            $class->add_blob_column( 'pubauthors.givennames', 1 );
+            $class->add_blob_column('pubauthors.surname',  1);
+            $class->add_blob_column('pubauthors.suffix',  1);
+        }
+    );
+
 };
 
 sub find_by_pubmed_id {
