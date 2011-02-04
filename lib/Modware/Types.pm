@@ -3,10 +3,10 @@ package  Modware::Types;
 # Other modules:
 use MooseX::Types -declare => [
     qw/CleanStr UnCleanStr ColumnMap Toggler URI UpdateStash PubYear PubDate PubDateStr
-        PubDateHalfStr OrderClause/
+        PubDateHalfStr/
 ];
 use MooseX::Types::Moose qw/Int Str Any Object Bool HashRef ArrayRef Maybe/;
-use Regexp::Common qw/URI whitespace/;
+use Regexp::Common qw/URI/;
 use DateTime::Format::Strptime;
 use namespace::autoclean;
 
@@ -59,23 +59,6 @@ coerce PubYear, from PubDateHalfStr, via {
         ->year;
 };
 
-subtype OrderClause, as ArrayRef[HashRef] | ArrayRef[Str];
-coerce OrderClause, from Str, via {
-    my $array;
-    my $str = $_;
-    if ( $str =~ /\,/ ) {
-        my @cond = split /\,/, $str;
-        for my $c (@cond) {
-            $c =~ s/$RE{ws}{crop}//g;
-            push @$array, $c =~ /^(\w+)\s+(\w+)$/ ? { '-' . $2 => $1 } : $c;
-        }
-    }
-    else {
-        $str =~ s/$RE{ws}{crop}//g;
-        push @$array, $str =~ /^(\w+)\s+(\w+)$/ ? { '-' . $2 => $1 } : $str;
-    }
-    $array;
-};
 
 1;    # Magic true value required at end of module
 

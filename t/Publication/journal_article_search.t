@@ -32,10 +32,6 @@ $pub_itr = $Pub->search( author => '*Text2*', );
 is( $pub_itr->count, 2,
     'has  journal articles with partial match in author name' );
 
-$pub_itr = $Pub->search( journal => '*Text*', author => '*Text*' );
-is( $pub_itr->count, 3,
-    'has journal articles with partial matches in author and journal names' );
-
 $pub_itr = $Pub->search( journal => '*5*', title => '*5*' );
 is( $pub_itr->count, 2,
     'has journal articles with partial matches in journal and title fields' );
@@ -56,6 +52,20 @@ is( $Pub->search( last_name => '*Underwood*', first_name => 'MJ Malcolm J' )
 
 is( $Pub->search( last_name => '*Torres*' )->count,
     1, 'has journal articles from last name search' );
+
+$pub_itr = $Pub->search( journal => '*Text*', author => '*Text*' );
+is( $pub_itr->count, 3,
+    'has journal articles with partial matches in author and journal names' );
+
+my @all_pubs = $Pub->search( journal => '*Text*', author => '*Text*' )
+    ->order('year asc');
+is( $all_pubs[0]->year, 1999, 'it has the publication after sorted by year in ascending order'
+);
+
+@all_pubs = $Pub->search( journal => '*Text*', author => '*Text*' )
+    ->order('year desc');
+is( $all_pubs[-1]->year, 1999, 'it has the publication after sorted by year in descending order'
+);
 
 SKIP: {
 

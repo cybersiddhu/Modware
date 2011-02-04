@@ -1,8 +1,13 @@
 package Modware::Collection::Iterator::BCS::ResultSet;
 
 # Other modules:
+
+use namespace::autoclean;
 use Moose;
-use Module::Load;
+use Class::MOP;
+use MooseX::Params::Validate;
+use Carp;
+use Regexp::Common qw/whitespace/;
 
 # Module implementation
 #
@@ -23,7 +28,7 @@ has 'count' => (
     }
 );
 
-before 'count' => sub {
+before [qw/count order/] => sub {
     my $self = shift;
     confess "no collection is defined for counting\n"
         if !$self->has_collection;
@@ -50,7 +55,7 @@ before 'next' => sub {
 sub next {
     my ($self) = @_;
     if ( my $next = $self->collection->next ) {
-    	load $self->data_access_class;
+        Class::MOP::load_class( $self->data_access_class );
         $self->data_access_class->new( dbrow => $next );
     }
 
@@ -61,9 +66,29 @@ sub slice {
     my $rs = $self->collection->slice( $start, $end );
     return if $rs->count == 0;
     if ( wantarray() ) {
-    	load $self->data_access_class;
+        Class::MOP::load_class( $self->data_access_class );
         return map { $self->data_access_class->new( dbrow => $_ ) } $rs->all;
     }
+    my $class = $self->meta->name;
+    return $class->new(
+        collection        => $rs,
+        data_access_class => $self->data_access_class,
+        search_class      => $self->search_class
+    );
+}
+
+sub order {
+    my ( $self, $arg ) = @_;
+
+    ## -- transform and validate if the column(s) for ordering are allowed
+    my $options = $self->transform($arg);
+    my $rs = $self->collection->search( {}, { order_by => $options } );
+
+    if ( wantarray() ) {
+        Class::MOP::load_class( $self->data_access_class );
+        return map { $self->data_access_class->new( dbrow => $_ ) } $rs->all;
+    }
+
     my $class = $self->meta->name;
     return $class->new(
         collection        => $rs,
@@ -75,6 +100,43 @@ sub slice {
 sub search {
     my ( $self, %arg ) = @_;
     $self->search_class->search(%arg);
+}
+
+sub transform {
+    my ( $self, $arg ) = @_;
+    my $search_class = $self->search_class;
+
+    my $array;
+    if ( $arg =~ /\,/ ) {
+        my @cond = split /\,/, $arg;
+        for my $c (@cond) {
+            $c =~ s/$RE{ws}{crop}//g;
+            if ( $c =~ /^(\w+)\s+(\w+)$/ ) {
+                croak "given column $1 in not included for ordering\n"
+                    if !$search_class->has_param_value($1);
+                push @$array, { '-' . lc $2 => $search_class->param2col($1) };
+            }
+            else {
+                croak "given column $c in not included for ordering\n"
+                    if !$search_class->has_param_value($c);
+                push @$array, $search_class->param2col($c);
+            }
+        }
+    }
+    else {
+        $arg =~ s/$RE{ws}{crop}//g;
+        if ( $arg =~ /^(\w+)\s+(\w+)$/ ) {
+            croak "given column $1 in not included for ordering\n"
+                if !$search_class->has_param_value($1);
+            push @$array, { '-' . lc $2 => $search_class->param2col($1) };
+        }
+        else {
+            croak "given column $arg in not included for ordering\n"
+                if !$search_class->has_param_value($arg);
+            push @$array, $search_class->param2col($arg);
+        }
+    }
+    return $array;
 }
 
 1;    # Magic true value required at end of module
