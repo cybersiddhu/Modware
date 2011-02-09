@@ -23,6 +23,12 @@ has '+input'          => ( traits => [qw/NoGetopt/] );
 has '+data_dir'       => ( traits => [qw/NoGetopt/] );
 has '+output_handler' => ( traits => [qw/NoGetopt/] );
 
+has 'sample_run' => (
+	is => 'rw', 
+	isa => 'Bool', 
+	default => 0
+);
+
 has 'gafcv' => (
     is  => 'rw',
     isa => 'Str',
@@ -97,9 +103,17 @@ has 'common_name' => (
 );
 
 has 'source_url' => (
-	is => 'rw', 
-	isa => 'Str', 
-	documentation => 'Canonical url for the source database'
+    is            => 'rw',
+    isa           => 'Str',
+    documentation => 'Canonical url for the source database'
+);
+
+has 'chunk_threshold' => (
+    is      => 'rw',
+    isa     => 'Int',
+    default => 5000,
+    documentation =>
+        'Threshold for no of entries that will be flushed to file after processing'
 );
 
 sub execute {
@@ -107,6 +121,13 @@ sub execute {
     my $schema = $self->chado;
     my $log    = $self->dual_logger;
     my $graph  = GOBO::Graph->new;
+
+    my $writer = GOBO::Writers::GAFWriter->new( file => $self->output );
+    $writer->add_to_header('gaf-version: 2.0');
+    $writer->add_to_header( Time::Piece->new->mdy('/') );
+    $writer->add_to_header(
+        $self->source_database . ' (' . $self->source_url . ')' );
+    $writer->add_to_header(' ');
 
     my $assoc_rs = $schema->resultset('Sequence::FeatureCvterm')->search(
         {   'cv.name' => {
@@ -123,6 +144,10 @@ sub execute {
             cache    => 1,
         }
     );
+
+    if ($self->sample_run) {
+    	$assoc_rs = $assoc_rs->search({},  { rows => 2500 });
+    }
 
     $log->info( 'going to process ', $assoc_rs->count, ' entries' );
 
@@ -204,19 +229,21 @@ sub execute {
 
         $self->inc_process;
 
-        if ( ( $self->process_count / 5000 ) >= $increment ) {
+        if ( ( $self->process_count / $self->chunk_threshold ) >= $increment )
+        {
             $log->info( "processed ", $self->process_count, " entries" );
             $increment++;
+
+            $writer->write_chunk(graph => $graph);
+            $writer->clear_graph;
+            $graph = GOBO::Graph->new;
+            $log->info( "Written ", $self->process_count, " entries so far" );
         }
     }
 
-    my $writer = GOBO::Writers::GAFWriter->new( file => $self->output );
-    $writer->add_to_header('gaf-version: 2.0');
-    $writer->add_to_header(Time::Piece->new->mdy('/'));
-    $writer->add_to_header($self->source_database. ' ('.$self->source_url.')');
-    $writer->add_header(' ');
-    $writer->graph($graph);
-    $writer->write;
+    if (defined $graph and  @{ $graph->annotations } ) {    ## -- write the rest of it
+        $writer->write_chunk(graph => $graph);
+    }
 
     $log->info( "written ", $self->process_count, " entries in GAF2.0 file" );
 }

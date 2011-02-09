@@ -17,6 +17,7 @@ has '+input'          => ( traits => [qw/NoGetopt/] );
 has '+data_dir'       => ( traits => [qw/NoGetopt/] );
 has '+output_handler' => ( traits => [qw/NoGetopt/] );
 
+
 has '+source_url' => (
     default => 'www.dictybase.org',
     documentation =>
@@ -143,7 +144,7 @@ sub get_provenance {
     my $pub = $row->pub->uniquename;
     if ( $pub =~ /^PUB/ ) {
         $pub =~ s/^PUB//;
-        return 'dicty_REF:' . $pub;
+        return 'dictyBase_REF:' . $pub;
     }
     return $self->pubmed_namespace . ':' . $pub;
 }
