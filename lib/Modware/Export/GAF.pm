@@ -24,9 +24,18 @@ has '+data_dir'       => ( traits => [qw/NoGetopt/] );
 has '+output_handler' => ( traits => [qw/NoGetopt/] );
 
 has 'sample_run' => (
-	is => 'rw', 
-	isa => 'Bool', 
-	default => 0
+    is      => 'rw',
+    isa     => 'Bool',
+    default => 0,
+    documentation =>
+        'Used for dumping only first 2500 records, use for debugging purpose'
+);
+
+has 'include_obsolete' => (
+    is            => 'rw',
+    isa           => 'Bool',
+    default       => 0,
+    documentation => 'To include obsolete annotations,  default is off'
 );
 
 has 'gafcv' => (
@@ -129,24 +138,33 @@ sub execute {
         $self->source_database . ' (' . $self->source_url . ')' );
     $writer->add_to_header(' ');
 
-    my $assoc_rs = $schema->resultset('Sequence::FeatureCvterm')->search(
-        {   'cv.name' => {
-                -in => [
-                    qw/molecular_function biological_process
-                        cellular_component/
-                ]
-            },
-            'cvterm.is_obsolete'   => 0,
-            'organism.common_name' => $self->common_name,
+    my $base_query = {
+    	'cvterm.is_obsolete' => 0, 
+        'cv.name' => {
+            -in => [
+                qw/molecular_function biological_process
+                    cellular_component/
+            ]
         },
+        'organism.common_name' => $self->common_name,
+
+    };
+
+    if ($self->include_obsolete) {
+    	delete $base_query->{'cvterm.is_obsolete'};
+    }
+
+    my $assoc_rs = $schema->resultset('Sequence::FeatureCvterm')->search(
+        $base_query,
         {   join => [ { 'cvterm' => 'cv' }, { 'feature' => 'organism' } ],
             prefetch => 'pub',
             cache    => 1,
         }
     );
 
-    if ($self->sample_run) {
-    	$assoc_rs = $assoc_rs->search({},  { rows => 2500 });
+
+    if ( $self->sample_run ) {
+        $assoc_rs = $assoc_rs->search( {}, { rows => 2500 } );
     }
 
     $log->info( 'going to process ', $assoc_rs->count, ' entries' );
@@ -234,15 +252,16 @@ sub execute {
             $log->info( "processed ", $self->process_count, " entries" );
             $increment++;
 
-            $writer->write_chunk(graph => $graph);
+            $writer->write_chunk( graph => $graph );
             $writer->clear_graph;
             $graph = GOBO::Graph->new;
             $log->info( "Written ", $self->process_count, " entries so far" );
         }
     }
 
-    if (defined $graph and  @{ $graph->annotations } ) {    ## -- write the rest of it
-        $writer->write_chunk(graph => $graph);
+    if ( defined $graph and @{ $graph->annotations } )
+    {    ## -- write the rest of it
+        $writer->write_chunk( graph => $graph );
     }
 
     $log->info( "written ", $self->process_count, " entries in GAF2.0 file" );
