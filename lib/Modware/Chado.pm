@@ -1,17 +1,51 @@
 package Modware::Chado;
 
-use version; 
-our $VERSION = qv('0.1');
 
 # Other modules:
 use Moose::Exporter;
-use Modware::DataSource::Chado;
+use Moose ();
+use Moose::Util::MetaRole;
 
 # Module implementation
 #
 
-my $reader = Modware::DataSource::Chado->reader_namespace;
-$reader .= '::'. uc Modware::DataSource::Chado->reader;
+sub resultset {
+	my ($meta,  $name) = @_;
+	$meta->resultset($name);
+}
+
+sub has_many {
+	my ($meta,  $name,  %options) = @_;
+	$meta->add_has_many($name, %options);
+}
+
+sub chado_has {
+	my ($meta, $name,  %options) = @_;
+    $meta->add_column($name, %options);
+}
+
+sub chado_prop {
+	my ($meta,  $name,  %options) = @_;
+}
+
+Moose::Exporter->setup_import_methods(
+	also => 'Moose', 
+	with_meta => ['has_many',  'resultset',  'chado_has',  'chado_prop'], 
+);
+
+sub init_meta {
+	my ($pkg,  %arg) = @_;
+	Moose->init_meta(%arg);
+	
+	Moose::Util::MetaRole::apply_metaroles(
+		for => $arg{for_class}, 
+		class_metaroles => {
+			class => ['Modware::Meta::Chado::BCS', 'Modware::Meta::Chado::BCS::Association']
+		}
+	);
+	return $arg{for_class}->meta;
+}
+
 
 1;    # Magic true value required at end of module
 

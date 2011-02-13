@@ -1,106 +1,107 @@
-package Modware::Meta::Attribute::Trait::Persistent;
-use strict;
-use Moose::Role;
+package Modware::Meta::Chado::BCS;
 
-has 'column' => (
-    is        => 'rw',
-    isa       => 'Str',
-    predicate => 'has_column'
+# Other modules:
+use Moose::Role;
+use Modware::Meta::AttributeTraits;
+use Carp;
+use Bio::Chado::Schema;
+use List::Util qw/first/;
+
+# Module implementation
+#
+
+has 'resultset' => (
+    is  => 'rw',
+    isa => 'Str'
 );
 
-has 'lazy_fetch' => (
-    isa     => 'Bool',
+has '_attr_stack' => (
     is      => 'rw',
-    default => 0
+    isa     => 'ArrayRef',
+    traits  => [qw/Array/],
+    default => sub { [] },
+    handles => {
+        '_track_attr'    => 'push',
+        '_tracked_attrs' => 'elements'
+    }
 );
 
-package Modware::Meta::Attribute::Trait::Persistent::Cvterm;
-use strict;
-use Moose::Role;
-
-has 'cv' => ( is => 'rw', isa => 'Str', predicate => 'has_cv' );
-has 'db' => ( is => 'rw', isa => 'Str', predicate => 'has_db' );
-has 'column' => (
-    is        => 'rw',
-    isa       => 'Str',
-    predicate => 'has_column'
+has 'bcs' => (
+    is      => 'ro',
+    isa     => 'Str',
+    default => 'Bio::Chado::Schema'
 );
 
-package Modware::Meta::Attribute::Trait::Persistent::Pubdbxref;
-use strict;
-use Moose::Role;
+has '_column_map' => (
+    is      => 'rw',
+    isa     => 'HashRef',
+    traits  => [qw/Hash/],
+    default => sub {
+        return {
+            'integer'          => 'Int',
+            'text'             => 'Str',
+            'boolean'          => 'Bool',
+            'varchar'          => 'Str',
+            'char'             => 'Str',
+            'smallint'         => 'Int',
+            'double precision' => 'Float',
+            'timestamp'        => 'Str'
+        };
+    },
+    handles => {
+        '_dbic2moose_type' => 'get',
+        '_has_type_map'    => 'defined',
+        '_add_type_map'    => 'set'
+    }
+);
 
-has 'db' => ( is => 'rw', isa => 'Str', predicate => 'has_db' );
-
-package Modware::Meta::Attribute::Trait::Persistent::Pubauthors;
-use strict;
-use Moose::Role;
-
-has 'map_to' =>
-    ( is => 'rw', isa => 'Str', default => 'Modware::Publication::Author' );
-has 'association' => ( is => 'rw', isa => 'Str', default => 'pubauthors' );
-
-package Modware::Meta::Attribute::Trait::Persistent::Pubprop;
-use strict;
-use Moose::Role;
-
-has 'cv'      => ( is => 'rw', isa => 'Str', predicate => 'has_cv' );
-has 'db'      => ( is => 'rw', isa => 'Str', predicate => 'has_db' );
-has 'pubprop' => ( is => 'rw', isa => 'Str', predicate => 'has_pubprop' );
-has 'rank'    => ( is => 'rw', isa => 'Int', default   => 0 );
-has 'cvterm'  => ( is => 'rw', isa => 'Str', predicate => 'has_cvterm',  required => 1 );
-
-package Modware::Meta::Attribute::Trait::Persistent::Pubprop::Dicty;
-use strict;
-use Moose::Role;
-
-has 'cv' =>
-    ( is => 'rw', isa => 'Str', required => 1, predicate => 'has_cv' );
-has 'rank' => ( is => 'rw', isa => 'Int', default => 0 );
-has 'db' =>
-    ( is => 'rw', isa => 'Str', required => 1, predicate => 'has_db' );
-
-package Moose::Meta::Attribute::Custom::Trait::Persistent;
-
-sub register_implementation {
-    'Modware::Meta::Attribute::Trait::Persistent';
+sub add_column {
+    my ( $meta, $name, %options ) = @_;
+    my $init_hash = $meta->_init_attr_options( $name, %options );
+    if ( not defined $options{primary} ) {
+        $$init_hash{traits} = [qw/Persistent/];
+    }
+    $meta->add_attribute( $name => %$init_hash );
+    $meta->_track_attr($name);
 }
 
-package Moose::Meta::Attribute::Custom::Trait::Persistent::Cvterm;
+sub _init_attr_options {
+    my ( $meta, $name, %options ) = @_;
+    if ( first { $name eq $_ } $meta->_tracked_attrs ) {
+        croak "$name is duplicate chado attribute,  already added\n";
+    }
 
-sub register_implementation {
-    'Modware::Meta::Attribute::Trait::Persistent::Cvterm';
+    my $method = $options{column} ? $options{column} : $name;
+    my %init_hash;
+    $init_hash{is} = 'rw';
+    $init_hash{column} = $options{column} if defined $options{column};
+    $init_hash{isa} = $options{isa} || $meta->_infer_isa($method);
+    if ( defined $options{lazy} ) {
+        $init_hash{lazy}    = 1;
+        $init_hash{default} = sub {
+            my ($self) = @_;
+            return $self->dbrow->$method;
+        };
+    }
+    else {
+    	$init_hash{predicate} = 'has_'.$name;
+    }
+    return \%init_hash;
 }
 
-package Moose::Meta::Attribute::Custom::Trait::Persistent::Pubdbxref;
+sub _infer_isa {
+    my ( $meta, $column ) = @_;
+    my $col_hash
+        = $meta->bcs->source( $meta->resultset )->column_info($column);
 
-sub register_implementation {
-    'Modware::Meta::Attribute::Trait::Persistent::Pubdbxref';
-}
-
-package Moose::Meta::Attribute::Custom::Trait::Persistent::Pubprop;
-
-sub register_implementation {
-    'Modware::Meta::Attribute::Trait::Persistent::Pubprop';
-}
-
-package Moose::Meta::Attribute::Custom::Trait::Persistent::Pubauthors;
-
-sub register_implementation {
-    'Modware::Meta::Attribute::Trait::Persistent::Pubauthors';
+    if ( defined $col_hash->{data_type} ) {
+        return $meta->_has_type_map( $col_hash->{data_type} )
+            ? $meta->_dbic2moose_type( $col_hash->{data_type} ): 'Str';
+    }
+    return 'Str';
 }
 
 1;    # Magic true value required at end of module
-
-package Moose::Meta::Attribute::Custom::Trait::Persistent::Pubprop::Dicty;
-
-sub register_implementation {
-    'Modware::Meta::Attribute::Trait::Persistent::Pubprop::Dicty';
-}
-
-1;    # Magic true value required at end of module
-
-1;
 
 __END__
 
