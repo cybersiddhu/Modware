@@ -26,6 +26,7 @@ sub chado_has {
 
 sub chado_prop {
 	my ($meta,  $name,  %options) = @_;
+	$meta->add_chado_prop($name, %options);
 }
 
 Moose::Exporter->setup_import_methods(

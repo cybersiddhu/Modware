@@ -48,7 +48,28 @@ has 'cv'      => ( is => 'rw', isa => 'Str', predicate => 'has_cv' );
 has 'db'      => ( is => 'rw', isa => 'Str', predicate => 'has_db' );
 has 'pubprop' => ( is => 'rw', isa => 'Str', predicate => 'has_pubprop' );
 has 'rank'    => ( is => 'rw', isa => 'Int', default   => 0 );
-has 'cvterm'  => ( is => 'rw', isa => 'Str', predicate => 'has_cvterm',  required => 1 );
+has 'cvterm' =>
+    ( is => 'rw', isa => 'Str', predicate => 'has_cvterm', required => 1 );
+
+package Modware::Meta::Attribute::Trait::Persistent::Prop;
+use strict;
+use Moose::Role;
+
+has 'cv'   => ( is => 'rw', isa => 'Str', predicate => 'has_cv' );
+has 'db'   => ( is => 'rw', isa => 'Str', predicate => 'has_db' );
+has 'rank' => ( is => 'rw', isa => 'Int', default   => 0 );
+has 'cvterm' =>
+    ( is => 'rw', isa => 'Str', predicate => 'has_cvterm', required => 1 );
+has 'dbxref' => (
+    is        => 'rw',
+    isa       => 'Str',
+    predicate => 'has_dbxref',
+    lazy      => 1,
+    default   => sub {
+        my $self = shift;
+        return $self->cvterm;
+    }
+);
 
 package Modware::Meta::Attribute::Trait::Persistent::Pubprop::Dicty;
 use strict;
@@ -82,6 +103,12 @@ package Moose::Meta::Attribute::Custom::Trait::Persistent::Pubprop;
 
 sub register_implementation {
     'Modware::Meta::Attribute::Trait::Persistent::Pubprop';
+}
+
+package Moose::Meta::Attribute::Custom::Trait::Persistent::Prop;
+
+sub register_implementation {
+    'Modware::Meta::Attribute::Trait::Persistent::Prop';
 }
 
 package Moose::Meta::Attribute::Custom::Trait::Persistent::Pubauthors;

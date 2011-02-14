@@ -57,15 +57,49 @@ has '_column_map' => (
 
 sub add_column {
     my ( $meta, $name, %options ) = @_;
-    my $init_hash = $meta->_init_attr_options( $name, %options );
+    my $basic = $meta->_init_attr_basic( $name, %options );
+    my $optional = $meta->_init_attr_optional( $name, %options );
+    my %init_hash = ( %$basic, %$options );
     if ( not defined $options{primary} ) {
-        $$init_hash{traits} = [qw/Persistent/];
+        $init_hash{traits} = [qw/Persistent/];
     }
-    $meta->add_attribute( $name => %$init_hash );
+    $meta->add_attribute( $name => %init_hash );
     $meta->_track_attr($name);
 }
 
-sub _init_attr_options {
+sub add_chado_prop {
+    my ( $meta, $name, %options ) = @_;
+    my $basic = $meta->_init_attr_basic( $name, %options );
+    my %init_hash = %$basic;    # -- redundant line at this point
+    for my $name( qw/cvterm dbxref rank db cv bcs_accessor/) {
+    	$init_hash{$name} = $options{$name} if defined $options{$name};
+    }
+
+    $init_hash{traits} = [qw/Persistent::Prop/];
+
+    if (not defined $init_hash{bcs_accessor}) {
+    	my $bcs_source = $meta->bcs->source($meta->resultset);
+    	my $props_bcs;
+    	if (defined $init_hash{bcs_resultset}) {
+    		$prop_bcs = $init_hash{bcs_resultset};
+    	}
+    	else {
+    		$prop_bcs = $bcs_source->source_name.'prop';
+       	}
+		$init_hash{bcs_accessor} = first {
+				$prop_bcs eq $bcs_source->related_source($_)->source_name
+    		} $bcs_source->relationships;
+    }
+
+    if (defined $options{lazy}) {
+    	$init_hash{lazy} = 1;
+    }
+    else {
+        $init_hash{predicate} = 'has_' . $name;
+    }
+}
+
+sub _init_attr_basic {
     my ( $meta, $name, %options ) = @_;
     if ( first { $name eq $_ } $meta->_tracked_attrs ) {
         croak "$name is duplicate chado attribute,  already added\n";
@@ -73,9 +107,16 @@ sub _init_attr_options {
 
     my $method = $options{column} ? $options{column} : $name;
     my %init_hash;
-    $init_hash{is} = 'rw';
+    $init_hash{is}     = 'rw';
     $init_hash{column} = $options{column} if defined $options{column};
-    $init_hash{isa} = $options{isa} || $meta->_infer_isa($method);
+    $init_hash{isa}    = $options{isa} || $meta->_infer_isa($method);
+    return \%init_hash;
+}
+
+sub _init_attr_optional {
+    my ( $meta, $name, %options ) = @_;
+    my $method = $options{column} ? $options{column} : $name;
+    my %init_hash;
     if ( defined $options{lazy} ) {
         $init_hash{lazy}    = 1;
         $init_hash{default} = sub {
@@ -84,7 +125,7 @@ sub _init_attr_options {
         };
     }
     else {
-    	$init_hash{predicate} = 'has_'.$name;
+        $init_hash{predicate} = 'has_' . $name;
     }
     return \%init_hash;
 }
@@ -96,7 +137,8 @@ sub _infer_isa {
 
     if ( defined $col_hash->{data_type} ) {
         return $meta->_has_type_map( $col_hash->{data_type} )
-            ? $meta->_dbic2moose_type( $col_hash->{data_type} ): 'Str';
+            ? $meta->_dbic2moose_type( $col_hash->{data_type} )
+            : 'Str';
     }
     return 'Str';
 }
