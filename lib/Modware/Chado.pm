@@ -29,9 +29,20 @@ sub chado_prop {
 	$meta->add_chado_prop($name, %options);
 }
 
+sub chado_dbxref {
+	my ($meta,  $name,  %options) = @_;
+	$meta->add_chado_dbxref($name, %options);
+}
+
+sub chado_type {
+	my ($meta,  $name,  %options) = @_;
+	$meta->add_chado_type($name, %options);
+}
+
 Moose::Exporter->setup_import_methods(
 	also => 'Moose', 
-	with_meta => ['has_many',  'resultset',  'chado_has',  'chado_prop'], 
+	with_meta => ['has_many',  'resultset',  'chado_has',  'chado_prop',  'chado_dbxref',
+	'chado_type'], 
 );
 
 sub init_meta {

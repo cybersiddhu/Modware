@@ -51,8 +51,13 @@ has 'read_hooks' => (
         return {
             'Modware::Meta::Attribute::Trait::Persistent' =>
                 sub { $self->read_generic(@_) },
-            'Modware::Meta::Attribute::Trait::Persistent::Cvterm' =>
-                sub { $self->read_cvterm(@_) }
+            'Modware::Meta::Attribute::Trait::Persistent::Type' =>
+                sub { $self->read_type(@_) },
+            'Modware::Meta::Attribute::Trait::Persistent::Dbxref' =>
+                sub { $self->read_dbxref(@_) },
+            'Modware::Meta::Attribute::Trait::Persistent::Prop' =>
+                sub { $self->read_prop(@_) },
+
         };
     }
 );
@@ -72,8 +77,13 @@ has 'create_hooks' => (
         return {
             'Modware::Meta::Attribute::Trait::Persistent' =>
                 sub { $self->create_generic(@_) },
-            'Modware::Meta::Attribute::Trait::Persistent::Cvterm' =>
-                sub { $self->create_cvterm(@_) }
+            'Modware::Meta::Attribute::Trait::Persistent::Type' =>
+                sub { $self->create_type(@_) },
+            'Modware::Meta::Attribute::Trait::Persistent::Dbxref' =>
+                sub { $self->create_dbxref(@_) },
+            'Modware::Meta::Attribute::Trait::Persistent::Prop' =>
+                sub { $self->create_prop(@_) },
+
         };
     }
 );
@@ -93,8 +103,13 @@ has 'update_hooks' => (
         return {
             'Modware::Meta::Attribute::Trait::Persistent' =>
                 sub { $self->update_generic(@_) },
-            'Modware::Meta::Attribute::Trait::Persistent::Cvterm' =>
-                sub { $self->update_cvterm(@_) }
+            'Modware::Meta::Attribute::Trait::Persistent::Type' =>
+                sub { $self->update_type(@_) },
+            'Modware::Meta::Attribute::Trait::Persistent::Dbxref' =>
+                sub { $self->update_dbxref(@_) },
+            'Modware::Meta::Attribute::Trait::Persistent::Prop' =>
+                sub { $self->update_prop(@_) },
+
         };
     }
 );
@@ -129,6 +144,7 @@ PERSISTENT:
     TRAIT:
         for my $traits ( $self->all_read_hooks ) {
             next TRAIT if !$attr->does($traits);
+            next TRAIT if $attr->is_lazy;
             my $code = $self->get_read_hook($traits);
             $code->( $attr, $dbrow );
         }
@@ -141,9 +157,24 @@ sub read_generic {
     $attr->set_value( $self, $dbrow->$column ) if defined $dbrow->$column;
 }
 
-sub read_cvterm {
+sub read_type {
     my ( $self, $attr, $dbrow ) = @_;
     $attr->set_value( $self, $dbrow->type->name );
+}
+
+sub read_dbxref {
+    my ( $self, $attr, $dbrow ) = @_;
+    $attr->set_value( $self, $dbrow->dbxref->accession );
+}
+
+sub read_prop {
+    my ( $self, $attr, $dbrow ) = @_;
+    my $method = $attr->bcs_accessor;
+    $attr->set_value(
+        $self,
+        $dbrow->$bcs_accessor( { 'type.name' => $attr->cvterm },
+            { join => 'type' } )->first->value
+    );
 }
 
 sub create_generic {
@@ -153,7 +184,7 @@ sub create_generic {
     $self->add_to_mapper( $column, $value ) if $value;
 }
 
-sub create_cvterm {
+sub create_type {
     my ( $self, $attr ) = @_;
     my $column = $attr->has_column ? $attr->column : $attr->name;
     $self->add_to_mapper(
@@ -230,9 +261,9 @@ sub create {
 
 PERSISTENT:
     for my $attr ( $meta->get_all_attributes ) {
-    	if ($attr->is_lazy) {
-    		$attr->get_value($self);
-    	}
+        if ( $attr->is_lazy ) {
+            $attr->get_value($self);
+        }
         next PERSISTENT if !$attr->has_value($self);
     TRAIT:
         for my $traits ( $self->all_create_hooks ) {
@@ -258,8 +289,8 @@ PERSISTENT:
 }
 
 sub new_record {
-	my $self = shift;
-	return $self->has_dbrow ? 0 : 1;
+    my $self = shift;
+    return $self->has_dbrow ? 0 : 1;
 }
 
 sub save {
@@ -351,8 +382,8 @@ sub delete {
     if ( defined $arg{$cascade} ) {
         $self->chado->txn_do(
             sub {
-            	$self->dbrow->delete;
-    			$self->_clear_dbrow;
+                $self->dbrow->delete;
+                $self->_clear_dbrow;
             }
         );
     }
@@ -360,14 +391,15 @@ sub delete {
         $self->chado->txn_do(
             sub {
                 my $row = $self->dbrow;
-            	if ($self->can('all_object_relations')) {
-            		$row->$_->delete_all for $self->all_object_relations;
-            	}
-            	else {
-            	  my $source = $self->chado->source($self->resultset_class);	
-            	  $row->$_->delete_all for $source->relationships;
-            	}
-    			$self->_clear_dbrow;
+                if ( $self->can('all_object_relations') ) {
+                    $row->$_->delete_all for $self->all_object_relations;
+                }
+                else {
+                    my $source
+                        = $self->chado->source( $self->resultset_class );
+                    $row->$_->delete_all for $source->relationships;
+                }
+                $self->_clear_dbrow;
             }
         );
     }

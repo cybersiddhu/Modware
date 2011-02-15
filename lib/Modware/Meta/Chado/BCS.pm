@@ -59,7 +59,7 @@ sub add_column {
     my ( $meta, $name, %options ) = @_;
     my $basic = $meta->_init_attr_basic( $name, %options );
     my $optional = $meta->_init_attr_optional( $name, %options );
-    my %init_hash = ( %$basic, %$options );
+    my %init_hash = ( %$basic, %$optional );
     if ( not defined $options{primary} ) {
         $init_hash{traits} = [qw/Persistent/];
     }
@@ -71,32 +71,80 @@ sub add_chado_prop {
     my ( $meta, $name, %options ) = @_;
     my $basic = $meta->_init_attr_basic( $name, %options );
     my %init_hash = %$basic;    # -- redundant line at this point
-    for my $name( qw/cvterm dbxref rank db cv bcs_accessor/) {
-    	$init_hash{$name} = $options{$name} if defined $options{$name};
+    for my $name (qw/cvterm dbxref rank db cv bcs_accessor/) {
+        $init_hash{$name} = $options{$name} if defined $options{$name};
     }
 
-    $init_hash{traits} = [qw/Persistent::Prop/];
-
-    if (not defined $init_hash{bcs_accessor}) {
-    	my $bcs_source = $meta->bcs->source($meta->resultset);
-    	my $props_bcs;
-    	if (defined $init_hash{bcs_resultset}) {
-    		$prop_bcs = $init_hash{bcs_resultset};
-    	}
-    	else {
-    		$prop_bcs = $bcs_source->source_name.'prop';
-       	}
-		$init_hash{bcs_accessor} = first {
-				$prop_bcs eq $bcs_source->related_source($_)->source_name
-    		} $bcs_source->relationships;
+    my $bcs_accessor;
+    if ( not defined $init_hash{bcs_accessor} ) {
+        my $bcs_source = $meta->bcs->source( $meta->resultset );
+        my $prop_bcs;
+        if ( defined $init_hash{bcs_resultset} ) {
+            $prop_bcs = $init_hash{bcs_resultset};
+        }
+        else {
+            $prop_bcs = $bcs_source->source_name . 'prop';
+        }
+        $bcs_accessor = first {
+            $prop_bcs eq $bcs_source->related_source($_)->source_name
+        }
+        $bcs_source->relationships;
     }
 
+    if ( defined $options{lazy} ) {
+        $init_hash{lazy}    = 1;
+        $init_hash{default} = sub {
+            my ($self) = @_;
+            $self->dbrow->$bcs_accessor(
+                { 'type.name' => $init_hash{cvterm} },
+                { join        => 'type' } )->first->value;
+        };
+    }
+	
+    $init_hash{predicate} = 'has_' . $name;
+	$init_hash{isa} = 'Str';
+    $init_hash{bcs_accessor} = $bcs_accessor;
+    $init_hash{traits}      = [qw/Persistent::Prop/];
+    $meta->add_attribute( $name => %init_hash );
+    $meta->_track_attr($name);
+}
+
+sub add_chado_dbxref {
+    my ( $meta, $name, %options ) = @_;
+    my %init_hash = %{$meta->_init_attr_basic( $name, %options )};
+    $init_hash{isa} = 'Str';
+    $init_hash{db} = $options{db} if defined $options{db};
     if (defined $options{lazy}) {
-    	$init_hash{lazy} = 1;
+    	$init_hash{default} = sub {
+    		my ($self) = @_;
+    		return $self->dbrow->dbxref->accession;
+    	};
+    }
+   	$init_hash{predicate} = 'has_'.$name;
+    $init_hash{traits} = [qw/Persistent::Dbxref/];
+    $meta->add_attribute( $name => %init_hash );
+    $meta->_track_attr($name);
+}
+
+sub add_chado_type {
+    my ( $meta, $name, %options ) = @_;
+    my %init_hash = %{$meta->_init_attr_basic( $name, %options )};
+    $init_hash{isa} = 'Str';
+    for my $name (qw/dbxref db cv/) {
+        $init_hash{$name} = $options{$name} if defined $options{$name};
+    }
+    if (defined $options{lazy}) {
+    	$init_hash{default} = sub {
+    		my ($self) = @_;
+    		return $self->dbrow->type->name;
+    	};
     }
     else {
-        $init_hash{predicate} = 'has_' . $name;
+    	$init_hash{predicate} = 'has_'.$name;
     }
+    $init_hash{traits} = [qw/Persistent::Type/];
+    $meta->add_attribute( $name => %init_hash );
+    $meta->_track_attr($name);
 }
 
 sub _init_attr_basic {
@@ -109,7 +157,6 @@ sub _init_attr_basic {
     my %init_hash;
     $init_hash{is}     = 'rw';
     $init_hash{column} = $options{column} if defined $options{column};
-    $init_hash{isa}    = $options{isa} || $meta->_infer_isa($method);
     return \%init_hash;
 }
 
@@ -117,15 +164,14 @@ sub _init_attr_optional {
     my ( $meta, $name, %options ) = @_;
     my $method = $options{column} ? $options{column} : $name;
     my %init_hash;
+    $init_hash{isa}    = $options{isa} || $meta->_infer_isa($method);
+    $init_hash{predicate} = 'has_' . $name;
     if ( defined $options{lazy} ) {
         $init_hash{lazy}    = 1;
         $init_hash{default} = sub {
             my ($self) = @_;
             return $self->dbrow->$method;
         };
-    }
-    else {
-        $init_hash{predicate} = 'has_' . $name;
     }
     return \%init_hash;
 }
