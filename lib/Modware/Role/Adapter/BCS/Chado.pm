@@ -4,17 +4,12 @@ package Modware::Role::Adapter::BCS::Chado;
 use namespace::autoclean;
 use Moose::Role;
 use Try::Tiny;
-use Moose::Util qw/ensure_all_roles/;
-use Lingua::EN::Inflect::Phrase qw/to_S/;
 use Modware::DataSource::Chado;
-use aliased 'Modware::DataModel::Validation';
 use Data::Dumper::Concise;
 use Carp;
 
 # Module implementation
 #
-with 'Modware::Role::Chado::Helper::BCS::Cvterm';
-with 'Modware::Role::Chado::Helper::BCS::Dbxref';
 
 has 'datasource' => (
     is        => 'rw',
@@ -50,6 +45,8 @@ has 'read_hooks' => (
         my $self = shift;
         return {
             'Modware::Meta::Attribute::Trait::Persistent' =>
+                sub { $self->read_generic(@_) },
+            'Modware::Meta::Attribute::Trait::Persistent::Primary' =>
                 sub { $self->read_generic(@_) },
             'Modware::Meta::Attribute::Trait::Persistent::Type' =>
                 sub { $self->read_type(@_) },
@@ -172,7 +169,7 @@ sub read_prop {
     my $method = $attr->bcs_accessor;
     $attr->set_value(
         $self,
-        $dbrow->$bcs_accessor( { 'type.name' => $attr->cvterm },
+        $dbrow->$method( { 'type.name' => $attr->cvterm },
             { join => 'type' } )->first->value
     );
 }
@@ -181,60 +178,37 @@ sub create_generic {
     my ( $self, $attr ) = @_;
     my $column = $attr->has_column ? $attr->column : $attr->name;
     my $value = $attr->get_value($self);
-    $self->add_to_mapper( $column, $value ) if $value;
+    $self->_add_to_mapper( $column, $value ) if $value;
 }
 
 sub create_type {
     my ( $self, $attr ) = @_;
-    my $column = $attr->has_column ? $attr->column : $attr->name;
-    $self->add_to_mapper(
-        $column,
-        $self->find_or_create_cvterm_id(
-            cvterm => $attr->get_value($self),
-            cv     => $attr->cv,
-            dbxref => $attr->get_value($self),
-            db     => $attr->db
-        )
+    my $value = $attr->get_value($self);
+    my %data;
+    $data{cvterm} = $value;
+    $data{dbxref} = $attr->has_dbxref ? $attr->dbxref : $value;
+    $data{cv}     = $attr->cv if $attr->has_cv;
+    $data{db}     = $attr->db if $attr->has_db;
+    $self->_add_to_mapper( $attr->column,
+        $self->find_or_create_cvterm_id(%data) );
+}
+
+sub create_prop {
+    my ( $self, $attr ) = @_;
+    my $value = $attr->get_value($self);
+    my %data;
+    $data{cvterm} = $attr->cvterm;
+    $data{dbxref} = $attr->dbxref;
+    $data{cv}     = $attr->cv if $attr->has_cv;
+    $data{db}     = $attr->db if $attr->has_db;
+    $self->_add_to_prop(
+        $attr->bcs_accessor,
+        {   type_id => $self->find_or_create_cvterm_id(%data),
+            value   => $value,
+            rank    => $attr->rank
+        }
     );
-}
 
-sub update_generic {
-    my ( $self, $attr, $dbrow ) = @_;
-    my $column = $attr->has_column ? $attr->column : $attr->name;
-    $dbrow->$column( $attr->get_value($self) );
-}
-
-sub update_cvterm {
-    my ( $self, $attr, $dbrow ) = @_;
-    my $column = $attr->has_column ? $attr->column : $attr->name;
-    $dbrow->$column(
-        $self->find_or_create_cvterm_id(
-            cvterm => $attr->get_value($self),
-            dbxref => $attr->get_value($self),
-            cv     => $attr->cv,
-            db     => $attr->db
-        )
-    );
-}
-
-sub m2m_probe {
-    my ( $self, $source_name, $rel_name ) = @_;
-    return if $rel_name !~ /\_/;
-    my $belong_to = ( ( split /\_/, $rel_name ) )[1];
-    my $singular  = to_S($belong_to);
-    my $source    = $self->chado->source($source_name);
-    my $m2m_rel_source
-        = $source->related_source($rel_name)->related_source($singular);
-    my @column = $m2m_rel_source->primary_columns;
-
-    croak "more than one column for $rel_name\n" if @column > 1;
-    return ( $singular, $column[0] );
-}
-
-sub inflate_to_hashref {
-    my $self = shift;
-    $self->create( fake => 1 );
-    $self->insert_hashref;
 }
 
 sub create {
@@ -245,25 +219,15 @@ sub create {
 
     ## -- check for attribute probably will go through require pragma once moose support
     ## -- validation through stack roles
-    if ( !$self->meta->has_attribute('resultset_class') ) {
-        croak "**resultset_class** attribute need to be defined\n";
-    }
-
-    $self->do_validation;
-
     my $meta = $self->meta;
-    if ( !$self->does('Modware::Role::Chado::Helper::BCS::WithDataStash') ) {
-        $meta->make_mutable;
-        ensure_all_roles( $self,
-            'Modware::Role::Chado::Helper::BCS::WithDataStash' );
-        $meta->make_immutable;
+    if ( !$meta->has_bcs_resultset ) {
+        croak "**bcs_resultset** attribute need to be defined\n";
     }
+
+    #$self->do_validation;
 
 PERSISTENT:
     for my $attr ( $meta->get_all_attributes ) {
-        if ( $attr->is_lazy ) {
-            $attr->get_value($self);
-        }
         next PERSISTENT if !$attr->has_value($self);
     TRAIT:
         for my $traits ( $self->all_create_hooks ) {
@@ -279,7 +243,7 @@ PERSISTENT:
     my $chado = $self->chado;
     my $dbrow = $chado->txn_do(
         sub {
-            my $value = $chado->resultset( $self->resultset_class )
+            my $value = $chado->resultset( $meta->bcs_resultset )
                 ->create( $self->insert_hashref );
             $value;
         }
@@ -296,114 +260,6 @@ sub new_record {
 sub save {
     my ($self) = @_;
     return $self->has_dbrow ? $self->update : $self->create;
-}
-
-sub update {
-    my ($self) = @_;
-
-    ## -- check for attribute probably will go through require pragma once moose support
-    ## -- validation through stack roles
-    if ( !$self->meta->has_attribute('resultset_class') ) {
-        croak "**resultset_class** attribute need to be defined\n";
-    }
-
-    confess "No data being fetched from storage: nothing to update\n"
-        if !$self->has_dbrow;
-
-    $self->do_validation;
-
-    if ( !$self->does('Modware::Role::Chado::Helper::BCS::WithDataStash') ) {
-        $self->meta->make_mutable;
-        ensure_all_roles( $self,
-            'Modware::Role::Chado::Helper::BCS::WithDataStash' );
-        $self->meta->make_immutable;
-    }
-
-PERSISTENT:
-    for my $attr ( $self->meta->get_all_attributes ) {
-        if ( !$attr->has_value($self) ) {
-            next PERSISTENT;
-        }
-    TRAIT:
-        for my $traits ( $self->all_update_hooks ) {
-            if ( !$attr->does($traits) ) {
-                next TRAIT;
-            }
-            my $code = $self->get_update_hook($traits);
-            $code->( $attr, $self->dbrow );
-        }
-    }
-
-    my $chado = $self->chado;
-    my $dbrow = $self->dbrow;
-    $chado->txn_do(
-        sub {
-            $dbrow->update();
-            if ( $self->can('has_many_update') ) {
-                for my $name ( $self->has_many_update_stash ) {
-                    my $method = 'all_update_' . $name;
-                    for my $hashref ( $self->$method ) {
-                        $dbrow->update_or_create_related( $name, $hashref );
-                    }
-                }
-            }
-
-            # -- for M2M relationship
-            if ( $self->can('many_to_many_update_stash') ) {
-            M2M:
-                for my $name ( $self->many_to_many_update_stash ) {
-                    my $method = 'all_update_' . $name;
-                    my ( $rel, $primary_key )
-                        = $self->m2m_probe( $self->resultset_class, $name );
-                HASHREF:
-                    for my $hashref ( $self->$method ) {
-                        if ( defined $hashref->{$primary_key} ) {
-                            my $id = $hashref->{$primary_key};
-                            delete $hashref->{$primary_key};
-                            $dbrow->$name( { $rel => $id }, { rows => 1 } )
-                                ->single->update_or_create_related( $rel,
-                                $hashref );
-                            next HASHREF;
-
-                        }
-                        $dbrow->create_related( $name, { $rel => $hashref } );
-                    }
-                }
-            }
-        }
-    );
-    $dbrow;
-}
-
-sub delete {
-    my ( $self, %arg ) = @_;
-    confess "No data being fetched from storage: nothing to delete\n"
-        if !$self->has_dbrow;
-    if ( defined $arg{$cascade} ) {
-        $self->chado->txn_do(
-            sub {
-                $self->dbrow->delete;
-                $self->_clear_dbrow;
-            }
-        );
-    }
-    else {
-        $self->chado->txn_do(
-            sub {
-                my $row = $self->dbrow;
-                if ( $self->can('all_object_relations') ) {
-                    $row->$_->delete_all for $self->all_object_relations;
-                }
-                else {
-                    my $source
-                        = $self->chado->source( $self->resultset_class );
-                    $row->$_->delete_all for $source->relationships;
-                }
-                $self->_clear_dbrow;
-            }
-        );
-    }
-    return 1;
 }
 
 1;    # Magic true value required at end of module

@@ -10,9 +10,10 @@ use List::Util qw/first/;
 # Module implementation
 #
 
-has 'resultset' => (
+has 'bcs_resultset' => (
     is  => 'rw',
-    isa => 'Str'
+    isa => 'Str', 
+    predicate => 'has_bcs_resultset'
 );
 
 has '_attr_stack' => (
@@ -60,8 +61,12 @@ sub add_column {
     my $basic = $meta->_init_attr_basic( $name, %options );
     my $optional = $meta->_init_attr_optional( $name, %options );
     my %init_hash = ( %$basic, %$optional );
-    if ( not defined $options{primary} ) {
-        $init_hash{traits} = [qw/Persistent/];
+    if ( defined $options{primary} ) {
+        $init_hash{traits} = [qw/Persistent::Primary/];
+        $init_hash{primary} = 1;
+    }
+    else {
+    	$init_hash{traits} = [qw/Persistent/];
     }
     $meta->add_attribute( $name => %init_hash );
     $meta->_track_attr($name);
@@ -77,7 +82,7 @@ sub add_chado_prop {
 
     my $bcs_accessor;
     if ( not defined $init_hash{bcs_accessor} ) {
-        my $bcs_source = $meta->bcs->source( $meta->resultset );
+        my $bcs_source = $meta->bcs->source( $meta->bcs_resultset );
         my $prop_bcs;
         if ( defined $init_hash{bcs_resultset} ) {
             $prop_bcs = $init_hash{bcs_resultset};
@@ -130,7 +135,7 @@ sub add_chado_type {
     my ( $meta, $name, %options ) = @_;
     my %init_hash = %{$meta->_init_attr_basic( $name, %options )};
     $init_hash{isa} = 'Str';
-    for my $name (qw/dbxref db cv/) {
+    for my $name (qw/dbxref db cv column/) {
         $init_hash{$name} = $options{$name} if defined $options{$name};
     }
     if (defined $options{lazy}) {
@@ -179,7 +184,7 @@ sub _init_attr_optional {
 sub _infer_isa {
     my ( $meta, $column ) = @_;
     my $col_hash
-        = $meta->bcs->source( $meta->resultset )->column_info($column);
+        = $meta->bcs->source( $meta->bcs_resultset )->column_info($column);
 
     if ( defined $col_hash->{data_type} ) {
         return $meta->_has_type_map( $col_hash->{data_type} )

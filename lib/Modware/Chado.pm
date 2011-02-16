@@ -1,6 +1,5 @@
 package Modware::Chado;
 
-
 # Other modules:
 use Moose::Exporter;
 use Moose ();
@@ -9,55 +8,63 @@ use Moose::Util::MetaRole;
 # Module implementation
 #
 
-sub resultset {
-	my ($meta,  $name) = @_;
-	$meta->resultset($name);
+sub bcs_resultset {
+    my ( $meta, $name ) = @_;
+    $meta->bcs_resultset($name);
 }
 
 sub has_many {
-	my ($meta,  $name,  %options) = @_;
-	$meta->add_has_many($name, %options);
+    my ( $meta, $name, %options ) = @_;
+    $meta->add_has_many( $name, %options );
 }
 
 sub chado_has {
-	my ($meta, $name,  %options) = @_;
-    $meta->add_column($name, %options);
+    my ( $meta, $name, %options ) = @_;
+    $meta->add_column( $name, %options );
 }
 
-sub chado_prop {
-	my ($meta,  $name,  %options) = @_;
-	$meta->add_chado_prop($name, %options);
+sub chado_property {
+    my ( $meta, $name, %options ) = @_;
+    $meta->add_chado_prop( $name, %options );
 }
 
 sub chado_dbxref {
-	my ($meta,  $name,  %options) = @_;
-	$meta->add_chado_dbxref($name, %options);
+    my ( $meta, $name, %options ) = @_;
+    $meta->add_chado_dbxref( $name, %options );
 }
 
 sub chado_type {
-	my ($meta,  $name,  %options) = @_;
-	$meta->add_chado_type($name, %options);
+    my ( $meta, $name, %options ) = @_;
+    $meta->add_chado_type( $name, %options );
 }
 
 Moose::Exporter->setup_import_methods(
-	also => 'Moose', 
-	with_meta => ['has_many',  'resultset',  'chado_has',  'chado_prop',  'chado_dbxref',
-	'chado_type'], 
+    also      => 'Moose',
+    with_meta => [
+        'has_many',     'bcs_resultset', 'chado_has', 'chado_property',
+        'chado_dbxref', 'chado_type'
+    ],
 );
 
 sub init_meta {
-	my ($pkg,  %arg) = @_;
-	Moose->init_meta(%arg);
-	
-	Moose::Util::MetaRole::apply_metaroles(
-		for => $arg{for_class}, 
-		class_metaroles => {
-			class => ['Modware::Meta::Chado::BCS', 'Modware::Meta::Chado::BCS::Association']
-		}
-	);
-	return $arg{for_class}->meta;
-}
+    my ( $pkg, %arg ) = @_;
+    Moose->init_meta(%arg);
 
+    Moose::Util::MetaRole::apply_metaroles(
+        for             => $arg{for_class},
+        class_metaroles => { class => ['Modware::Meta::Chado::BCS'] }
+    );
+
+    Moose::Util::MetaRole::apply_base_class_roles(
+        for   => $arg{for_class},
+        roles => [
+            'Modware::Role::Adapter::BCS::Chado',
+            'Modware::Role::Chado::Helper::BCS',
+            'Modware::Role::Chado::Helper::BCS::Cvterm'
+        ]
+    );
+    return $arg{for_class}->meta;
+}
 
 1;    # Magic true value required at end of module
 

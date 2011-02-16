@@ -13,6 +13,21 @@ has 'lazy_fetch' => (
     is      => 'rw',
     default => 0
 );
+ 
+package Modware::Meta::Attribute::Trait::Persistent::Primary;
+use strict;
+use Moose::Role;
+
+has 'column' => (
+    is        => 'rw',
+    isa       => 'Str',
+    predicate => 'has_column'
+);
+
+has 'primary' => (
+    isa     => 'Bool',
+    is      => 'rw',
+);
 
 package Modware::Meta::Attribute::Trait::Persistent::Type;
 use strict;
@@ -20,6 +35,12 @@ use Moose::Role;
 
 has 'cv' => ( is => 'rw', isa => 'Str', predicate => 'has_cv' );
 has 'db' => ( is => 'rw', isa => 'Str', predicate => 'has_db' );
+has 'column' => (
+    is        => 'rw',
+    isa       => 'Str',
+    predicate => 'has_column',
+    default   => 'type_id'
+);
 has 'dbxref' => (
     is        => 'rw',
     isa       => 'Str',
@@ -36,10 +57,15 @@ package Modware::Meta::Attribute::Trait::Persistent::Prop;
 use strict;
 use Moose::Role;
 
-has 'cv'   => ( is => 'rw', isa => 'Str', predicate => 'has_cv' );
-has 'db'   => ( is => 'rw', isa => 'Str', predicate => 'has_db' );
-has 'bcs_accessor'   => ( is => 'rw', isa => 'Str', predicate => 'has_bcs_accessor' );
-has 'rank' => ( is => 'rw', isa => 'Int', default   => 0 );
+has 'cv' => ( is => 'rw', isa => 'Str', predicate => 'has_cv' );
+has 'db' => ( is => 'rw', isa => 'Str', predicate => 'has_db' );
+has 'bcs_accessor' => (
+    is        => 'rw',
+    isa       => 'Str',
+    predicate => 'has_bcs_accessor',
+    required  => 1
+);
+has 'rank' => ( is => 'rw', isa => 'Int', default => 0 );
 has 'cvterm' =>
     ( is => 'rw', isa => 'Str', predicate => 'has_cvterm', required => 1 );
 has 'dbxref' => (
@@ -57,6 +83,12 @@ package Moose::Meta::Attribute::Custom::Trait::Persistent;
 
 sub register_implementation {
     'Modware::Meta::Attribute::Trait::Persistent';
+}
+
+package Moose::Meta::Attribute::Custom::Trait::Persistent::Primary;
+
+sub register_implementation {
+    'Modware::Meta::Attribute::Trait::Persistent::Primary';
 }
 
 package Moose::Meta::Attribute::Custom::Trait::Persistent::Type;

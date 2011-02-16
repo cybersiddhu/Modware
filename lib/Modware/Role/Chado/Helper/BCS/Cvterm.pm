@@ -1,19 +1,15 @@
 package Modware::Role::Chado::Helper::BCS::Cvterm;
 
-use version; our $VERSION = qv('1.0.0');
-
 # Other modules:
+use namespace::autoclean;
 use Moose::Role;
 use MooseX::Params::Validate;
 use Carp;
-use namespace::autoclean;
 
 # Module implementation
 #
 
 #requires 'chado';
-#requires 'cv';
-#requires 'db';
 
 has 'cvterm_row' => (
     is        => 'rw',
@@ -52,15 +48,10 @@ sub find_or_create_cvterm_id {
     my ( $self, $cvterm, $cv, $db, $dbxref ) = validated_list(
         \@_,
         cvterm => { isa => 'Str' },
-        cv     => { isa => 'Str' },
-        db     => { isa => 'Str' },
-        dbxref => {
-            isa      => 'Str',
-            optional => 1
-        }
+        cv     => { isa => 'Str', optional => 1 },
+        db     => { isa => 'Str', optional => 1 },
+        dbxref => { isa => 'Str' }
     );
-
-    $dbxref ||= $cv . '-' . $db . '-' . $cvterm;
 
     if ( $self->exist_cvterm_row($cvterm) ) {
         my $row = $self->get_cvterm_row($cvterm);
@@ -68,14 +59,25 @@ sub find_or_create_cvterm_id {
     }
 
     #otherwise try to retrieve from database
-    my $rs
-        = $self->chado->resultset('Cv::Cvterm')
-        ->search( { 'me.name' => $cvterm, 'cv.name' => $cv },
-        { join => 'cv' } );
-    if ( $rs->count > 0 ) {
+    my $rs;
+    if ($cv) {
+        $rs
+            = $self->chado->resultset('Cv::Cvterm')
+            ->search( { 'me.name' => $cvterm, 'cv.name' => $cv },
+            { join => 'cv' } );
+    }
+    else {
+        $rs = $self->chado->resultset('Cv::Cvterm')
+            ->search( { 'me.name' => $cvterm });
+    }
+
+    if ( $rs->count ) {
         $self->set_cvterm_row( $cvterm => $rs->first );
         return $rs->first->cvterm_id;
     }
+
+    croak "cannot create cvterm:$cvterm without a cv namespace\n" if !$cv;
+    croak "cannot create cvterm:$cvterm without a db namespace\n" if !$db;
 
     #otherwise create one using the default cv namespace
     my $row = $self->chado->resultset('Cv::Cvterm')->create_with(
