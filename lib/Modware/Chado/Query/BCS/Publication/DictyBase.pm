@@ -23,7 +23,6 @@ before 'search' => sub {
             $class->add_blob_column('pubauthors.suffix',  1);
         }
     );
-
 };
 
 
