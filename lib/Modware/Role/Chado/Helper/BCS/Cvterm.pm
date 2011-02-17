@@ -11,7 +11,7 @@ use Carp;
 
 #requires 'chado';
 
-has 'cvterm_row' => (
+has '_cvterm_row' => (
     is        => 'rw',
     isa       => 'HashRef[Bio::Chado::Schema::Cv::Cvterm]',
     traits    => ['Hash'],
@@ -24,7 +24,7 @@ has 'cvterm_row' => (
     }
 );
 
-has 'cvrow' => (
+has '_cvrow' => (
     is      => 'rw',
     isa     => 'HashRef[Bio::Chado::Schema::Cv::Cv]',
     traits  => ['Hash'],
@@ -35,14 +35,6 @@ has 'cvrow' => (
         exist_cvrow => 'defined'
     }
 );
-
-sub _build_cvrow {
-    my ($self) = @_;
-    my $name   = $self->cv;
-    my $cvrow  = $self->chado->resultset('Cv::Cv')
-        ->find_or_create( { name => $name } );
-    return { $name => $cvrow };
-}
 
 sub find_or_create_cvterm_id {
     my ( $self, $cvterm, $cv, $db, $dbxref ) = validated_list(
@@ -55,7 +47,7 @@ sub find_or_create_cvterm_id {
 
     if ( $self->exist_cvterm_row($cvterm) ) {
         my $row = $self->get_cvterm_row($cvterm);
-        return $row->cvterm_id if $row->cv->name eq $cv;
+        return $row->cvterm_id if $cv and $row->cv->name eq $cv;
     }
 
     #otherwise try to retrieve from database
@@ -96,7 +88,6 @@ sub find_cvterm_id {
         \@_,
         cvterm => { isa => 'Str' },
         cv     => { isa => 'Str' },
-
         #  db     => { isa => 'Str' }
     );
 

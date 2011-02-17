@@ -14,6 +14,8 @@ has 'lazy_fetch' => (
     default => 0
 );
  
+ 
+
 package Modware::Meta::Attribute::Trait::Persistent::Primary;
 use strict;
 use Moose::Role;
@@ -36,10 +38,10 @@ use Moose::Role;
 has 'cv' => ( is => 'rw', isa => 'Str', predicate => 'has_cv' );
 has 'db' => ( is => 'rw', isa => 'Str', predicate => 'has_db' );
 has 'column' => (
-    is        => 'rw',
-    isa       => 'Str',
-    predicate => 'has_column',
-    default   => 'type_id'
+	is => 'rw', 
+	isa => 'Str', 
+	predicate => 'has_column',
+	default => 'type_id'
 );
 has 'dbxref' => (
     is        => 'rw',
@@ -51,9 +53,50 @@ package Modware::Meta::Attribute::Trait::Persistent::Dbxref;
 use strict;
 use Moose::Role;
 
-has 'db' => ( is => 'rw', isa => 'Str', predicate => 'has_db' );
+has 'db' => ( is => 'rw', isa => 'Str', predicate => 'has_db' ,  required => 1);
+has 'accession' => ( is => 'rw', isa => 'Str', predicate => 'has_accession' );
+has 'description' => ( is => 'rw', isa => 'Str', predicate => 'has_description' );
+has 'version' => ( is => 'rw', isa => 'Str', predicate => 'has_version' );
+
+package Modware::Meta::Attribute::Trait::Persistent::Dbxref::Secondary;
+use strict;
+use Moose::Role;
+with 'Modware::Meta::Attribute::Trait::Persistent::Dbxref';
+
+has 'bcs_hm_accessor' => ( is => 'rw', isa => 'Str',  required => 1 );
+
+package Modware::Meta::Attribute::Trait::Persistent::MultiDbxrefs;
+use strict;
+use Moose::Role;
+with 'Modware::Meta::Attribute::Trait::Persistent::Dbxref::Secondary';
 
 package Modware::Meta::Attribute::Trait::Persistent::Prop;
+use strict;
+use Moose::Role;
+
+has 'cv' => ( is => 'rw', isa => 'Str', predicate => 'has_cv' );
+has 'db' => ( is => 'rw', isa => 'Str', predicate => 'has_db' );
+has 'bcs_accessor' => (
+    is        => 'rw',
+    isa       => 'Str',
+    predicate => 'has_bcs_accessor',
+    required  => 1
+);
+has 'rank' => ( is => 'rw', isa => 'Int', default => 0 );
+has 'cvterm' =>
+    ( is => 'rw', isa => 'Str', predicate => 'has_cvterm', required => 1 );
+has 'dbxref' => (
+    is        => 'rw',
+    isa       => 'Str',
+    predicate => 'has_dbxref',
+    lazy      => 1,
+    default   => sub {
+        my $self = shift;
+        return $self->cvterm;
+    }
+);
+
+package Modware::Meta::Attribute::Trait::Persistent::MultiProps;
 use strict;
 use Moose::Role;
 
@@ -102,11 +145,32 @@ package Moose::Meta::Attribute::Custom::Trait::Persistent::Dbxref;
 sub register_implementation {
     'Modware::Meta::Attribute::Trait::Persistent::Dbxref';
 }
+ 
+
+package Moose::Meta::Attribute::Custom::Trait::Persistent::Dbxref::Secondary;
+
+sub register_implementation {
+    'Modware::Meta::Attribute::Trait::Persistent::Dbxref::Secondary';
+}
+
+package Moose::Meta::Attribute::Custom::Trait::Persistent::MultiDbxrefs;
+
+sub register_implementation {
+    'Modware::Meta::Attribute::Trait::Persistent::MultiDbxrefs';
+}
 
 package Moose::Meta::Attribute::Custom::Trait::Persistent::Prop;
 
 sub register_implementation {
     'Modware::Meta::Attribute::Trait::Persistent::Prop';
+}
+
+1;
+
+package Moose::Meta::Attribute::Custom::Trait::Persistent::MultiProps;
+
+sub register_implementation {
+    'Modware::Meta::Attribute::Trait::Persistent::MultiProps';
 }
 
 1;

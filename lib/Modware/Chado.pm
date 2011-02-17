@@ -28,9 +28,24 @@ sub chado_property {
     $meta->add_chado_prop( $name, %options );
 }
 
+sub chado_multi_properties {
+    my ( $meta, $name, %options ) = @_;
+    $meta->add_chado_multi_props( $name, %options );
+}
+
 sub chado_dbxref {
     my ( $meta, $name, %options ) = @_;
     $meta->add_chado_dbxref( $name, %options );
+}
+
+sub chado_secondary_dbxref {
+    my ( $meta, $name, %options ) = @_;
+    $meta->add_chado_secondary_dbxref( $name, %options );
+}
+
+sub chado_multi_dbxrefs {
+    my ( $meta, $name, %options ) = @_;
+    $meta->add_chado_multi_dbxrefs( $name, %options );
 }
 
 sub chado_type {
@@ -42,7 +57,8 @@ Moose::Exporter->setup_import_methods(
     also      => 'Moose',
     with_meta => [
         'has_many',     'bcs_resultset', 'chado_has', 'chado_property',
-        'chado_dbxref', 'chado_type'
+        'chado_dbxref', 'chado_type',  'chado_multi_properties', 
+        'chado_secondary_dbxref',  'chado_multi_dbxrefs'
     ],
 );
 
@@ -60,7 +76,8 @@ sub init_meta {
         roles => [
             'Modware::Role::Adapter::BCS::Chado',
             'Modware::Role::Chado::Helper::BCS',
-            'Modware::Role::Chado::Helper::BCS::Cvterm'
+            'Modware::Role::Chado::Helper::BCS::Cvterm', 
+            'Modware::Role::Chado::Helper::BCS::Dbxref'
         ]
     );
     return $arg{for_class}->meta;

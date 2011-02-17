@@ -4,31 +4,37 @@ package Modware::Role::Chado::Helper::BCS::Dbxref;
 use Moose::Role;
 use MooseX::Params::Validate;
 use namespace::autoclean;
+use Carp;
 
 # Module implementation
 #
 
-has 'dbrow_map' => (
-    is         => 'rw',
-    isa        => 'HashRef[Bio::Chado::Schema::General::Db]',
-    traits     => ['Hash'],
-    lazy_build => 1,
-    handles    => {
+has '_dbxref_row' => (
+    is        => 'rw',
+    isa       => 'HashRef[Bio::Chado::Schema::General::Dbxref]',
+    traits    => ['Hash'],
+    predicate => 'has_dbxref_row',
+    default   => sub { {} },
+    handles   => {
+        get_dbxref_row   => 'get',
+        set_dbxref_row   => 'set',
+        exist_dbxref_row => 'defined'
+    }
+);
+
+has '_dbrow_map' => (
+    is      => 'rw',
+    isa     => 'HashRef[Bio::Chado::Schema::General::Db]',
+    traits  => ['Hash'],
+    default => sub { {} },
+    handles => {
         get_dbrow   => 'get',
         set_dbrow   => 'set',
         exist_dbrow => 'defined'
     }
 );
 
-sub _build_dbrow_map {
-   my ($self) = @_;
-    my $name   = $self->db;
-    my $dbrow  = $self->chado->resultset('General::Db')
-        ->find_or_create( { name => $name } );
-    return { $name => $dbrow };
-}
-
-sub db_id_by_name {
+sub find_or_create_db_id {
     my $self = shift;
     my ($name) = pos_validated_list( \@_, { isa => 'Str' } );
 
@@ -45,7 +51,7 @@ sub db_id_by_name {
         return $rs->first->db_id;
     }
 
-    #otherwise create one using the default cv namespace
+    #otherwise create one
     my $row = $self->chado->txn_do(
         sub {
             $self->chado->resultset('General::Db')
@@ -54,6 +60,55 @@ sub db_id_by_name {
     );
     $self->set_dbrow( $name, $row );
     $row->db_id;
+}
+
+sub find_or_create_dbxref_id {
+    my ( $self, $db,, $version, $description, $dbxref ) = validated_list(
+        \@_,
+        db          => { isa => 'Str', optional => 1 },
+        version     => { isa => 'Str', optional => 1 },
+        description => { isa => 'Str', optional => 1 },
+        dbxref      => { isa => 'Str' }
+    );
+
+    if ( $self->exist_dbxref_row($dbxref) ) {
+        my $row = $self->get_dbxref_row($dbxref);
+        return $row->dbxref_id if $db and $row->db->name eq $db;
+    }
+
+    #otherwise try to retrieve from database
+    my $rs;
+    if ($db) {
+        $rs
+            = $self->chado->resultset('General::Dbxref')
+            ->search( { 'me.accession' => $dbxref, 'db.name' => $db },
+            { join => 'db', 'cache' => 1 } );
+    }
+    else {
+        $rs = $self->chado->resultset('General::Dbxref')
+            ->search( { 'accession' => $dbxref }, { cache => 1 } );
+    }
+
+    if ( $rs->count ) {
+        $self->set_dbxref_row( $dbxref => $rs->first );
+        return $rs->first->dbxref_id;
+    }
+
+    croak "cannot create dbxref:$dbxref without a db namespace\n" if !$db;
+
+    #otherwise create one
+    my $create_hash
+        = { accession => $dbxref, db_id => $self->find_or_create_db_id($db) };
+    $create_hash->{version}     = $version     if $version;
+    $create_hash->{description} = $description if $description;
+    my $row = $self->chado->txn_do(
+        sub {
+            $self->chado->resultset('General::Dbxref')->create($create_hash);
+        }
+    );
+
+    $self->set_dbxref_row( $dbxref, $row );
+    $row->dbxref_id;
 }
 
 1;    # Magic true value required at end of module
