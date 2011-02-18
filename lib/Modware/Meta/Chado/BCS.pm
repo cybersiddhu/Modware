@@ -10,6 +10,12 @@ use List::Util qw/first/;
 # Module implementation
 #
 
+has 'base_namespace' => (
+	is => 'rw', 
+	isa => 'Str', 
+	default => 'Modware'
+);
+
 has 'bcs_resultset' => (
     is        => 'rw',
     isa       => 'Str',
@@ -91,7 +97,7 @@ sub add_chado_prop {
 
     my $bcs_accessor;
     if ( not defined $init_hash{bcs_accessor} ) {
-        my $bcs_source = $self->bcs_source;
+        my $bcs_source = $meta->bcs_source;
         my $prop_bcs;
         if ( defined $init_hash{bcs_resultset} ) {
             $prop_bcs = $init_hash{bcs_resultset};
@@ -243,7 +249,7 @@ sub add_chado_multi_dbxrefs {
     my %init_hash = %{ $meta->_init_attr_basic( $name, %options ) };
     $init_hash{isa}       = 'Maybe[ArrayRef]';
     $init_hash{predicate} = 'has_' . $name;
-    $init_hash{traits}    = [qw/Persistent::MultiDbxref/];
+    $init_hash{traits}    = [qw/Persistent::MultiDbxrefs/];
     $init_hash{predicate} = 'has_'.$name;
 
     my $bcs_source      = $meta->bcs_source;

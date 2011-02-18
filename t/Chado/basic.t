@@ -45,6 +45,16 @@ use Data::Dump qw/pp/;
         lazy   => 1,
         cvterm => 'stock_location'
     );
+
+    chado_secondary_dbxref 'accession' => (
+        db      => 'modr',
+        version => 1
+    );
+    chado_secondary_dbxref 'uniprot' => (
+        db => 'swissprot',
+        lazy => 1
+    );
+    chado_multi_dbxrefs 'external_ids' => ( db => 'affy' );
 }
 
 my $build = Modware::Build->current;
@@ -92,16 +102,31 @@ my $another_stock = MyStock->new(
     stock_type  => 'mutant',
     organism_id => $new_org->organism_id
 );
-lives_ok { $db_stock = $another_stock->save }
+
+$another_stock->accession('X4567');
+$another_stock->uniprot('P45678');
+$another_stock->external_ids( [ 'XP_439834', 'NM_43894389' ] );
+my $db_stock2;
+lives_ok { $db_stock2 = $another_stock->save }
 'It creates a another new stock with uniquename and type';
-isnt( $db_stock->stock_name, 1, 'It does not have a stock name' );
-isnt( $db_stock->id,         1, 'It does not have a stock id' );
-is( $db_stock->uniquename, $another_stock->uniquename,
+isnt( $db_stock2->stock_name, 1, 'It does not have a stock name' );
+isnt( $db_stock2->id,         1, 'It does not have a stock id' );
+is( $db_stock2->uniquename, $another_stock->uniquename,
     'It does have a uniquename' );
-is( $db_stock->stock_type, $another_stock->stock_type,
+is( $db_stock2->stock_type, $another_stock->stock_type,
     'It does have a stock type' );
+isnt( $db_stock2->has_uniprot, 1, 'uniprot will be lazily loaded' );
+is( $db_stock2->uniprot, $another_stock->uniprot, 'mathces uniprot from db' );
+is( $db_stock2->accession, $another_stock->accession,
+'mathces accession from db' );
+is_deeply(
+    $db_stock2->external_ids,
+    $another_stock->external_ids,
+    'mathces external ids from db'
+);
 
 END {
     $new_org->dbrow->delete;
     $db_stock->dbrow->delete;
+    $db_stock2->dbrow->delete;
 }

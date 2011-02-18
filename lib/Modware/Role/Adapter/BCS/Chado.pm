@@ -59,7 +59,7 @@ has 'read_hooks' => (
             'Modware::Meta::Attribute::Trait::Persistent::MultiDbxrefs' =>
                 sub { $self->read_multi_dbxrefs(@_) },
             'Modware::Meta::Attribute::Trait::Persistent::Dbxref::Secondary'
-                => sub { $self->read_sec_dbxrefs(@_) }
+                => sub { $self->read_sec_dbxref(@_) }
         };
     }
 );
@@ -90,7 +90,7 @@ has 'create_hooks' => (
             'Modware::Meta::Attribute::Trait::Persistent::MultiDbxrefs' =>
                 sub { $self->create_multi_dbxrefs(@_) },
             'Modware::Meta::Attribute::Trait::Persistent::Dbxref::Secondary'
-                => sub { $self->create_sec_dbxrefs(@_) }
+                => sub { $self->create_sec_dbxref(@_) }
 
         };
     }
@@ -201,15 +201,16 @@ sub read_sec_dbxref {
     my $query;
     for my $prop (qw/version description/) {
         my $predicate = 'has_' . $prop;
-        $query->{$prop} = $attr->$name if $attr->$predicate;
+        $query->{$prop} = $attr->$prop if $attr->$predicate;
     }
     $query->{'db.name'} = $attr->db;
 
     my $rs = $dbrow->$method->search_related( 'dbxref', $query,
         { join => 'db', cache => 1 } );
     if ( $rs->count ) {
-        $rs->first->accession;
+        $attr->set_value( $self, $rs->first->accession );
     }
+
 }
 
 sub read_multi_dbxrefs {
@@ -218,14 +219,14 @@ sub read_multi_dbxrefs {
     my $query;
     for my $prop (qw/version description/) {
         my $predicate = 'has_' . $prop;
-        $query->{$prop} = $attr->$name if $attr->$predicate;
+        $query->{$prop} = $attr->$prop if $attr->$predicate;
     }
     $query->{'db.name'} = $attr->db;
 
     my $rs = $dbrow->$method->search_related( 'dbxref', $query,
         { join => 'db', cache => 1 } );
     if ( $rs->count ) {
-        $rs->first->accession;
+        $attr->set_value( $self, [ map { $_->accession } $rs->all ] );
     }
 }
 
@@ -303,24 +304,23 @@ sub create_sec_dbxref {
     my $data;
     $data->{version}     = $attr->version     if $attr->has_version;
     $data->{description} = $attr->description if $attr->has_description;
-    $data->{accession}   = $value;
+    $data->{accession}   = $attr->get_value($self);
     $data->{db_id} = $self->find_or_create_db_id( $attr->db );
     my $hm_accs = $attr->bcs_hm_accessor;
-    $self->_add_to_mapper( $hm_accs => [ { 'dbxref' => $data } ] );
+    $self->_add_to_prop( $hm_accs, { 'dbxref' => $data } );
 }
 
 sub create_multi_dbxrefs {
     my ( $self, $attr ) = @_;
     my $arr;
+    my $hm_accs = $attr->bcs_hm_accessor;
     for my $value ( @{ $attr->get_value($self) } ) {
         my $data->{accession} = $value;
         $data->{version}     = $attr->version     if $attr->has_version;
         $data->{description} = $attr->description if $attr->has_description;
         $data->{db_id} = $self->find_or_create_db_id( $attr->db );
-        push @$arr, { dbxref => $data };
+        $self->_add_to_prop( $hm_accs, { 'dbxref' => $data } );
     }
-    my $hm_accs = $attr->bcs_hm_accessor;
-    $self->_add_to_mapper( $hm_accs => $arr );
 }
 
 sub create {
@@ -348,6 +348,7 @@ PERSISTENT:
             $code->($attr);
         }
     }
+
     #dry run just in case you need the hashref
     return if defined $arg{fake};
 

@@ -13,9 +13,9 @@ sub bcs_resultset {
     $meta->bcs_resultset($name);
 }
 
-sub has_many {
+sub chado_belongs_to {
     my ( $meta, $name, %options ) = @_;
-    $meta->add_has_many( $name, %options );
+    $meta->add_belongs_to( $name, %options );
 }
 
 sub chado_has {
@@ -56,9 +56,11 @@ sub chado_type {
 Moose::Exporter->setup_import_methods(
     also      => 'Moose',
     with_meta => [
-        'has_many',     'bcs_resultset', 'chado_has', 'chado_property',
-        'chado_dbxref', 'chado_type',  'chado_multi_properties', 
-        'chado_secondary_dbxref',  'chado_multi_dbxrefs'
+        'bcs_resultset',          'chado_has',
+        'chado_property',         'chado_dbxref',
+        'chado_type',             'chado_multi_properties',
+        'chado_secondary_dbxref', 'chado_multi_dbxrefs',
+        'chado_belongs_to'
     ],
 );
 
@@ -68,7 +70,12 @@ sub init_meta {
 
     Moose::Util::MetaRole::apply_metaroles(
         for             => $arg{for_class},
-        class_metaroles => { class => ['Modware::Meta::Chado::BCS'] }
+        class_metaroles => {
+            class => [
+                'Modware::Meta::Chado::BCS',
+                'Modware::Meta::Chado::BCS::Association'
+            ]
+        }
     );
 
     Moose::Util::MetaRole::apply_base_class_roles(
@@ -76,7 +83,7 @@ sub init_meta {
         roles => [
             'Modware::Role::Adapter::BCS::Chado',
             'Modware::Role::Chado::Helper::BCS',
-            'Modware::Role::Chado::Helper::BCS::Cvterm', 
+            'Modware::Role::Chado::Helper::BCS::Cvterm',
             'Modware::Role::Chado::Helper::BCS::Dbxref'
         ]
     );
