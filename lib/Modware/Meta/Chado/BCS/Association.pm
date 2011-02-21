@@ -39,23 +39,37 @@ sub add_belongs_to {
     my $rel_info = $bcs_source->relationship_info($bcs_accs);
     my ($fk_column) = keys %{ $rel_info->{attrs}->{fk_columns} };
 
-    #association(object[optional])
+    #association(object[optional]) -- dense logic alarm
     my $code = sub {
         my $self = shift;
         my ($obj)
             = pos_validated_list( \@_,
             { isa => $related_class, optional => 1 } );
 
-        if ( defined $obj ) {    # -- set call
-            if ( $obj->new_record ) {
+        # -- set call
+        if ( defined $obj ) {
+            ## -- here the parent object assumes the related object do not exist in the
+            ## -- database level. If a new instance of existing related object gets added
+            ## -- again,  the parent object's create/update method will be blocked at the
+            ## -- database level(existing foreign key error).
+            if ( $obj->new_record ) {    ## -- new related record
                 $self->_add_belongs_to( $fk_column, $obj );
             }
-            else {
-                $self->_add_to_mapper( $fk_column, $obj->dbrow->$fk_column );
+            else {                       ## -- existing related record
+                ## -- parent object is new: it add a foreign key
+                ## -- parent object exist: it assumes the related object might have some
+                ## -- updates and the update method of related object gets called during the
+                ## -- parent's update method.
+                $self->new_record
+                    ? $self->_add_to_mapper( $fk_column,
+                    $obj->dbrow->$fk_column )
+                    : $self->_add_belongs_to( $fk, $obj );
             }
             return 1;
         }
-        else {
+        else
+        { ## -- it's a get call and a related object is return only from a persistent
+            ## -- parent object
             if ( !$self->new_record ) {
                 my $dbrow = $self->dbrow;
                 if ( defined $dbrow->$fk_column ) {
