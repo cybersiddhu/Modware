@@ -44,84 +44,59 @@ has '_belongs_to' => (
     }
 );
 
-has 'read_hooks' => (
+has '_read_hooks' => (
     is      => 'rw',
     isa     => 'HashRef[CodeRef]',
     traits  => [qw/Hash/],
     handles => {
-        'all_read_hooks' => 'keys',
-        'get_read_hook'  => 'get',
-        'has_read_hook'  => 'defined',
-        'add_read_hook'  => 'set'
+        '_all_read_hooks' => 'keys',
+        '_get_read_hook'  => 'get',
+        '_has_read_hook'  => 'defined',
+        '_add_read_hook'  => 'set'
     },
     default => sub {
         my $self = shift;
         return {
             'Modware::Meta::Attribute::Trait::Persistent' =>
-                sub { $self->read_generic(@_) },
+                sub { $self->_read_generic(@_) },
             'Modware::Meta::Attribute::Trait::Persistent::Type' =>
-                sub { $self->read_type(@_) },
+                sub { $self->_read_type(@_) },
             'Modware::Meta::Attribute::Trait::Persistent::Prop' =>
-                sub { $self->read_prop(@_) },
+                sub { $self->_read_prop(@_) },
             'Modware::Meta::Attribute::Trait::Persistent::MultiProps' =>
-                sub { $self->read_multi_props(@_) },
+                sub { $self->_read_multi_props(@_) },
             'Modware::Meta::Attribute::Trait::Persistent::MultiDbxrefs' =>
-                sub { $self->read_multi_dbxrefs(@_) },
+                sub { $self->_read_multi_dbxrefs(@_) },
             'Modware::Meta::Attribute::Trait::Persistent::Dbxref::Secondary'
-                => sub { $self->read_sec_dbxref(@_) }
+                => sub { $self->_read_sec_dbxref(@_) }
         };
     }
 );
 
-has 'create_hooks' => (
+has '_insert_hooks' => (
     is      => 'rw',
     isa     => 'HashRef[CodeRef]',
     traits  => [qw/Hash/],
     handles => {
-        'all_create_hooks' => 'keys',
-        'get_create_hook'  => 'get',
-        'has_create_hook'  => 'defined',
-        'add_create_hook'  => 'set'
+        '_all_insert_hooks' => 'keys',
+        '_get_insert_hook'  => 'get',
+        'has_insert_hook'  => 'defined',
+        'add_insert_hook'  => 'set'
     },
     default => sub {
         my $self = shift;
         return {
             'Modware::Meta::Attribute::Trait::Persistent::Type' =>
-                sub { $self->create_type(@_) },
+                sub { $self->_insert_type(@_) },
             'Modware::Meta::Attribute::Trait::Persistent::Prop' =>
-                sub { $self->create_prop(@_) },
+                sub { $self->_insert_prop(@_) },
             'Modware::Meta::Attribute::Trait::Persistent::MultiProps' =>
-                sub { $self->create_multi_props(@_) },
+                sub { $self->_insert_multi_props(@_) },
             'Modware::Meta::Attribute::Trait::Persistent::MultiDbxrefs' =>
-                sub { $self->create_multi_dbxrefs(@_) },
+                sub { $self->_insert_multi_dbxrefs(@_) },
             'Modware::Meta::Attribute::Trait::Persistent::Dbxref::Secondary'
-                => sub { $self->create_sec_dbxref(@_) }
+                => sub { $self->_insert_sec_dbxref(@_) }
 
-        };
-    }
-);
-
-has 'update_hooks' => (
-    is      => 'rw',
-    isa     => 'HashRef[CodeRef]',
-    traits  => [qw/Hash/],
-    handles => {
-        'all_update_hooks' => 'keys',
-        'get_update_hook'  => 'get',
-        'has_update_hook'  => 'defined',
-        'add_update_hook'  => 'set'
-    },
-    default => sub {
-        my $self = shift;
-        return {
-            'Modware::Meta::Attribute::Trait::Persistent' =>
-                sub { $self->update_generic(@_) },
-            'Modware::Meta::Attribute::Trait::Persistent::Type' =>
-                sub { $self->update_type(@_) },
-            'Modware::Meta::Attribute::Trait::Persistent::Dbxref' =>
-                sub { $self->update_dbxref(@_) },
-            'Modware::Meta::Attribute::Trait::Persistent::Prop' =>
-                sub { $self->update_prop(@_) },
         };
     }
 );
@@ -154,16 +129,16 @@ sub read {
 PERSISTENT:
     for my $attr ( $meta->get_all_attributes ) {
     TRAIT:
-        for my $traits ( $self->all_read_hooks ) {
+        for my $traits ( $self->_all_read_hooks ) {
             next TRAIT if !$attr->does($traits);
             next TRAIT if $attr->is_lazy;
-            my $code = $self->get_read_hook($traits);
+            my $code = $self->_get_read_hook($traits);
             $code->( $attr, $dbrow );
         }
     }
 }
 
-sub read_generic {
+sub _read_generic {
     my ( $self, $attr, $dbrow ) = @_;
     return
         if $attr->lazy_fetch;  ## -- don't fill if the attribute is lazy fetch
@@ -173,12 +148,12 @@ sub read_generic {
     }
 }
 
-sub read_type {
+sub _read_type {
     my ( $self, $attr, $dbrow ) = @_;
     $attr->set_value( $self, $dbrow->type->name );
 }
 
-sub read_prop {
+sub _read_prop {
     my ( $self, $attr, $dbrow ) = @_;
     my $method = $attr->bcs_accessor;
     $attr->set_value(
@@ -188,7 +163,7 @@ sub read_prop {
     ) if $dbrow->$method;
 }
 
-sub read_multi_props {
+sub _read_multi_props {
     my ( $self, $attr, $dbrow ) = @_;
     my $method = $attr->bcs_accessor;
     my $rs = $dbrow->$method( { 'type.name' => $attr->cvterm },
@@ -198,7 +173,7 @@ sub read_multi_props {
     }
 }
 
-sub read_sec_dbxref {
+sub _read_sec_dbxref {
     my ( $self, $attr, $dbrow ) = @_;
     my $method = $attr->bcs_hm_accessor;
     my $query;
@@ -216,7 +191,7 @@ sub read_sec_dbxref {
 
 }
 
-sub read_multi_dbxrefs {
+sub _read_multi_dbxrefs {
     my ( $self, $attr, $dbrow ) = @_;
     my $method = $attr->bcs_hm_accessor;
     my $query;
@@ -233,14 +208,14 @@ sub read_multi_dbxrefs {
     }
 }
 
-sub create_generic {
+sub _insert_generic {
     my ( $self, $attr ) = @_;
     my $column = $attr->has_column ? $attr->column : $attr->name;
     my $value = $attr->get_value($self);
     $self->_add_to_mapper( $column, $value ) if $value;
 }
 
-sub create_type {
+sub _insert_type {
     my ( $self, $attr ) = @_;
     my $value = $attr->get_value($self);
     my %data;
@@ -252,7 +227,7 @@ sub create_type {
         $self->find_or_create_cvterm_id(%data) );
 }
 
-sub create_prop {
+sub _insert_prop {
     my ( $self, $attr ) = @_;
     my $value = $attr->get_value($self);
     my %data;
@@ -267,10 +242,9 @@ sub create_prop {
             rank    => $attr->rank
         }
     );
-
 }
 
-sub create_multi_props {
+sub _insert_multi_props {
     my ( $self, $attr ) = @_;
     my $value = $attr->get_value($self);
     my %data;
@@ -291,7 +265,7 @@ sub create_multi_props {
     }
 }
 
-sub create_sec_dbxref {
+sub _insert_sec_dbxref {
     my ( $self, $attr ) = @_;
     my $data;
     $data->{version}     = $attr->version     if $attr->has_version;
@@ -302,7 +276,7 @@ sub create_sec_dbxref {
     $self->_add_to_prop( $hm_accs, { 'dbxref' => $data } );
 }
 
-sub create_multi_dbxrefs {
+sub _insert_multi_dbxrefs {
     my ( $self, $attr ) = @_;
     my $arr;
     my $hm_accs = $attr->bcs_hm_accessor;
@@ -315,7 +289,7 @@ sub create_multi_dbxrefs {
     }
 }
 
-sub create {
+sub insert {
     my ( $self, %arg ) = @_;
 
     croak "cannot create a new object which already exist in the database\n"
@@ -330,25 +304,27 @@ sub create {
 
     #$self->do_validation;
 
-PERSISTENT:
-    for my $attr ( $meta->get_all_attributes ) {
-        next PERSISTENT if !$attr->has_value($self);
-    TRAIT:
-        for my $traits ( $self->all_create_hooks ) {
-            next TRAIT if !$attr->does($traits);
-            my $code = $self->get_create_hook($traits);
-            $code->($attr);
-        }
-    }
-
-    #now all belongs_to related/dependent objects
+#now all belongs_to related/dependent objects
+# -- it is done before the create hooks as those might look for shared db/cv/cvterm(s)
+# as the belongs_to code does the lookup for shared db/cv/cvterm well before the lookup of create hook methods.
 BELONGS_TO:
     for my $fkey ( $self->_all_belongs_to ) {
         my $obj = $self->_get_belongs_to($fkey);
         next BELONGS_TO
             if !$obj->does('Modware::Role::Adapter::BCS::Chado');
-        my $related_obj = $obj->create;
+        my $related_obj = $obj->save;
         $self->_add_to_mapper( $fkey, $related_obj->dbrow->$fkey );
+    }
+
+PERSISTENT:
+    for my $attr ( $meta->get_all_attributes ) {
+        next PERSISTENT if !$attr->has_value($self);
+    TRAIT:
+        for my $traits ( $self->_all_insert_hooks ) {
+            next TRAIT if !$attr->does($traits);
+            my $code = $self->_get_insert_hook($traits);
+            $code->($attr);
+        }
     }
 
     #dry run just in case you need the hashref
@@ -379,23 +355,35 @@ sub new_record {
 }
 
 sub update {
-	my ($self) = @_;
-	croak "cannot update a non-persistent object\n" if $self->new_record;
+    my ($self) = @_;
+    croak "cannot update a non-persistent object\n" if $self->new_record;
 
 BELONGS_TO:
     for my $fkey ( $self->_all_belongs_to ) {
         my $obj = $self->_get_belongs_to($fkey);
         next BELONGS_TO
             if !$obj->does('Modware::Role::Adapter::BCS::Chado');
-        $obj->update;
+        $obj->save;
     }
 
-	$self->chado->txn_do(sub { $self->dbrow->update });
+    my $dbrow = $self->chado->txn_do(
+        sub {
+            my $row = $self->dbrow->update;
+            return $row;
+        }
+    );
+
+    ## -- cleanup the internal state
+    $self->_clear_belongs_to;
+    $self->_clear_mapper;
+    $self->_clear_insert_stash;
+    $self->dbrow($dbrow);
+    return 1;
 }
 
 sub save {
     my ($self) = @_;
-    return $self->has_dbrow ? $self->update : $self->create;
+    return $self->has_dbrow ? $self->update : $self->insert;
 }
 
 1;    # Magic true value required at end of module

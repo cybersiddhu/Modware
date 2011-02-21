@@ -66,7 +66,7 @@ Moose::Exporter->setup_import_methods(
 
 sub init_meta {
     my ( $pkg, %arg ) = @_;
-    Moose->init_meta(%arg);
+    Moose->init_meta(%arg,  base_class => 'Modware::Chado::Create::BCS');
 
     Moose::Util::MetaRole::apply_metaroles(
         for             => $arg{for_class},

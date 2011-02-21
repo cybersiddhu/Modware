@@ -223,19 +223,35 @@ sub add_chado_dbxref {
         }
     };
     $init_hash{trigger} = sub {
-        my ( $self, $value ) = @_;
+        my ( $self, $value, $old_value ) = @_;
         Class::MOP::load_class('Modware::Chado::Db');
         Class::MOP::load_class('Modware::Chado::Dbxref');
+
+        my $chado = $self->chado;
+
+		## -- in case the attribute is getting updated
+        if ( defined $old_value and ( $old_value ne $value ) ) {
+            my $row = $chado->resultset('General::Dbxref')
+                ->find( { accession => $old_value } );
+			if ($row) {
+				## -- add the new value
+				$row->accession($value);
+				## -- add to the parent object
+				$self->$rel_name(Modware::Chado::Dbxref->new(dbrow => $row));				
+				return;
+			}
+        }
+
         my $dbxref = Modware::Chado::Dbxref->new( accession => $value );
         $dbxref->version( $options{version} ) if defined $options{version};
         $dbxref->description( $options{description} )
             if defined $options{description};
-        my $dbrow = $self->chado->resultset('General::Db')
+        my $dbrow = $chado->resultset('General::Db')
             ->find( { name => $options{db} } );
         my $db
             = $dbrow
-            ? Modware::Chado::Db->new( db   => $dbrow )
-            : Modware::Chado::Db->new( name => $value );
+            ? Modware::Chado::Db->new( dbrow  => $dbrow )
+            : Modware::Chado::Db->new( name => $options{db} );
         $dbxref->db($db);
         $self->$rel_name($dbxref);
     };

@@ -63,7 +63,7 @@ sub add_belongs_to {
                 $self->new_record
                     ? $self->_add_to_mapper( $fk_column,
                     $obj->dbrow->$fk_column )
-                    : $self->_add_belongs_to( $fk, $obj );
+                    : $self->_add_belongs_to( $fk_column, $obj );
             }
             return 1;
         }
@@ -73,7 +73,8 @@ sub add_belongs_to {
             if ( !$self->new_record ) {
                 my $dbrow = $self->dbrow;
                 if ( defined $dbrow->$fk_column ) {
-                    return $related_class->new( dbrow => $dbrow->$bcs_accs );
+                    return $related_class->new(
+                        dbrow => $dbrow->$bcs_accs->get_from_storage );
                 }
             }
         }

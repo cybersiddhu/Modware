@@ -13,9 +13,9 @@ use Data::Dump qw/pp/;
 
     chado_has 'abbreviation';
     chado_has 'species';
-    chado_has 'organism_id' => ( primary => 1);
-    chado_has 'genus' => ( lazy => 1 );
-    chado_has 'name' => ( column => 'common_name' );
+    chado_has 'organism_id' => ( primary => 1 );
+    chado_has 'genus'       => ( lazy    => 1 );
+    chado_has 'name'        => ( column  => 'common_name' );
 
 }
 
@@ -50,7 +50,7 @@ use Data::Dump qw/pp/;
         version => 1
     );
     chado_secondary_dbxref 'uniprot' => (
-        db => 'swissprot',
+        db   => 'swissprot',
         lazy => 1
     );
     chado_multi_dbxrefs 'external_ids' => ( db => 'affy' );
@@ -66,8 +66,6 @@ $org->species('pulex');
 $org->name('water fleas');
 is( $org->meta->bcs_resultset, 'Organism::Organism',
     'Got the value of bcs resultset' );
-
-
 
 my $new_org;
 lives_ok { $new_org = $org->save } 'It creates a new record for organism';
@@ -116,15 +114,40 @@ is( $db_stock2->stock_type, $another_stock->stock_type,
 isnt( $db_stock2->has_uniprot, 1, 'uniprot will be lazily loaded' );
 is( $db_stock2->uniprot, $another_stock->uniprot, 'mathces uniprot from db' );
 is( $db_stock2->accession, $another_stock->accession,
-'mathces accession from db' );
+    'mathces accession from db' );
 is_deeply(
     $db_stock2->external_ids,
     $another_stock->external_ids,
     'mathces external ids from db'
 );
 
+my $new_org2;
+lives_ok {
+    $new_org2 = MyOrganism->create(
+        genus        => 'cholerae',
+        species      => 'Vibrio',
+        name         => 'cholera',
+        abbreviation => 'V.cholerae',
+    );
+}
+'It makes a new instance organism object from the create method';
+is( $new_org2->species, 'Vibrio',
+    'The new instances matches the species value' );
+is( $new_org2->name, 'cholera', 'The new instances matches the name' );
+
+my $stock2;
+lives_ok {
+	$stock2 = MyStock->create(
+		uniquename => 'cholerae', 
+		stock_type => 'O1', 
+		organism_id => $new_org2->organism_id
+	)
+} 'It makes a new instance of stock object from the create method';
+
 END {
-    $new_org->dbrow->delete;
     $db_stock->dbrow->delete;
     $db_stock2->dbrow->delete;
+    $stock2->dbrow->delete;
+    $new_org2->dbrow->delete;
+    $new_org->dbrow->delete;
 }
