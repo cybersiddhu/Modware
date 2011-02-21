@@ -17,25 +17,27 @@ use Class::MOP;
 
 sub add_belongs_to {
     my ( $meta, $name, %options ) = @_;
-    my $bcs_accs = $options{bcs_accessor} if defined $options{bcs_accessor};
     my $related_class;
-    if ( !$bcs_accs ) {
-        if ( defined $options{class} ) {
-            $related_class = $options{class};
-        }
-        else {
-            $related_class
-                = $meta->base_namespace . '::' . ucfirst( lc $name );
-        }
-        Class::MOP::load_class($related_class);
-        my $related_source
-            = $related_class->new->meta->bcs_source->source_name;
-        $bcs_accs = first {
-            $related_source eq
-                $meta->bcs_source->related_source($_)->source_name
-        }
-        $meta->bcs_source->relationships;
+    my $bcs_accs;
+    my $bcs_source = $meta->bcs_source;
+
+    $related_class = $options{class} if defined $options{class};
+    if ( !$related_class ) {
+        $related_class = $meta->base_namespace . '::' . ucfirst( lc $name );
     }
+    Class::MOP::load_class($related_class);
+    my $related_source = $related_class->new->meta->bcs_source->source_name;
+
+    $bcs_accs = $options{bcs_accessor} if defined $options{bcs_accessor};
+    if ( !$bcs_accs ) {
+        $bcs_accs = first {
+            $related_source eq $bcs_source->related_source($_)->source_name;
+        }
+        $bcs_source->relationships;
+    }
+
+    my $rel_info = $bcs_source->relationship_info($bcs_accs);
+    my ($fk_column) = keys %{ $rel_info->{attrs}->{fk_columns} };
 
     #association(object[optional])
     my $code = sub {
@@ -45,17 +47,22 @@ sub add_belongs_to {
             { isa => $related_class, optional => 1 } );
 
         if ( defined $obj ) {    # -- set call
-            $obj->create( fake => 1 );
-            $self->_add_to_mapper( $bcs_accs, $obj->insert_hashref );
-            return;
+            if ( $obj->new_record ) {
+                $self->_add_belongs_to( $fk_column, $obj );
+            }
+            else {
+                $self->_add_to_mapper( $fk_column, $obj->dbrow->$fk_column );
+            }
+            return 1;
         }
-
-        if ( !$self->new_record ) {
-            if ( my $row = $self->dbrow->$bcs_accs ) {
-                return $related_class->new( dbrow => $row );
+        else {
+            if ( !$self->new_record ) {
+                my $dbrow = $self->dbrow;
+                if ( defined $dbrow->$fk_column ) {
+                    return $related_class->new( dbrow => $dbrow->$bcs_accs );
+                }
             }
         }
-
     };
 
     #create_association(params)
@@ -63,10 +70,9 @@ sub add_belongs_to {
         my ( $self, %arg ) = @_;
         croak "need arguments to create $related_class\n"
             if scalar keys %arg == 0;
-        my $obj = $related_class->new(%arg);
-        $self->$bcs_accs($obj);
-        my $new_record = $self->save;
-        return $new_record->$bcs_accs;
+        my $obj = $related_class->new(%arg)->save;
+        $self->_add_to_mapper( $fk_column, $obj->dbrow->$fk_column );
+        return $obj;
     };
 
     #new_association(params)
@@ -75,7 +81,7 @@ sub add_belongs_to {
         croak "need arguments to create $related_class\n"
             if scalar keys %arg == 0;
         my $obj = $related_class->new(%arg);
-        $self->$bcs_accs($obj);
+        $self->_add_belongs_to( $fk_column, $obj );
         return $obj;
     };
 

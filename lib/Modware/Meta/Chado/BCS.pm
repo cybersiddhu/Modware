@@ -6,14 +6,15 @@ use Modware::Meta::AttributeTraits;
 use Carp;
 use Bio::Chado::Schema;
 use List::Util qw/first/;
+use Class::MOP;
 
 # Module implementation
 #
 
 has 'base_namespace' => (
-	is => 'rw', 
-	isa => 'Str', 
-	default => 'Modware'
+    is      => 'rw',
+    isa     => 'Str',
+    default => 'Modware'
 );
 
 has 'bcs_resultset' => (
@@ -76,13 +77,37 @@ sub add_column {
     my $basic = $meta->_init_attr_basic( $name, %options );
     my $optional = $meta->_init_attr_optional( $name, %options );
     my %init_hash = ( %$basic, %$optional );
-    if ( defined $options{primary} ) {
-        $init_hash{traits}  = [qw/Persistent::Primary/];
-        $init_hash{primary} = 1;
+    my $method;
+    if ( defined $options{column} ) {
+        $method = $options{column};
+        $init_hash{column} = $options{column};
     }
     else {
-        $init_hash{traits} = [qw/Persistent/];
+        $method = $name;
     }
+
+    $init_hash{default} = sub {
+        my ($self) = @_;
+        if ( !$self->new_record ) {
+            return $self->dbrow->$method;
+        }
+    };
+
+    if ( defined $options{primary} ) {
+        $init_hash{is} = 'ro';
+    }
+    else {
+        $init_hash{trigger} = sub {
+            my ( $self, $value ) = @_;
+            if ( $self->new_record ) {
+                $self->_add_to_mapper( $method, $value );
+            }
+            else {
+                $self->dbrow->$method($value);
+            }
+        };
+    }
+    $init_hash{traits} = [qw/Persistent/];
     $meta->add_attribute( $name => %init_hash );
     $meta->_track_attr($name);
 }
@@ -178,21 +203,43 @@ sub add_chado_multi_props {
 
 sub add_chado_dbxref {
     my ( $meta, $name, %options ) = @_;
+    croak "db parameter is required\n" if not defined $options{db};
+    my $rel_name = '_' . $name;
+    $meta->add_belongs_to(
+        $rel_name,
+        bcs_accessor => 'dbxref',
+        class        => 'Modware::Chado::Dbxref'
+    );
+
     my %init_hash = %{ $meta->_init_attr_basic( $name, %options ) };
-    $init_hash{isa} = 'Maybe[Str]';
-    for my $name (qw/db version description/) {
-        $init_hash{$name} = $options{$name} if defined $options{$name};
-    }
-    if ( defined $options{lazy} ) {
-        $init_hash{lazy}    = 1;
-        $init_hash{default} = sub {
-            my ($self) = @_;
-            return $self->dbrow->dbxref->accession
-                if defined $self->dbrow->dbxref_id;
-        };
-    }
+    $init_hash{isa}     = 'Maybe[Str]';
+    $init_hash{lazy}    = 1;
+    $init_hash{default} = sub {
+        my ($self) = @_;
+        if ( !$self->new_record ) {
+            if ( my $rel_obj = $self->$rel_name ) {
+                return $rel_obj->accession;
+            }
+        }
+    };
+    $init_hash{trigger} = sub {
+        my ( $self, $value ) = @_;
+        Class::MOP::load_class('Modware::Chado::Db');
+        Class::MOP::load_class('Modware::Chado::Dbxref');
+        my $dbxref = Modware::Chado::Dbxref->new( accession => $value );
+        $dbxref->version( $options{version} ) if defined $options{version};
+        $dbxref->description( $options{description} )
+            if defined $options{description};
+        my $dbrow = $self->chado->resultset('General::Db')
+            ->find( { name => $options{db} } );
+        my $db
+            = $dbrow
+            ? Modware::Chado::Db->new( db   => $dbrow )
+            : Modware::Chado::Db->new( name => $value );
+        $dbxref->db($db);
+        $self->$rel_name($dbxref);
+    };
     $init_hash{predicate} = 'has_' . $name;
-    $init_hash{traits}    = [qw/Persistent::Dbxref/];
     $meta->add_attribute( $name => %init_hash );
     $meta->_track_attr($name);
 }
@@ -204,7 +251,7 @@ sub add_chado_secondary_dbxref {
     $init_hash{isa}       = 'Maybe[Str]';
     $init_hash{predicate} = 'has_' . $name;
     $init_hash{traits}    = [qw/Persistent::Dbxref::Secondary/];
-    $init_hash{predicate} = 'has_'.$name;
+    $init_hash{predicate} = 'has_' . $name;
 
     my $bcs_source      = $meta->bcs_source;
     my $has_many_source = $bcs_source->source_name . 'Dbxref';
@@ -250,7 +297,7 @@ sub add_chado_multi_dbxrefs {
     $init_hash{isa}       = 'Maybe[ArrayRef]';
     $init_hash{predicate} = 'has_' . $name;
     $init_hash{traits}    = [qw/Persistent::MultiDbxrefs/];
-    $init_hash{predicate} = 'has_'.$name;
+    $init_hash{predicate} = 'has_' . $name;
 
     my $bcs_source      = $meta->bcs_source;
     my $has_many_source = $bcs_source->source_name . 'Dbxref';
@@ -280,7 +327,7 @@ sub add_chado_multi_dbxrefs {
                 }
             );
             if ( $rs->count ) {
-                return [map {$_->accession} $rs->all];
+                return [ map { $_->accession } $rs->all ];
             }
 
         };
@@ -315,27 +362,19 @@ sub _init_attr_basic {
     if ( first { $name eq $_ } $meta->_tracked_attrs ) {
         croak "$name is duplicate chado attribute,  already added\n";
     }
-
-    my $method = $options{column} ? $options{column} : $name;
     my %init_hash;
     $init_hash{is} = 'rw';
-    $init_hash{column} = $options{column} if defined $options{column};
     return \%init_hash;
 }
 
 sub _init_attr_optional {
     my ( $meta, $name, %options ) = @_;
-    my $method = $options{column} ? $options{column} : $name;
     my %init_hash;
-    $init_hash{isa} = $options{isa} || $meta->_infer_isa($method);
-    $init_hash{predicate} = 'has_' . $name;
-    if ( defined $options{lazy} ) {
-        $init_hash{lazy}    = 1;
-        $init_hash{default} = sub {
-            my ($self) = @_;
-            return $self->dbrow->$method if defined $self->dbrow->$method;
-        };
-    }
+    my $method = $options{column} ? $options{column} : $name;
+    $init_hash{isa}        = $options{isa} || $meta->_infer_isa($method);
+    $init_hash{predicate}  = 'has_' . $name;
+    $init_hash{lazy}       = 1;
+    $init_hash{lazy_fetch} = 1 if defined $options{lazy_fetch};
     return \%init_hash;
 }
 

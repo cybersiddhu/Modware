@@ -16,21 +16,21 @@ use Data::Dump qw/pp/;
     chado_has 'stock_name' => ( column => 'name' );
     chado_dbxref 'id' => ( db => 'Stock', lazy => 1 );
     chado_type 'stock_type' =>
-        ( db => 'Stock', cv => 'Modware-publication-publication', lazy => 1 );
+        ( db => 'Stock', cv => 'Modware-publication-publication');
     chado_property 'status' => (
         db     => 'Stock',
         cv     => 'Modware-publication-publication',
-        lazy   => 1,
-        cvterm => 'stock_term'
+        cvterm => 'stock_term', 
+        lazy => 1
     );
 
-    chado_belongs_to 'organism' => ( class => 'Modware::Organism' );
+    chado_belongs_to 'organism' => ( class => 'Modware::Chado::Organism' );
 }
 
 my $build = Modware::Build->current;
 Chado->connect( $build->connect_hash );
 
-my $org = new_ok('Modware::Organism');
+my $org = new_ok('Modware::Chado::Organism');
 $org->abbreviation('D.Pulex');
 $org->genus('Daphnia');
 $org->species('pulex');
@@ -47,7 +47,7 @@ is( $stock->meta->has_method($_), 1, "stock object has $_ method installed" )
     for qw/organism create_organism new_organism/;
 
 $stock->status('live');
-$stock->organism($org);
+$stock->organism( $org );
 
 my $db_stock;
 lives_ok { $db_stock = $stock->save } 'It creates a new stock';
@@ -58,7 +58,7 @@ isnt( $db_stock->has_status, 1, 'status attribute is lazily loaded' );
 is( $db_stock->status, $stock->status, 'It matches the stock status' );
 
 my $db_org = $db_stock->organism;
-isa_ok( $db_org, 'Modware::Organism' );
+isa_ok( $db_org, 'Modware::Chado::Organism' );
 is( $db_org->abbreviation, $org->abbreviation,
     'related organism matches abbreviation' );
 is( $db_org->genus,   $org->genus,   'related organism matches genus' );
@@ -73,7 +73,7 @@ my $org2 = $stock2->new_organism(
     species => 'sapiens',
     name    => 'human'
 );
-isa_ok( $org2, 'Modware::Organism' );
+isa_ok( $org2, 'Modware::Chado::Organism' );
 my $db_stock2;
 lives_ok { $db_stock2 = $stock2->save }
 'It can save another stock with new_organism method';
@@ -86,11 +86,19 @@ my $stock3 = MyStock->new(
 );
 my $org3;
 lives_ok {
-    $org3 = $stock3->create_organism( genus => 'Escherichia',
-        species => 'coli' );
+    $org3 = $stock3->create_organism(
+        genus   => 'Escherichia',
+        species => 'coli'
+    );
 }
-'It can create another stock with related organism';
-is( $org3->species, 'coli', 'It matches the species name' );
+'It can create an associated object';
+my $db_stock3;
+lives_ok { $db_stock3 = $stock3->save }
+'It can create another stock after associating with a new object';
+is( $org3->species,
+    $db_stock3->organism->species,
+    'It matches the species between parent and related object'
+);
 
 END {
     $db_stock->dbrow->delete;
@@ -98,4 +106,5 @@ END {
     $db_stock2->dbrow->delete;
     $db_stock2->organism->dbrow->delete;
     $org3->dbrow->delete;
-}
+    $db_stock3->dbrow->delete;
+};

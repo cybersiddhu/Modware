@@ -14,10 +14,11 @@ has '_insert_stash' => (
     default => sub { {} },
     lazy    => 1,
     handles => {
-        '_add_to_stash'   => 'set',
-        '_get_from_stash' => 'get',
-        '_has_in_stash'   => 'defined',
-        '_all_stash_keys' => 'keys'
+        '_add_to_stash'       => 'set',
+        '_get_from_stash'     => 'get',
+        '_has_in_stash'       => 'defined',
+        '_all_stash_keys'     => 'keys',
+        '_clear_insert_stash' => 'clear'
     }
 );
 
@@ -31,7 +32,8 @@ has '_mapper' => (
         '_mapped_columns' => 'keys',
         '_get_map'        => 'get',
         '_empty_mapper'   => 'is_empty',
-        '_clear_mapper'   => 'clear'
+        '_clear_mapper'   => 'clear',
+        '_has_map'        => 'defined'
     }
 );
 
@@ -44,13 +46,13 @@ sub _add_to_prop {
 
     my $array = $self->_get_from_stash($prop);
     push @$array, $value;
-    $self->_add_to_stash($prop, $array);
+    $self->_add_to_stash( $prop, $array );
 }
 
 sub insert_hashref {
-	my ($self ) = @_;
-	my %hash = (%{$self->_mapper},  %{$self->_insert_stash});
-	return \%hash;
+    my ($self) = @_;
+    my %hash = ( %{ $self->_mapper }, %{ $self->_insert_stash } );
+    return \%hash;
 }
 
 1;    # Magic true value required at end of module

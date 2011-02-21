@@ -31,6 +31,19 @@ has 'dbrow' => (
     trigger   => \&read
 );
 
+has '_belongs_to' => (
+    is      => 'rw',
+    isa     => 'HashRef',
+    traits  => [qw/Hash/],
+    default => sub { {} },
+    handles => {
+        '_add_belongs_to'   => 'set',
+        '_all_belongs_to'   => 'keys',
+        '_clear_belongs_to' => 'clear',
+        '_get_belongs_to'   => 'get'
+    }
+);
+
 has 'read_hooks' => (
     is      => 'rw',
     isa     => 'HashRef[CodeRef]',
@@ -46,12 +59,8 @@ has 'read_hooks' => (
         return {
             'Modware::Meta::Attribute::Trait::Persistent' =>
                 sub { $self->read_generic(@_) },
-            'Modware::Meta::Attribute::Trait::Persistent::Primary' =>
-                sub { $self->read_generic(@_) },
             'Modware::Meta::Attribute::Trait::Persistent::Type' =>
                 sub { $self->read_type(@_) },
-            'Modware::Meta::Attribute::Trait::Persistent::Dbxref' =>
-                sub { $self->read_dbxref(@_) },
             'Modware::Meta::Attribute::Trait::Persistent::Prop' =>
                 sub { $self->read_prop(@_) },
             'Modware::Meta::Attribute::Trait::Persistent::MultiProps' =>
@@ -77,12 +86,8 @@ has 'create_hooks' => (
     default => sub {
         my $self = shift;
         return {
-            'Modware::Meta::Attribute::Trait::Persistent' =>
-                sub { $self->create_generic(@_) },
             'Modware::Meta::Attribute::Trait::Persistent::Type' =>
                 sub { $self->create_type(@_) },
-            'Modware::Meta::Attribute::Trait::Persistent::Dbxref' =>
-                sub { $self->create_dbxref(@_) },
             'Modware::Meta::Attribute::Trait::Persistent::Prop' =>
                 sub { $self->create_prop(@_) },
             'Modware::Meta::Attribute::Trait::Persistent::MultiProps' =>
@@ -160,19 +165,17 @@ PERSISTENT:
 
 sub read_generic {
     my ( $self, $attr, $dbrow ) = @_;
+    return
+        if $attr->lazy_fetch;  ## -- don't fill if the attribute is lazy fetch
     my $column = $attr->has_column ? $attr->column : $attr->name;
-    $attr->set_value( $self, $dbrow->$column ) if defined $dbrow->$column;
+    if ( my $value = $dbrow->$column ) {
+        $attr->set_value( $self, $value );
+    }
 }
 
 sub read_type {
     my ( $self, $attr, $dbrow ) = @_;
     $attr->set_value( $self, $dbrow->type->name );
-}
-
-sub read_dbxref {
-    my ( $self, $attr, $dbrow ) = @_;
-    $attr->set_value( $self, $dbrow->dbxref->accession )
-        if defined $dbrow->dbxref_id;
 }
 
 sub read_prop {
@@ -288,17 +291,6 @@ sub create_multi_props {
     }
 }
 
-sub create_dbxref {
-    my ( $self, $attr ) = @_;
-    my $value = $attr->get_value($self);
-    my %data;
-    $data{version}     = $attr->version     if $attr->has_version;
-    $data{description} = $attr->description if $attr->has_description;
-    $data{accession}   = $value;
-    $data{db_id} = $self->find_or_create_db_id( $attr->db );
-    $self->_add_to_mapper( 'dbxref', \%data );
-}
-
 sub create_sec_dbxref {
     my ( $self, $attr ) = @_;
     my $data;
@@ -349,7 +341,18 @@ PERSISTENT:
         }
     }
 
+    #now all belongs_to related/dependent objects
+BELONGS_TO:
+    for my $fkey ( $self->_all_belongs_to ) {
+        my $obj = $self->_get_belongs_to($fkey);
+        next BELONGS_TO
+            if !$obj->does('Modware::Role::Adapter::BCS::Chado');
+        my $related_obj = $obj->create;
+        $self->_add_to_mapper( $fkey, $related_obj->dbrow->$fkey );
+    }
+
     #dry run just in case you need the hashref
+    #however the dependent objects will be created
     return if defined $arg{fake};
 
     my $chado = $self->chado;
@@ -360,6 +363,12 @@ PERSISTENT:
             $value;
         }
     );
+
+    ## -- cleanup the internal state
+    $self->_clear_belongs_to;
+    $self->_clear_mapper;
+    $self->_clear_insert_stash;
+
     my $class = $self->meta->name;
     return $class->new( dbrow => $dbrow );
 }
@@ -367,6 +376,21 @@ PERSISTENT:
 sub new_record {
     my $self = shift;
     return $self->has_dbrow ? 0 : 1;
+}
+
+sub update {
+	my ($self) = @_;
+	croak "cannot update a non-persistent object\n" if $self->new_record;
+
+BELONGS_TO:
+    for my $fkey ( $self->_all_belongs_to ) {
+        my $obj = $self->_get_belongs_to($fkey);
+        next BELONGS_TO
+            if !$obj->does('Modware::Role::Adapter::BCS::Chado');
+        $obj->update;
+    }
+
+	$self->chado->txn_do(sub { $self->dbrow->update });
 }
 
 sub save {
