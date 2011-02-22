@@ -85,6 +85,8 @@ sub add_belongs_to {
         my ( $self, %arg ) = @_;
         croak "need arguments to create $related_class\n"
             if scalar keys %arg == 0;
+        croak ref($self), " needs to be saved before creating association\n"
+            if $self->new_record;
         my $obj = $related_class->new(%arg)->save;
         $self->_add_to_mapper( $fk_column, $obj->dbrow->$fk_column );
         return $obj;
@@ -95,6 +97,8 @@ sub add_belongs_to {
         my ( $self, %arg ) = @_;
         croak "need arguments to create $related_class\n"
             if scalar keys %arg == 0;
+        croak ref($self), " needs to be saved before creating association\n"
+            if $self->new_record;
         my $obj = $related_class->new(%arg);
         $self->_add_belongs_to( $fk_column, $obj );
         return $obj;

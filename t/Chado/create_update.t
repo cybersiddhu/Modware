@@ -64,44 +64,6 @@ is( $db_org->abbreviation, $org->abbreviation,
 is( $db_org->genus,   $org->genus,   'related organism matches genus' );
 is( $db_org->species, $org->species, 'related organism matches species' );
 
-my $stock2 = MyStock->new(
-    uniquename => 'drosophila',
-    stock_type => 'mutant',
-);
-my $org2 = $stock2->new_organism(
-    genus   => 'Homo',
-    species => 'sapiens',
-    name    => 'human'
-);
-isa_ok( $org2, 'Modware::Chado::Organism' );
-my $db_stock2;
-lives_ok { $db_stock2 = $stock2->save }
-'It can save another stock with new_organism method';
-is( $db_stock2->organism->genus,
-    $org2->genus, 'It can retrieve related organism with matching genus' );
-
-my $stock3 = MyStock->new(
-    uniquename => 'ecoli',
-    stock_type => 'wild',
-);
-my $org3;
-lives_ok {
-    $org3 = $stock3->create_organism(
-        genus   => 'Escherichia',
-        species => 'coli'
-    );
-}
-'It can create an associated object';
-my $db_stock3;
-lives_ok { $db_stock3 = $stock3->save }
-'It can create another stock after associating with a new object';
-is( $org3->species,
-    $db_stock3->organism->species,
-    'It matches the species between parent and related object'
-);
-
-
-
 #### --- update tests ------- ###
 
 $db_stock->id('P574393');
@@ -118,35 +80,32 @@ dies_ok {
 }
 'It cannot update non-persistent object';
 
-$org3->species('colitis');
-$org3->name('ecoli');
-$org3->abbreviation('E.coli');
-$db_stock3->stock_name('E.coli');
-$db_stock3->uniquename('E.coli');
-$db_stock3->organism($org3);
+$db_org->species('colitis');
+$db_org->name('ecoli');
+$db_org->abbreviation('E.coli');
+$db_org->genus('Escherichia');
+$db_stock->stock_name('E.coli');
+$db_stock->uniquename('E.coli');
+$db_stock->organism($db_org);
 
-lives_ok { $db_stock3->update }
+lives_ok { $db_stock->update }
 'It updates the existing parent and related objects';
-is( $db_stock3->dbrow->name, $db_stock3->stock_name,
+is( $db_stock->dbrow->name, $db_stock->stock_name,
     'It matches the added stock_name' );
-is( $db_stock3->dbrow->uniquename,
-    $db_stock3->uniquename, 'It matches the updated uniquename' );
-my $org3_up = $db_stock3->organism;
-isa_ok( $org3_up, 'Modware::Chado::Organism' );
-is( $org3_up->genus, $org3->genus,
-    'It matches the unchanged genus from updated related object' );
-is( $org3_up->species, $org3->species,
+is( $db_stock->dbrow->uniquename,
+    $db_stock->uniquename, 'It matches the updated uniquename' );
+my $org_up = $db_stock->organism;
+isa_ok( $org_up, 'Modware::Chado::Organism' );
+is( $org_up->genus, $db_org->genus,
+    'It matches the updated genus from updated related object' );
+is( $org_up->species, $db_org->species,
     'It matches the updated species from updated related object' );
-is( $org3_up->name, $org3->name,
-    'It matches the added name from updated related object' );
-is( $org3_up->abbreviation, $org3->abbreviation,
+is( $org_up->name, $db_org->name,
+    'It matches the updated name from updated related object' );
+is( $org_up->abbreviation, $db_org->abbreviation,
     'It matches the added abbreviation from updated related object' );
 
 END {
     $db_stock->dbrow->delete;
-    $db_org->dbrow->delete;
-    $db_stock2->dbrow->delete;
-    $db_stock2->organism->dbrow->delete;
-    $org3->dbrow->delete;
-    $db_stock3->dbrow->delete;
+    $org_up->dbrow->delete;
 }
