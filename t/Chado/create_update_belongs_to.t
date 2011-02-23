@@ -105,6 +105,7 @@ is( $org_up->name, $db_org->name,
 is( $org_up->abbreviation, $db_org->abbreviation,
     'It matches the added abbreviation from updated related object' );
 
+
 END {
     $db_stock->dbrow->delete;
     $org_up->dbrow->delete;
