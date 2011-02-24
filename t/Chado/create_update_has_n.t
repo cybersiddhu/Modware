@@ -43,7 +43,7 @@ my $dbxref2
     = $db2->dbxref->add_new( accession => 'Wb4538943', version => '1.0' );
 isa_ok( $dbxref2, 'Modware::Chado::Dbxref' );
 is($dbxref2->new_record,  1,  'Associated object is not saved yet');
-lives_ok{$db2->save} 'It saves with another associated object';
+lives_ok{$db2->save} 'It updates with another associated object';
 is($dbxref2->dbxref->size,  3,  'Associated object is also saved in the database');
 
 my $dbxref3 = $db2->dbxref->create(accession => 'NP_4394839');
