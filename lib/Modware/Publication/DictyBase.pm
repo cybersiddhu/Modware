@@ -41,7 +41,7 @@ class_has 'query' => (
 sub citation {
 	my ($self) = @_;
 	my $author_count = $self->total_authors;
-    my $author_str;
+    my $author_str = '';
     if ( $author_count == 1 ) {
         $author_str = $self->get_from_authors(0)->last_name;
     }
@@ -49,7 +49,7 @@ sub citation {
         $author_str = $self->get_from_authors(0)->last_name . ' & '
             . $self->get_from_authors(1)->last_name;
     }
-    else {
+    elsif ( $author_count > 0 ) {
         my $penultimate = $author_count - 2;
         for my $i ( 0 .. $penultimate ) {
             if ( $i == $penultimate ) {
@@ -86,7 +86,7 @@ sub citation {
 sub formatted_citation {
 	my ($self) = @_;
 	my $author_count = $self->total_authors;
-    my $author_str;
+    my $author_str = '';
     if ( $author_count == 1 ) {
         $author_str = $self->get_from_authors(0)->last_name;
     }
@@ -94,7 +94,7 @@ sub formatted_citation {
         $author_str = $self->get_from_authors(0)->last_name . ' & '
             . $self->get_from_authors(1)->last_name;
     }
-    else {
+    elsif ( $author_count > 0) {
         my $penultimate = $author_count - 2;
         for my $i ( 0 .. $penultimate ) {
             if ( $i == $penultimate ) {
