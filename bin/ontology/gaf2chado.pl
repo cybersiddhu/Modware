@@ -114,11 +114,6 @@ sub is_from_pubmed {
     return $id if $id =~ /^PMID/;
 }
 
-sub is_from_dicty {
-    my ( $self, $id ) = @_;
-    return $id if $id =~ /^PUB/;
-}
-
 sub get_anno_ref_records {
     my ( $self, $anno ) = @_;
     my @ids;
@@ -128,23 +123,6 @@ sub get_anno_ref_records {
     }
     return @ids;
 
-}
-
-sub get_anno_dicty_records {
-    my ( $self, $anno ) = @_;
-    my @ids;
-    for my $xref ( @{ $anno->provenance->xrefs } ) {
-        my ( $db, $id ) = $self->parse_id( $xref->id );
-        push @ids, $db eq 'dictyBase_REF' ? 'PUB' . $id : $id;
-    }
-    return @ids;
-
-}
-
-sub normalize_dicty_id {
-    my ( $self, $id ) = @_;
-    $id =~ s/^PUB//;
-    $id;
 }
 
 sub get_db_pub_records {
@@ -198,8 +176,6 @@ has 'helper' => (
     },
     handles => {
         'is_from_pubmed'           => 'is_from_pubmed',
-        'is_from_dicty'            => 'is_from_dicty',
-        'normalize_dicty_id'       => 'normalize_dicty_id',
         'has_idspace'              => 'has_idspace',
         'chado'                    => 'chado',
         'parse_id'                 => 'parse_id',
@@ -562,12 +538,8 @@ sub find_dicty_annotation {
                 { join      => { 'type' => 'cv' } } )->first;
 
             if ( $evrow->type->cvterm_id == $evcode_id ) {
-                my $db_id
-                    = $self->is_from_dicty( $row->pub->uniquename )
-                    ? $self->normalize_dicty_id( $row->pub->uniquename )
-                    : $row->pub->uniquename;
                 return GAFRank->new( row => $row )
-                    if $id eq $db_id;
+                    if $id eq $row->pub->pub_id;
             }
         }
     }
@@ -588,29 +560,6 @@ sub find_dicty_annotation {
     $self->set_rank_in_digest_cache( $digest, 0 );
     return;
 
- # -- Get from database
- #    my @type_ids_from_db = = map {
- #        $_->feature_cvtermprops(
- #            { 'cv.name' => { -like  => 'evidence_code%' } },
- #            { join      => { 'type' => 'cv' } } )->first->type_id
- #        }
- #        grep { $_->pub->uniquename eq $id } $rs->all;
- #
- #    # -- from the graph
- #    my @type_ids_from_graph
- #        = map { $self->get_evcode_from_cache($_) }
- #        map   { $self->parse_evcode( $_->evidence ) } grep {
- #                ( $_->provenance->id eq $anno->provenance->id )
- #            and ( $_->gene->id eq $anno->gene->id )
- #            and ( $evcode ne $self->parse_evcode( $_->evidence ) )
- #        } @{ $self->graph->get_annotations_by_target( $anno->target->id ) };
- #
- #    if ( @from_graph > 1 and @evcodes )
- #    {    ## -- will always have the self annotation
- #        my @db_records = $rank_count += $#from_graph;
- #    }
- #    return GAFRow->new( rank => $rank_count ) if $rank_rount;
- #    return;
 }
 
 sub keep_state_in_cache {
@@ -771,10 +720,8 @@ sub process_dicty_annotation {
 
     my $reference = $anno->provenance->id;
     my ( $db, $ref_id ) = $self->parse_id($reference);
-    $ref_id = 'PUB' . $ref_id if $db eq 'dictyBase_REF';
-
     my $pub_row = $self->chado->resultset('Pub::Pub')
-        ->find( { uniquename => $ref_id } );
+        ->find( { pub_id => $ref_id } );
     if ( !$pub_row ) {
         $self->skipped_message("$reference Not found");
         return;
@@ -785,10 +732,8 @@ sub process_dicty_annotation {
 XREF:
     for my $xref ( @{ $anno->provenance->xrefs } ) {
         my ( $db, $ref_id ) = $self->parse_id( $xref->id );
-        $ref_id = 'PUB' . $ref_id if $db eq 'dictyBase_REF';
-
         my $pub_row = $self->chado->resultset('Pub::Pub')
-            ->find( { uniquename => $ref_id } );
+            ->find( { pub_id => $ref_id } );
         if ($pub_row) {
             $self->insert_to_feature_cvterm_pubs(
                 { 'pub_id' => $pub_row->pub_id } );
@@ -1073,7 +1018,7 @@ sub dicty_update {
 
     ## -- all annotation secondary references
     my $anno_ref_rec
-        = Set::Object->new( $self->get_anno_dicty_records($anno) );
+        = Set::Object->new( $self->get_anno_ref_records($anno) );
 
     ## -- database records that are stored through feature_cvterm_dbxref
     my $db_rec = Set::Object->new( $self->get_db_records($row) );
