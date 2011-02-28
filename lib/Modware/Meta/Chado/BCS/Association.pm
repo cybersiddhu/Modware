@@ -53,6 +53,8 @@ sub add_belongs_to {
             ## -- again,  the parent object's create/update method will be blocked at the
             ## -- database level(existing foreign key error).
             if ( $obj->new_record ) {    ## -- new related record
+                ## -- new parent object: related object will be saved by insert
+                ## -- existing parent object: related object will be saved by update
                 $self->_add_belongs_to( $fk_column, $obj );
             }
             else {                       ## -- existing related record
@@ -135,46 +137,91 @@ sub add_belongs_to {
 
 sub add_has_many {
     my ( $meta, $name, %options ) = @_;
-    my $class_name;
-    my $accessor;
+    my $related_class;
+    my $bcs_accs;
+    my $bcs_source = $meta->bcs_source;
 
-    if ( defined $options{class_name} ) {
-        $class_name = $options{class_name};
+    $related_class = $options{class} if defined $options{class};
+    if ( !$related_class ) {
+        $related_class = $meta->base_namespace . '::' . ucfirst( lc $name );
     }
-    else {
-        $class_name = $meta->name . '::' . ucfirst( to_S($name) );
-    }
+    Class::MOP::load_class($related_class);
+    my $related_source = $related_class->new->meta->bcs_source->source_name;
 
-    if ( defined $options{accessor} ) {
-        $accessor = $options{accessor};
-    }
-    else {
-        Class::MOP::load_class($class_name);
-        my $assoc_bcs
-            = $meta->bcs->source( $class_name->new->meta->resultset )
-            ->source_name;
-        my $bcs_source = $meta->bcs->source( $meta->resultset );
-        $accessor = first {
-            $assoc_bcs eq $bcs_source->related_source($_)->source_name;
+    $bcs_accs = $options{bcs_accessor} if defined $options{bcs_accessor};
+    if ( !$bcs_accs ) {
+        $bcs_accs = first {
+            $related_source eq $bcs_source->related_source($_)->source_name;
         }
         $bcs_source->relationships;
-
-        if ( !$accessor ) {
-            warn "unable to find Bio::Chado::Schema relationship accessor\n";
-            carp
-                "please check your resultset name or provide a valid Bio::Chado::Schema accessor name\n";
-        }
     }
+    my $pk_column = $meta->pk_column;
 
+    #association(object[optional]) -- dense logic alarm
     my $code = sub {
-        my ($self) = @_;
-        if ( wantarray() ) {
-            my @arr;
-            push @arr, $accessor . ' ' . $class_name for 0 .. 10;
-            return @arr;
+        my $self = shift;
+        my ($obj)
+            = pos_validated_list( \@_,
+            { isa => $related_class, optional => 1 } );
+
+        # -- set call
+        if ( defined $obj ) {
+            ## -- here the parent object assumes the related object do not exist in the
+            ## -- database level. If a new instance of existing related object gets added
+            ## -- again,  the parent object's create/update method will be blocked at the
+            ## -- database level(existing foreign key error).
+
+            if ( $obj->new_record ) {    ## -- new related record
+                if ( $self->new_record )
+                {    ## --related will be saved with parent
+                    $self->_add_has_many($obj);
+                }
+                else {    ## -- related is saved with foreign key
+                    $obj->_add_to_mapper( $pk_column,
+                        $self->dbrow->$pk_column );
+                    $obj->save;
+                }
+            }
+            else {        ## -- existing related record
+                ## --- related will be saved with parent
+                if ( $self->new_record ) {
+                    $self->_add_exist_has_many($obj);
+                }
+                else {
+                    ## --- related is saved with foreign key
+                    $obj->_add_to_mapper( $pk_column,
+                        $self->dbrow->$pk_column );
+                    $obj->save;
+                }
+            }
+            return 1;
         }
-        return $accessor . ' ' . $class_name;
+        else
+        { ## -- it's a get call and a related object is return only from a persistent
+            Class::MOP::load_class('Modware::Chado::BCS::Relation');
+            my $rel_obj;
+            ## -- parent object
+            if ( $self->new_record ) {
+                $rel_obj = Modware::Chado::BCS::Relation->new;
+            }
+            else {
+                my $dbrow = $self->dbrow;
+                if ( wantarray() ) {
+                    return
+                        map { $related_class->new( dbrow => $_ ) }
+                        $dbrow->$bcs_accs;
+                }
+                my $method = $bcs_accs . '_rs';
+                $rel_obj = Modware::Chado::BCS::Relation->new(
+                    collection           => $dbrow->$method,
+                    '_data_access_class' => $related_class,
+                    '_parent_class'      => $self
+                );
+            }
+            return $rel_obj;
+        }
     };
+
     $meta->add_method(
         $name,
         Class::MOP::Method->wrap(

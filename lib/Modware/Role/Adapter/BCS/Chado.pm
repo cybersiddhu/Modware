@@ -44,10 +44,34 @@ has '_belongs_to' => (
     }
 );
 
+has '_has_many' => (
+    is      => 'rw',
+    isa     => 'ArrayRef',
+    traits  => [qw/Array/],
+    default => sub { [] },
+    handles => {
+        '_add_has_many'   => 'push',
+        '_all_has_many'   => 'elements',
+        '_clear_has_many' => 'clear',
+    }
+);
+
+has '_existing_has_many' => (
+    is      => 'rw',
+    isa     => 'ArrayRef',
+    traits  => [qw/ Array /],
+    default => sub { [] },
+    handles => {
+        '_add_exist_has_many'   => 'push',
+        '_all_exist_has_many'   => 'elements',
+        '_clear_exist_has_many' => 'clear',
+    }
+);
+
 has '_read_hooks' => (
     is      => 'rw',
     isa     => 'HashRef[CodeRef]',
-    traits  => [qw/Hash/],
+    traits  => [qw/ Hash /],
     handles => {
         '_all_read_hooks' => 'keys',
         '_get_read_hook'  => 'get',
@@ -76,12 +100,12 @@ has '_read_hooks' => (
 has '_insert_hooks' => (
     is      => 'rw',
     isa     => 'HashRef[CodeRef]',
-    traits  => [qw/Hash/],
+    traits  => [qw/ Hash /],
     handles => {
         '_all_insert_hooks' => 'keys',
         '_get_insert_hook'  => 'get',
-        'has_insert_hook'  => 'defined',
-        'add_insert_hook'  => 'set'
+        'has_insert_hook'   => 'defined',
+        'add_insert_hook'   => 'set'
     },
     default => sub {
         my $self = shift;
@@ -177,7 +201,7 @@ sub _read_sec_dbxref {
     my ( $self, $attr, $dbrow ) = @_;
     my $method = $attr->bcs_hm_accessor;
     my $query;
-    for my $prop (qw/version description/) {
+    for my $prop (qw/ version description /) {
         my $predicate = 'has_' . $prop;
         $query->{$prop} = $attr->$prop if $attr->$predicate;
     }
@@ -195,7 +219,7 @@ sub _read_multi_dbxrefs {
     my ( $self, $attr, $dbrow ) = @_;
     my $method = $attr->bcs_hm_accessor;
     my $query;
-    for my $prop (qw/version description/) {
+    for my $prop (qw/ version description /) {
         my $predicate = 'has_' . $prop;
         $query->{$prop} = $attr->$prop if $attr->$predicate;
     }
@@ -304,7 +328,8 @@ sub insert {
 
     #$self->do_validation;
 
-#now all belongs_to related/dependent objects
+    #now all belongs_to related/ dependent objects
+
 # -- it is done before the create hooks as those might look for shared db/cv/cvterm(s)
 # as the belongs_to code does the lookup for shared db/cv/cvterm well before the lookup of create hook methods.
 BELONGS_TO:
@@ -318,7 +343,8 @@ BELONGS_TO:
 
 PERSISTENT:
     for my $attr ( $meta->get_all_attributes ) {
-        next PERSISTENT if !$attr->has_value($self);
+        next PERSISTENT
+            if !$attr->has_value($self);
     TRAIT:
         for my $traits ( $self->_all_insert_hooks ) {
             next TRAIT if !$attr->does($traits);
@@ -340,10 +366,14 @@ PERSISTENT:
         }
     );
 
+    $self->_handle_has_many($dbrow);
+
     ## -- cleanup the internal state
     $self->_clear_belongs_to;
     $self->_clear_mapper;
     $self->_clear_insert_stash;
+    $self->_clear_has_many;
+    $self->_clear_exist_has_many;
 
     my $class = $self->meta->name;
     return $class->new( dbrow => $dbrow );
@@ -373,12 +403,35 @@ BELONGS_TO:
         }
     );
 
+    $self->_handle_has_many($dbrow);
+
     ## -- cleanup the internal state
     $self->_clear_belongs_to;
     $self->_clear_mapper;
     $self->_clear_insert_stash;
+    $self->_clear_has_many;
+    $self->_clear_exist_has_many;
+
     $self->dbrow($dbrow);
     return 1;
+}
+
+sub _handle_has_many {
+    my ( $self, $dbrow ) = @_;
+    my $meta = $self->meta;
+
+HAS_MANY:
+    for my $obj ( $self->_all_has_many ) {
+        next HAS_MANY
+            if !$obj->does('Modware::Role::Adapter::BCS::Chado');
+        $obj->save;
+    }
+
+    my $pk_column = $meta->pk_column;
+    for my $exist_obj ( $self->_all_exist_has_many ) {
+        $exist_obj->_add_to_mapper( $pk_column, $dbrow->$pk_column );
+        $exist_obj->save;
+    }
 }
 
 sub save {

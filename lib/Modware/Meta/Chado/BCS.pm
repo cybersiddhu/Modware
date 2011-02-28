@@ -29,7 +29,17 @@ has 'bcs_resultset' => (
 
 has 'bcs_source' => (
     is  => 'rw',
-    isa => 'DBIx::Class::ResultSource'
+    isa => 'DBIx::Class::ResultSource', 
+    trigger => sub {
+    	my ($self,  $source) = @_;
+    	my ($col) = $source->primary_columns;
+    	$self->pk_column($col);
+    }
+);
+
+has 'pk_column' => (
+	is => 'rw', 
+	isa => 'Str', 
 );
 
 has '_attr_stack' => (

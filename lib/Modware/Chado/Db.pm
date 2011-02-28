@@ -9,7 +9,7 @@ bcs_resultset 'General::Db';
 
 chado_has 'db_id' => ( primary => 1);
 chado_has $_ for qw/name description url urlprefix/;
-chado_has_many 'dbxref' => (class => 'Modware::Chado::Dbxref');
+chado_has_many 'dbxrefs' => (class => 'Modware::Chado::Dbxref');
 
 1;    # Magic true value required at end of module
 

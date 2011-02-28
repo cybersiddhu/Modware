@@ -23,6 +23,11 @@ sub chado_has {
     $meta->add_column( $name, %options );
 }
 
+sub chado_has_many {
+    my ( $meta, $name, %options ) = @_;
+    $meta->add_has_many( $name, %options );
+}
+
 sub chado_property {
     my ( $meta, $name, %options ) = @_;
     $meta->add_chado_prop( $name, %options );
@@ -60,7 +65,7 @@ Moose::Exporter->setup_import_methods(
         'chado_property',         'chado_dbxref',
         'chado_type',             'chado_multi_properties',
         'chado_secondary_dbxref', 'chado_multi_dbxrefs',
-        'chado_belongs_to'
+        'chado_belongs_to',  'chado_has_many'
     ],
 );
 
