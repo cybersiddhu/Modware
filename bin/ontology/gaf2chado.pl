@@ -720,8 +720,8 @@ sub process_dicty_annotation {
 
     my $reference = $anno->provenance->id;
     my ( $db, $ref_id ) = $self->parse_id($reference);
-    my $pub_row = $self->chado->resultset('Pub::Pub')
-        ->find( { pub_id => $ref_id } );
+    my $pub_row
+        = $self->chado->resultset('Pub::Pub')->find( { pub_id => $ref_id } );
     if ( !$pub_row ) {
         $self->skipped_message("$reference Not found");
         return;
@@ -811,9 +811,9 @@ XREF:
     }
 
 ## -- extra qualifiers
-    my $qual = [ grep { $_->id ne 'not' } $anno->qualifier_list ];
+    my $qual = $anno->qualifier_list;
     if ( defined $qual ) {
-        for my $entry (@$qual) {
+        for my $entry ( grep { $_->id ne 'not' } @$qual ) {
             $self->add_to_insert_feature_cvtermprops(
                 {   type_id => $self->find_or_create_cvterm_id(
                         cv     => $self->extra_cv,
@@ -825,7 +825,6 @@ XREF:
                 }
             );
         }
-
     }
     return 1;
 }
@@ -925,6 +924,11 @@ use List::MoreUtils qw/uniq/;
 use Set::Object;
 use DateTime::Format::Strptime;
 
+has 'logger' => (
+    is  => 'rw',
+    isa => 'Object',
+);
+
 has 'manager' => (
     is  => 'rw',
     isa => 'GAFManager'
@@ -960,23 +964,23 @@ has 'datetime' => (
 sub store_cache {
     my ( $self, $cache ) = @_;
     my $chado = $self->chado;
-    my $index;
-    try {
-        $chado->txn_do(
-            sub {
-
-                #$chado->resultset( $self->resultset )->populate($cache);
-                for my $i ( 0 .. $#$cache ) {
-                    $index = $i;
+    for my $i ( 0 .. $#$cache ) {
+        try {
+            $chado->txn_do(
+                sub {
                     $chado->resultset( $self->resultset )
                         ->create( $cache->[$i] );
                 }
-            }
-        );
+            );
+        }
+        catch {
+            carp "error in inserting $_\n Data dump ", Dumper $cache->[$i],
+                "\n";
+            $self->logger->fatal("error in inserting $_");
+            $self->logger->fatal( Dumper $cache->[$i] );
+        };
     }
-    catch {
-        croak $_, "\t", Dumper $cache->[$index];
-    };
+
 }
 
 sub dicty_update {
@@ -1017,8 +1021,7 @@ sub dicty_update {
     $self->update_qualifier($row);
 
     ## -- all annotation secondary references
-    my $anno_ref_rec
-        = Set::Object->new( $self->get_anno_ref_records($anno) );
+    my $anno_ref_rec = Set::Object->new( $self->get_anno_ref_records($anno) );
 
     ## -- database records that are stored through feature_cvterm_dbxref
     my $db_rec = Set::Object->new( $self->get_db_records($row) );
@@ -1188,7 +1191,7 @@ sub update_qualifier {
 
     my $anno = $self->manager->annotation;
     my $qual = [ grep { $_->id ne 'not' } $anno->qualifier_list ];
-    if ( defined $qual  ) {
+    if ( defined $qual ) {
         my $anno_qual = Set::Object->new( [ map { $_->id } @$qual ] );
         my $db_qual = Set::Object->new( $self->manager->get_db_qual($row) );
         if ( $db_qual->members ) {
@@ -1315,6 +1318,7 @@ my $manager = GAFManager->new( helper => $helper );
 my $loader = GAFLoader->new( manager => $manager );
 $loader->helper($helper);
 $loader->resultset('Sequence::FeatureCvterm');
+$loader->logger($logger);
 
 # -- evidence ontology loaded
 if ( !$manager->evcodes_in_cache ) {
