@@ -293,6 +293,19 @@ has 'evcode_cache' => (
     }
 );
 
+has '_rev_evcode_cache' => (
+    is      => 'rw',
+    isa     => 'HashRef',
+    traits  => [qw/Hash/],
+    default => sub { {} },
+    handles => {
+        '_rev_add_to_evcode_cache'   => 'set',
+        '_clean_rev_evcode_cache'    => 'clear',
+        '_has_rev_evcode_in_cache'   => 'defined',
+        '_get_rev_evcode_from_cache' => 'get'
+    }
+);
+
 has 'digest_cache' => (
     is      => 'rw',
     isa     => 'HashRef',
@@ -483,30 +496,7 @@ sub find_annotation {
     $self->set_rank_in_digest_cache( $digest, 0 );
     return;
 
- # -- Get from database
- #    my @type_ids_from_db = = map {
- #        $_->feature_cvtermprops(
- #            { 'cv.name' => { -like  => 'evidence_code%' } },
- #            { join      => { 'type' => 'cv' } } )->first->type_id
- #        }
- #        grep { $_->pub->uniquename eq $id } $rs->all;
- #
- #    # -- from the graph
- #    my @type_ids_from_graph
- #        = map { $self->get_evcode_from_cache($_) }
- #        map   { $self->parse_evcode( $_->evidence ) } grep {
- #                ( $_->provenance->id eq $anno->provenance->id )
- #            and ( $_->gene->id eq $anno->gene->id )
- #            and ( $evcode ne $self->parse_evcode( $_->evidence ) )
- #        } @{ $self->graph->get_annotations_by_target( $anno->target->id ) };
- #
- #    if ( @from_graph > 1 and @evcodes )
- #    {    ## -- will always have the self annotation
- #        my @db_records = $rank_count += $#from_graph;
- #    }
- #    return GAFRow->new( rank => $rank_count ) if $rank_rount;
- #    return;
-}
+ }
 
 sub find_dicty_annotation {
     my ($self)      = @_;
@@ -881,7 +871,12 @@ sub _preload_evcode_cache {
         },
         { join => [ { 'type' => 'cv' } ] }
     );
-    $self->add_to_evcode_cache( $_->synonym_, $_ ) for $syn_rs->all;
+
+    for my $syn ( $syn_rs->all ) {
+        $self->add_to_evcode_cache( $syn->synonym_, $syn );
+        $self->_rev_add_to_evcode_cache( $syn->cvterm->cvterm_id,
+            $syn->synonym );
+    }
 }
 
 1;
@@ -908,7 +903,11 @@ sub _preload_evcode_cache {
         },
         { join => [ { 'type' => 'cv' } ] }
     );
-    $self->add_to_evcode_cache( $_->synonym, $_ ) for $syn_rs->all;
+    for my $syn ( $syn_rs->all ) {
+        $self->add_to_evcode_cache( $syn->synonym, $syn );
+        $self->_rev_add_to_evcode_cache( $syn->cvterm->cvterm_id,
+            $syn->synonym );
+    }
 }
 
 1;
@@ -978,9 +977,52 @@ sub store_cache {
                 "\n";
             $self->logger->fatal("error in inserting $_");
             $self->logger->fatal( Dumper $cache->[$i] );
+
+            ## -- reporting the error
+            my $error_str = $self->_get_error_string( $cache->[$i] );
+            $self->logger->error("Not loaded:\t$error_str");
+
         };
     }
+}
 
+sub _get_error_string {
+    my ( $self, $data_str ) = @_;
+    my $chado = $self->chado;
+
+    my ( $gene_id, $goid, $reference_id, $evcode );
+    $gene_id = $chado->resultset( $self->resultset )
+        ->find( { feature_id => $data_str->{feature_id} } )->dbxref->accession;
+
+    $goid
+        = 'GO:'
+        . $chado->resultset( $self->resultset )
+        ->find( { cvterm_id => $data_str->{cvterm_id} } )->dbxref->accession;
+
+    my $pub = $chado->resultset( $self->resultset )->find(
+        {   pub_id =>
+                $data_str->{pub_id}
+        }
+    );
+    if ( $pub->pubplace =~ /pubmed/i ) {
+        $reference_id = 'PMID:' . $pub->uniquename;
+    }
+    else {
+        $reference_id = 'REF:' . $data_str->{pub_id};
+    }
+
+    for my $props ( @{ $data_str->{feature_cvtermprops} } ) {
+        if ( $props->{value} == 1 ) {
+            if ( $self->manager->_has_rev_evcode_in_cache( $props->{type_id} )
+                )
+            {
+                $evcode = $self->manager->_get_rev_evcode_from_cache(
+                    $props->{type_id} );
+            }
+        }
+    }
+    return sprintf "%s\t%s\t%s\t%s\n", $gene_id, $goid, $reference_id,
+        $evcode;
 }
 
 sub dicty_update {
