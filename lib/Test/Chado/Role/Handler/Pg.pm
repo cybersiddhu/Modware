@@ -68,7 +68,7 @@ has 'attr_hash' => (
     is      => 'rw',
     isa     => 'HashRef',
     traits  => ['Hash'],
-    default => sub { { AutoCommit => 1 } },
+    default => sub { { AutoCommit => 1, RaiseError => 1 } },
     handles => { add_dbh_attribute => 'set' }
 );
 
@@ -95,24 +95,8 @@ has 'connection_info' => (
 
 sub deploy_schema {
     my ($self) = @_;
-    my $dbh    = $self->dbh_nocommit;
-    my $fh     = Path::Class::File->new( $self->ddl )->openr;
-    my $data = do { local ($/); <$fh> };
-    $fh->close();
-LINE:
-    foreach my $line ( split( /\n{2,}/, $data ) ) {
-        next LINE if $line =~ /^\-\-/;
-        $line =~ s{;$}{};
-        $line =~ s{/}{};
-        try {
-            $dbh->do($line);
-            $dbh->commit;
-        }
-        catch {
-            $dbh->rollback;
-            confess $_, "\n";
-        };
-    }
+    my $schema = $self->schema;
+    $schema->deploy;
 }
 
 sub prune_fixture {
