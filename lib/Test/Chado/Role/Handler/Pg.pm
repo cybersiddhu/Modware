@@ -14,7 +14,7 @@ use Carp;
 requires 'driver';
 requires 'dsn';
 requires 'superuser';
-requires 'superpass';
+requires 'superpassword';
 requires 'user';
 requires 'password';
 
@@ -26,7 +26,8 @@ after 'driver_dsn' => sub {
 };
 
 sub create_db {
-    my ($self)   = @_;
+    my ($self) = @_;
+    return 1;
     my $user     = $self->superuser;
     my $password = $self->superpass;
     my $dbname   = $self->database;
@@ -40,20 +41,26 @@ sub create_db {
 
 sub drop_db {
     my ($self) = @_;
-    my $dbname = $self->database;
-    try {
-        $self->super_dbh->do("DROP DATABASE $dbname");
-    }
-    catch {
-        confess "cannot delete database $dbname\n";
-    };
+    $self->drop_schema;
 }
 
 has 'dbh' => (
     is      => 'ro',
     isa     => 'DBI::db',
     default => sub {
+        my ($self) = @_;
         DBI->connect( $self->connection_info ) or confess $DBI::errstr;
+    }
+);
+
+has 'dbh_nocommit' => (
+    is      => 'ro',
+    isa     => 'DBI::db',
+    default => sub {
+        my ($self) = @_;
+        DBI->connect( $self->dsn, $self->user, $self->password,
+            { AutoCommit => 0 } )
+            or confess $DBI::errstr;
     }
 );
 
@@ -61,15 +68,16 @@ has 'attr_hash' => (
     is      => 'rw',
     isa     => 'HashRef',
     traits  => ['Hash'],
-    default => sub { { AutoCommit => 0 } },
+    default => sub { { AutoCommit => 1 } },
     handles => { add_dbh_attribute => 'set' }
 );
 
 has 'super_dbh' => (
     is      => 'ro',
-    isa     => 'DBI',
+    isa     => 'DBI::db',
     default => sub {
-        DBI->connect( $self->dsn, $self->superuser, $self->superpass )
+        my ($self) = @_;
+        DBI->connect( $self->dsn, $self->superuser, $self->superpassword )
             or confess $DBI::errstr;
     }
 );
@@ -87,7 +95,7 @@ has 'connection_info' => (
 
 sub deploy_schema {
     my ($self) = @_;
-    my $dbh    = $self->dbh;
+    my $dbh    = $self->dbh_nocommit;
     my $fh     = Path::Class::File->new( $self->ddl )->openr;
     my $data = do { local ($/); <$fh> };
     $fh->close();
@@ -125,8 +133,8 @@ sub prune_fixture {
 
 sub drop_schema {
     my ($self) = @_;
-    my $dbh = $self->dbh;
-    my $tsth = $dbh->prepare(
+    my $dbh    = $self->dbh_nocommit;
+    my $tsth   = $dbh->prepare(
         "SELECT relname FROM pg_class WHERE relnamespace IN
           (SELECT oid FROM pg_namespace WHERE nspname='public')
           AND relkind='r';"
@@ -142,12 +150,12 @@ sub drop_schema {
 	 pg_namespace WHERE nspname NOT LIKE 'pg_%' AND nspname != 'information_schema')"
     );
 
-    my $list = join( ",",
-        map { $_->{relname} }
-            @{ $dbh->selectall_arrayref( $tsth, { Slice => {} } ) } );
-
-    if ($list) {
-        try { $dbh->do(qq{ drop table $list cascade }) }
+    $tsth->execute or croak $tsth->errstr;
+    while ( my ($table) = $tsth->fetchrow_array ) {
+        try {
+            $dbh->do(qq{ drop table $table cascade });
+            $dbh->commit;
+        }
         catch {
             $dbh->rollback();
             croak "$_";
@@ -159,7 +167,7 @@ sub drop_schema {
             @{ $dbh->selectall_arrayref( $seqth, { Slice => {} } ) } );
 
     if ($seqs) {
-        try { $dbh->do(qq{ drop sequence if exists $seqs }) }
+        try { $dbh->do(qq{ drop sequence if exists $seqs }); $dbh->commit; }
         catch {
             $dbh->rollback();
             croak "$_\n";
@@ -171,13 +179,12 @@ sub drop_schema {
             @{ $dbh->selectall_arrayref( $vsth, { Slice => {} } ) } );
 
     if ($views) {
-        try { $dbh->do(qq{ drop view if exists $views }) };
+        try { $dbh->do(qq{ drop view if exists $views }); $dbh->commit; };
         catch {
             $dbh->rollback();
             croak "$_\n";
         };
     }
-    $dbh->commit;
 }
 
 1;    # Magic true value required at end of module
