@@ -496,7 +496,7 @@ sub find_annotation {
     $self->set_rank_in_digest_cache( $digest, 0 );
     return;
 
- }
+}
 
 sub find_dicty_annotation {
     my ($self)      = @_;
@@ -875,7 +875,7 @@ sub _preload_evcode_cache {
     for my $syn ( $syn_rs->all ) {
         $self->add_to_evcode_cache( $syn->synonym_, $syn );
         $self->_rev_add_to_evcode_cache( $syn->cvterm->cvterm_id,
-            $syn->synonym );
+            $syn->synonym_ );
     }
 }
 
@@ -991,19 +991,18 @@ sub _get_error_string {
     my $chado = $self->chado;
 
     my ( $gene_id, $goid, $reference_id, $evcode );
-    $gene_id = $chado->resultset( $self->resultset )
-        ->find( { feature_id => $data_str->{feature_id} } )->dbxref->accession;
+    $gene_id
+        = $chado->resultset('Sequence::Feature')
+        ->find( { feature_id => $data_str->{feature_id} } )
+        ->dbxref->accession;
 
     $goid
         = 'GO:'
-        . $chado->resultset( $self->resultset )
+        . $chado->resultset('Cv::Cvterm')
         ->find( { cvterm_id => $data_str->{cvterm_id} } )->dbxref->accession;
 
-    my $pub = $chado->resultset( $self->resultset )->find(
-        {   pub_id =>
-                $data_str->{pub_id}
-        }
-    );
+    my $pub = $chado->resultset('Pub::Pub')
+        ->find( { pub_id => $data_str->{pub_id} } );
     if ( $pub->pubplace =~ /pubmed/i ) {
         $reference_id = 'PMID:' . $pub->uniquename;
     }
@@ -1012,12 +1011,13 @@ sub _get_error_string {
     }
 
     for my $props ( @{ $data_str->{feature_cvtermprops} } ) {
-        if ( $props->{value} == 1 ) {
+        if ( $props->{value} =~ /^\d{1}$/ ) {
             if ( $self->manager->_has_rev_evcode_in_cache( $props->{type_id} )
                 )
             {
                 $evcode = $self->manager->_get_rev_evcode_from_cache(
                     $props->{type_id} );
+                last;
             }
         }
     }
