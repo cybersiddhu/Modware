@@ -23,10 +23,6 @@ $pub->add_author( { first_name => 'Mumbo', last_name => 'Jumbo' } );
 $pub->first_page(50);
 $pub->last_page(100);
 
-#my $page_attr = $pub->meta->get_attribute('pages');
-#is($page_attr->get_value($pub), '50--100',  'got attribute value from meta');
-#is($page_attr->get_raw_value($pub), '50--100');
-
 dies_ok { $pub->create }
 'It cannot create record without setting journal name';
 
