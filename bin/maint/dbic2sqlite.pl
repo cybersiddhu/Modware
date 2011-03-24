@@ -210,7 +210,7 @@ sub create_table {
     my $exists = ( $sqlite_version >= 3.3 ) ? ' IF EXISTS' : '';
     my @create;
     my ( $comment, $create_table ) = "";
-    $comment = "--\n-- Table: $table_name\n--\n" unless $no_comments;
+    $comment = "--\n-- Table: $table_name\n--\n\n" unless $no_comments;
     if ($add_drop_table) {
         push @create, $comment . qq[DROP TABLE$exists $table_name];
     }
@@ -364,8 +364,8 @@ sub create_field {
         }
         return $field_def if ref $default && $$default =~ /nextval/;
         SQL::Translator::Producer->_apply_default_value(
-            \$field_def,
-            $default,
+            $field,
+            \$default,
             [   'NULL'              => \'NULL',
                 'now()'             => 'CURRENT_TIMESTAMP',
                 'CURRENT_TIMESTAMP' => 'CURRENT_TIMESTAMP',
