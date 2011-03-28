@@ -73,12 +73,13 @@ has 'rank' => (
 );
 
 has 'given_name' => (
-    is      => 'rw',
-    isa     => 'Maybe[Str]',
-    traits  => [qw/Persistent/],
-    column  => 'givennames',
-    lazy => 1, 
-    trigger => sub {
+    is        => 'rw',
+    isa       => 'Maybe[Str]',
+    predicate => 'has_given_name',
+    traits    => [qw/Persistent/],
+    column    => 'givennames',
+    lazy      => 1,
+    trigger   => sub {
         my ( $self, $new, $old ) = @_;
         return if $old and $new eq $old;
         if ( $new =~ /^(\S+)\s+(\S+)$/ ) {
