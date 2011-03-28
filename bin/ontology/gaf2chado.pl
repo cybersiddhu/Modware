@@ -114,11 +114,6 @@ sub is_from_pubmed {
     return $id if $id =~ /^PMID/;
 }
 
-sub is_from_dicty {
-    my ( $self, $id ) = @_;
-    return $id if $id =~ /^PUB/;
-}
-
 sub get_anno_ref_records {
     my ( $self, $anno ) = @_;
     my @ids;
@@ -128,23 +123,6 @@ sub get_anno_ref_records {
     }
     return @ids;
 
-}
-
-sub get_anno_dicty_records {
-    my ( $self, $anno ) = @_;
-    my @ids;
-    for my $xref ( @{ $anno->provenance->xrefs } ) {
-        my ( $db, $id ) = $self->parse_id( $xref->id );
-        push @ids, $db eq 'dictyBase_REF' ? 'PUB' . $id : $id;
-    }
-    return @ids;
-
-}
-
-sub normalize_dicty_id {
-    my ( $self, $id ) = @_;
-    $id =~ s/^PUB//;
-    $id;
 }
 
 sub get_db_pub_records {
@@ -198,8 +176,6 @@ has 'helper' => (
     },
     handles => {
         'is_from_pubmed'           => 'is_from_pubmed',
-        'is_from_dicty'            => 'is_from_dicty',
-        'normalize_dicty_id'       => 'normalize_dicty_id',
         'has_idspace'              => 'has_idspace',
         'chado'                    => 'chado',
         'parse_id'                 => 'parse_id',
@@ -314,6 +290,19 @@ has 'evcode_cache' => (
         evcodes_from_cache    => 'keys',
         has_evcode_in_cache   => 'defined',
         get_evcode_from_cache => 'get'
+    }
+);
+
+has '_rev_evcode_cache' => (
+    is      => 'rw',
+    isa     => 'HashRef',
+    traits  => [qw/Hash/],
+    default => sub { {} },
+    handles => {
+        '_rev_add_to_evcode_cache'   => 'set',
+        '_clean_rev_evcode_cache'    => 'clear',
+        '_has_rev_evcode_in_cache'   => 'defined',
+        '_get_rev_evcode_from_cache' => 'get'
     }
 );
 
@@ -507,29 +496,6 @@ sub find_annotation {
     $self->set_rank_in_digest_cache( $digest, 0 );
     return;
 
- # -- Get from database
- #    my @type_ids_from_db = = map {
- #        $_->feature_cvtermprops(
- #            { 'cv.name' => { -like  => 'evidence_code%' } },
- #            { join      => { 'type' => 'cv' } } )->first->type_id
- #        }
- #        grep { $_->pub->uniquename eq $id } $rs->all;
- #
- #    # -- from the graph
- #    my @type_ids_from_graph
- #        = map { $self->get_evcode_from_cache($_) }
- #        map   { $self->parse_evcode( $_->evidence ) } grep {
- #                ( $_->provenance->id eq $anno->provenance->id )
- #            and ( $_->gene->id eq $anno->gene->id )
- #            and ( $evcode ne $self->parse_evcode( $_->evidence ) )
- #        } @{ $self->graph->get_annotations_by_target( $anno->target->id ) };
- #
- #    if ( @from_graph > 1 and @evcodes )
- #    {    ## -- will always have the self annotation
- #        my @db_records = $rank_count += $#from_graph;
- #    }
- #    return GAFRow->new( rank => $rank_count ) if $rank_rount;
- #    return;
 }
 
 sub find_dicty_annotation {
@@ -562,12 +528,8 @@ sub find_dicty_annotation {
                 { join      => { 'type' => 'cv' } } )->first;
 
             if ( $evrow->type->cvterm_id == $evcode_id ) {
-                my $db_id
-                    = $self->is_from_dicty( $row->pub->uniquename )
-                    ? $self->normalize_dicty_id( $row->pub->uniquename )
-                    : $row->pub->uniquename;
                 return GAFRank->new( row => $row )
-                    if $id eq $db_id;
+                    if $id eq $row->pub->pub_id;
             }
         }
     }
@@ -588,29 +550,6 @@ sub find_dicty_annotation {
     $self->set_rank_in_digest_cache( $digest, 0 );
     return;
 
- # -- Get from database
- #    my @type_ids_from_db = = map {
- #        $_->feature_cvtermprops(
- #            { 'cv.name' => { -like  => 'evidence_code%' } },
- #            { join      => { 'type' => 'cv' } } )->first->type_id
- #        }
- #        grep { $_->pub->uniquename eq $id } $rs->all;
- #
- #    # -- from the graph
- #    my @type_ids_from_graph
- #        = map { $self->get_evcode_from_cache($_) }
- #        map   { $self->parse_evcode( $_->evidence ) } grep {
- #                ( $_->provenance->id eq $anno->provenance->id )
- #            and ( $_->gene->id eq $anno->gene->id )
- #            and ( $evcode ne $self->parse_evcode( $_->evidence ) )
- #        } @{ $self->graph->get_annotations_by_target( $anno->target->id ) };
- #
- #    if ( @from_graph > 1 and @evcodes )
- #    {    ## -- will always have the self annotation
- #        my @db_records = $rank_count += $#from_graph;
- #    }
- #    return GAFRow->new( rank => $rank_count ) if $rank_rount;
- #    return;
 }
 
 sub keep_state_in_cache {
@@ -771,10 +710,8 @@ sub process_dicty_annotation {
 
     my $reference = $anno->provenance->id;
     my ( $db, $ref_id ) = $self->parse_id($reference);
-    $ref_id = 'PUB' . $ref_id if $db eq 'dictyBase_REF';
-
-    my $pub_row = $self->chado->resultset('Pub::Pub')
-        ->find( { uniquename => $ref_id } );
+    my $pub_row
+        = $self->chado->resultset('Pub::Pub')->find( { pub_id => $ref_id } );
     if ( !$pub_row ) {
         $self->skipped_message("$reference Not found");
         return;
@@ -785,10 +722,8 @@ sub process_dicty_annotation {
 XREF:
     for my $xref ( @{ $anno->provenance->xrefs } ) {
         my ( $db, $ref_id ) = $self->parse_id( $xref->id );
-        $ref_id = 'PUB' . $ref_id if $db eq 'dictyBase_REF';
-
         my $pub_row = $self->chado->resultset('Pub::Pub')
-            ->find( { uniquename => $ref_id } );
+            ->find( { pub_id => $ref_id } );
         if ($pub_row) {
             $self->insert_to_feature_cvterm_pubs(
                 { 'pub_id' => $pub_row->pub_id } );
@@ -866,9 +801,9 @@ XREF:
     }
 
 ## -- extra qualifiers
-    my $qual = [ grep { $_->id ne 'not' } $anno->qualifier_list ];
+    my $qual = $anno->qualifier_list;
     if ( defined $qual ) {
-        for my $entry (@$qual) {
+        for my $entry ( grep { $_->id ne 'not' } @$qual ) {
             $self->add_to_insert_feature_cvtermprops(
                 {   type_id => $self->find_or_create_cvterm_id(
                         cv     => $self->extra_cv,
@@ -880,7 +815,6 @@ XREF:
                 }
             );
         }
-
     }
     return 1;
 }
@@ -937,7 +871,12 @@ sub _preload_evcode_cache {
         },
         { join => [ { 'type' => 'cv' } ] }
     );
-    $self->add_to_evcode_cache( $_->synonym_, $_ ) for $syn_rs->all;
+
+    for my $syn ( $syn_rs->all ) {
+        $self->add_to_evcode_cache( $syn->synonym_, $syn );
+        $self->_rev_add_to_evcode_cache( $syn->cvterm->cvterm_id,
+            $syn->synonym_ );
+    }
 }
 
 1;
@@ -964,7 +903,11 @@ sub _preload_evcode_cache {
         },
         { join => [ { 'type' => 'cv' } ] }
     );
-    $self->add_to_evcode_cache( $_->synonym, $_ ) for $syn_rs->all;
+    for my $syn ( $syn_rs->all ) {
+        $self->add_to_evcode_cache( $syn->synonym, $syn );
+        $self->_rev_add_to_evcode_cache( $syn->cvterm->cvterm_id,
+            $syn->synonym );
+    }
 }
 
 1;
@@ -979,6 +922,11 @@ use Data::Dumper::Concise;
 use List::MoreUtils qw/uniq/;
 use Set::Object;
 use DateTime::Format::Strptime;
+
+has 'logger' => (
+    is  => 'rw',
+    isa => 'Object',
+);
 
 has 'manager' => (
     is  => 'rw',
@@ -1015,23 +963,66 @@ has 'datetime' => (
 sub store_cache {
     my ( $self, $cache ) = @_;
     my $chado = $self->chado;
-    my $index;
-    try {
-        $chado->txn_do(
-            sub {
-
-                #$chado->resultset( $self->resultset )->populate($cache);
-                for my $i ( 0 .. $#$cache ) {
-                    $index = $i;
+    for my $i ( 0 .. $#$cache ) {
+        try {
+            $chado->txn_do(
+                sub {
                     $chado->resultset( $self->resultset )
                         ->create( $cache->[$i] );
                 }
-            }
-        );
+            );
+        }
+        catch {
+            carp "error in inserting $_\n Data dump ", Dumper $cache->[$i],
+                "\n";
+            $self->logger->fatal("error in inserting $_");
+            $self->logger->fatal( Dumper $cache->[$i] );
+
+            ## -- reporting the error
+            my $error_str = $self->_get_error_string( $cache->[$i] );
+            $self->logger->error("Not loaded:\t$error_str");
+
+        };
     }
-    catch {
-        croak $_, "\t", Dumper $cache->[$index];
-    };
+}
+
+sub _get_error_string {
+    my ( $self, $data_str ) = @_;
+    my $chado = $self->chado;
+
+    my ( $gene_id, $goid, $reference_id, $evcode );
+    $gene_id
+        = $chado->resultset('Sequence::Feature')
+        ->find( { feature_id => $data_str->{feature_id} } )
+        ->dbxref->accession;
+
+    $goid
+        = 'GO:'
+        . $chado->resultset('Cv::Cvterm')
+        ->find( { cvterm_id => $data_str->{cvterm_id} } )->dbxref->accession;
+
+    my $pub = $chado->resultset('Pub::Pub')
+        ->find( { pub_id => $data_str->{pub_id} } );
+    if ( $pub->pubplace =~ /pubmed/i ) {
+        $reference_id = 'PMID:' . $pub->uniquename;
+    }
+    else {
+        $reference_id = 'REF:' . $data_str->{pub_id};
+    }
+
+    for my $props ( @{ $data_str->{feature_cvtermprops} } ) {
+        if ( $props->{value} =~ /^\d{1}$/ ) {
+            if ( $self->manager->_has_rev_evcode_in_cache( $props->{type_id} )
+                )
+            {
+                $evcode = $self->manager->_get_rev_evcode_from_cache(
+                    $props->{type_id} );
+                last;
+            }
+        }
+    }
+    return sprintf "%s\t%s\t%s\t%s\n", $gene_id, $goid, $reference_id,
+        $evcode;
 }
 
 sub dicty_update {
@@ -1072,8 +1063,7 @@ sub dicty_update {
     $self->update_qualifier($row);
 
     ## -- all annotation secondary references
-    my $anno_ref_rec
-        = Set::Object->new( $self->get_anno_dicty_records($anno) );
+    my $anno_ref_rec = Set::Object->new( $self->get_anno_ref_records($anno) );
 
     ## -- database records that are stored through feature_cvterm_dbxref
     my $db_rec = Set::Object->new( $self->get_db_records($row) );
@@ -1243,7 +1233,7 @@ sub update_qualifier {
 
     my $anno = $self->manager->annotation;
     my $qual = [ grep { $_->id ne 'not' } $anno->qualifier_list ];
-    if ( defined $qual  ) {
+    if ( defined $qual ) {
         my $anno_qual = Set::Object->new( [ map { $_->id } @$qual ] );
         my $db_qual = Set::Object->new( $self->manager->get_db_qual($row) );
         if ( $db_qual->members ) {
@@ -1370,6 +1360,7 @@ my $manager = GAFManager->new( helper => $helper );
 my $loader = GAFLoader->new( manager => $manager );
 $loader->helper($helper);
 $loader->resultset('Sequence::FeatureCvterm');
+$loader->logger($logger);
 
 # -- evidence ontology loaded
 if ( !$manager->evcodes_in_cache ) {
