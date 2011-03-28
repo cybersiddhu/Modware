@@ -10,6 +10,7 @@ use File::stat;
 use Bio::Biblio::IO;
 use Modware::DataSource::Chado;
 use Modware::Publication::DictyBase;
+use Modware::Publication::Author;
 use Try::Tiny;
 use Carp;
 extends qw/Modware::Load::Command/;
@@ -72,7 +73,8 @@ sub execute {
     my $skipped = 0;
     while ( my $ref = $biblio->next_bibref ) {
         my $pubmed_id = $ref->pmid;
-        if ( my $exist = Modware::Publication::DictyBase->find_by_pubmed_id($pubmed_id) )
+        if ( my $exist
+            = Modware::Publication::DictyBase->find_by_pubmed_id($pubmed_id) )
         {
             $log->warn("Publication with $pubmed_id exist");
             $skipped++;
@@ -95,7 +97,7 @@ sub execute {
                 $pub->journal($name);
                 $pub->abbreviation($abbr);
             }
-            elsif($name) {
+            elsif ($name) {
                 $pub->journal($name);
                 $pub->abbreviation($name);
             }
@@ -109,13 +111,25 @@ sub execute {
             }
         }
 
-        for my $author ( @{ $ref->authors } ) {
-            $pub->add_author(
-                {   last_name  => $author->lastname,
-                    suffix     => $author->suffix,
-                    given_name => $author->initials . ' ' . $author->forename
-                }
-            );
+        for my $pub_author ( @{ $ref->authors } ) {
+            my $author = Modware::Publication::Author->new;
+
+            $author->last_name( $pub_author->lastname )
+                if $pub_author->can('lastname')
+                    and $pub_author->lastname;
+            $author->initials( $pub_author->initials )
+                if $pub_author->can('initials')
+                    and $pub_author->initials;
+            $author->first_name( $pub_author->forename )
+                if $pub_author->can('forename')
+                    and $pub_author->forename;
+            $author->suffix( $pub_author->suffix )
+                if $pub_author->can('suffix')
+                    and $pub_author->suffix;
+
+            if ( $author->has_last_name or $author->has_given_name ) {
+                $pub->add_author($author);
+            }
         }
 
         try {
