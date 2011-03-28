@@ -247,7 +247,6 @@ sub lookup_cv_id {
                 $cvrow;
             }
         );
-        $schema->txn_commit;
     }
     catch {
         confess "unable to create cv row: $_";
@@ -275,7 +274,6 @@ sub lookup_db_id {
                 $dbrow;
             }
         );
-        $schema->txn_commit;
     }
     catch {
         confess "unable to create db row: $_";
@@ -361,7 +359,6 @@ sub load_organism {
                 $schema->populate( 'Organism::Organism', $organism );
             }
         );
-        $schema->txn_commit;
     }
     catch {
         confess "error: $_";
@@ -380,7 +377,6 @@ sub unload_organism {
                     ->delete_all;
             }
         );
-        $schema->txn_commit;
     }
     catch {
         confess "error in deletion: $_";
@@ -562,7 +558,6 @@ sub load_journal_data {
         );
     }
 
-    $self->schema->txn_commit;
 }
 
 sub load_ontology {
@@ -638,7 +633,6 @@ sub unload_ontology {
                     ->search( { name => { -like => $name } } )->delete_all;
             }
         );
-        $schema->txn_commit;
     }
     catch {
         confess "error in deleting: $_";
@@ -696,7 +690,6 @@ sub handle_relationship {
                 );
             }
         );
-        $schema->txn_commit;
     }
     catch { confess "error in inserting: $_" };
 }
@@ -770,7 +763,6 @@ sub load_typedef {
                 $cvterm_row;
             }
         );
-        $schema->txn_commit;
     }
     catch {
         confess "Error in inserting cvterm $_\n";
@@ -817,7 +809,6 @@ sub load_term {
                 $cvterm_row;
             }
         );
-        $schema->txn_commit;
     }
     catch {
         confess "Error in inserting cvterm $_\n";
@@ -859,7 +850,6 @@ sub create_more_dbxref {
                     );
                 }
             );
-            $schema->txn_commit;
         }
         catch {
             confess "error in creating dbxref $_";
@@ -884,7 +874,6 @@ sub create_more_dbxref {
                 );
             }
         );
-        $schema->txn_commit;
     }
     catch { confess "error in creating dbxref $_" };
 }
