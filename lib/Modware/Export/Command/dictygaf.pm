@@ -143,8 +143,7 @@ sub get_provenance {
     my ( $self, $row ) = @_;
     my $pub = $row->pub->uniquename;
     if ( $pub =~ /^PUB/ ) {
-        $pub =~ s/^PUB//;
-        return 'dictyBase_REF:' . $pub;
+        return 'dictyBase_REF:' . $row->pub_id;
     }
     return $self->pubmed_namespace . ':' . $pub;
 }
