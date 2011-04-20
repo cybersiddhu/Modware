@@ -210,7 +210,7 @@ sub create_table {
     my $exists = ( $sqlite_version >= 3.3 ) ? ' IF EXISTS' : '';
     my @create;
     my ( $comment, $create_table ) = "";
-    $comment = "--\n-- Table: $table_name\n--\n" unless $no_comments;
+    $comment = "--\n-- Table: $table_name\n--\n\n" unless $no_comments;
     if ($add_drop_table) {
         push @create, $comment . qq[DROP TABLE$exists $table_name];
     }
@@ -293,85 +293,78 @@ FKEY:
     return ( @create, $create_table, @index_defs, @constraint_defs );
 }
 
-sub create_field {
-    my ( $field, $options ) = @_;
+sub create_field
+{
+    my ($field, $options) = @_;
 
     my $field_name = $field->name;
     debug("PKG: Looking at field '$field_name'\n");
-    my $field_comments
-        = $field->comments
-        ? "-- " . $field->comments . "\n  "
+    my $field_comments = $field->comments 
+        ? "-- " . $field->comments . "\n  " 
         : '';
 
-    my $field_def = $field_comments . $field_name;
+    my $field_def = $field_comments.$field_name;
 
     # data type and size
     my $size      = $field->size;
     my $data_type = $field->data_type;
-    $data_type = 'varchar' if lc $data_type eq 'set';
-    $data_type = 'blob'    if lc $data_type eq 'bytea';
+    $data_type    = 'varchar' if lc $data_type eq 'set';
+    $data_type  = 'blob' if lc $data_type eq 'bytea';
 
     if ( lc $data_type =~ /(text|blob)/i ) {
         $size = undef;
     }
 
-    #             if ( $data_type =~ /timestamp/i ) {
-    #                 push @trigger_defs,
-    #                     "CREATE TRIGGER ts_${table_name} ".
-    #                     "after insert on $table_name\n".
-    #                     "begin\n".
-    #                     "  update $table_name set $field_name=timestamp() ".
-    #                        "where id=new.id;\n".
-    #                     "end;\n"
-    #                 ;
-    #
-    #            }
+#             if ( $data_type =~ /timestamp/i ) {
+#                 push @trigger_defs, 
+#                     "CREATE TRIGGER ts_${table_name} ".
+#                     "after insert on $table_name\n".
+#                     "begin\n".
+#                     "  update $table_name set $field_name=timestamp() ".
+#                        "where id=new.id;\n".
+#                     "end;\n"
+#                 ;
+#
+#            }
 
     #
     # SQLite is generally typeless, but newer versions will
     # make a field autoincrement if it is declared as (and
     # *only* as) INTEGER PRIMARY KEY
     #
-    my $pk = $field->table->primary_key;
+    my $pk        = $field->table->primary_key;
     my @pk_fields = $pk ? $pk->fields : ();
 
-    if (   $field->is_primary_key
-        && scalar @pk_fields == 1
-        && ( $data_type =~ /int(eger)?$/i
-            || ( $data_type =~ /^number?$/i && $size !~ /,/ ) )
-        )
-    {
+    if ( 
+         $field->is_primary_key && 
+         scalar @pk_fields == 1 &&
+         (
+          $data_type =~ /int(eger)?$/i
+          ||
+          ( $data_type =~ /^number?$/i && $size !~ /,/ )
+          )
+         ) {
         $data_type = 'INTEGER PRIMARY KEY';
         $size      = undef;
-
-        #        $pk_set    = 1;
+#        $pk_set    = 1;
     }
 
-    $field_def .= sprintf " %s%s", $data_type,
-        ( !$field->is_auto_increment && $size ) ? "($size)" : '';
+    $field_def .= sprintf " %s%s", $data_type, 
+    ( !$field->is_auto_increment && $size ) ? "($size)" : '';
 
     # Null?
-    if ( !$field->is_primary_key ) {
-        $field_def .= ' NOT NULL' unless $field->is_nullable;
-    }
+    $field_def .= ' NOT NULL' unless $field->is_nullable;
 
-    # Default?  XXX Need better quoting!
-    my $default = $field->default_value;
-    if ( defined $default && !$field->is_primary_key ) {
-        if ( ref $default && $$default =~ /now/ ) {
-            $field_def .= ' DEFAULT CURRENT_TIMESTAMP';
-            return $field_def;
-        }
-        return $field_def if ref $default && $$default =~ /nextval/;
-        SQL::Translator::Producer->_apply_default_value(
-            \$field_def,
-            $default,
-            [   'NULL'              => \'NULL',
-                'now()'             => 'CURRENT_TIMESTAMP',
-                'CURRENT_TIMESTAMP' => 'CURRENT_TIMESTAMP',
-            ],
-        );
-    }
+    # Default?
+    SQL::Translator::Producer->_apply_default_value(
+        $field,
+        \$field_def,
+        [
+         'NULL'              => \'NULL',
+         'now()'             => 'now()',
+         'CURRENT_TIMESTAMP' => 'CURRENT_TIMESTAMP',
+        ],
+    );
 
     return $field_def;
 

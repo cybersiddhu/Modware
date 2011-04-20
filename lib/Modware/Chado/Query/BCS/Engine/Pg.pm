@@ -1,147 +1,44 @@
-package Modware::Publication::DictyBase;
+package Modware::Chado::Query::BCS::Engine::Pg;
+
+use strict;
+
 
 # Other modules:
-
-# Module implementation
-#
 use namespace::autoclean;
 use Moose;
-use Module::Load;
 use MooseX::ClassAttribute;
+extends 'Modware::Chado::Query::BCS::Engine';
 
-with 'Modware::Role::Adapter::BCS::Chado::Publication';
-
-## -- Data Role
-with 'Modware::Role::Publication::HasAuthors';
-with 'Modware::Role::Publication::HasGeneric';
-with 'Modware::Role::Publication::HasDictyBase';
+# Module implementation
 
 
+sub query {
+    my ( $class, $attrs, $clause ) = @_;
+    $clause = lc $clause;
 
-has '+type' => ( default => 'unpublished' );
-
-class_has 'query_class' => (
-    is      => 'rw',
-    isa     => 'Str',
-    default => 'Modware::Chado::Query::BCS::Publication::DictyBase'
-);
-
-class_has 'query' => (
-    default => sub {
-        my $name = __PACKAGE__->query_class;
-        load $name;
-        $name;
-    },
-    isa     => 'Str',
-    is      => 'rw',
-    lazy    => 1,
-    handles => [qw/find count search find_by_pubmed_id find_by_pub_id/]
-);
-
-sub citation {
-	my ($self) = @_;
-	my $author_count = $self->total_authors;
-    my $author_str = '';
-    if ( $author_count == 1 ) {
-        $author_str = $self->get_from_authors(0)->last_name;
+    my $where;
+    my $nested_where ;
+    for my $param ( keys %$attrs ) {
+        $where->{$param}
+            = $attrs->{$param} =~ /\%/
+            ? { 'ilike', $attrs->{$param} }
+            : $attrs->{$param};
     }
-    elsif ( $author_count == 2 ) {
-        $author_str = $self->get_from_authors(0)->last_name . ' & '
-            . $self->get_from_authors(1)->last_name;
-    }
-    elsif ( $author_count > 0 ) {
-        my $penultimate = $author_count - 2;
-        for my $i ( 0 .. $penultimate ) {
-            if ( $i == $penultimate ) {
-                $author_str
-                    .= $self->get_from_authors($i)->last_name . ' & ';
-                next;
-            }
-            $author_str
-                .= $self->get_from_authors($i)->last_name . ', ';
-        }
-        $author_str .= $self->get_from_authors(-1)->last_name;
-    }
-    my $str = $author_str . ' (' . $self->year . ')';
-    if ( $self->has_title ) {
-        $str .= " '" . $self->title . "' ";
-    }
+    $nested_where->{ '-' . $clause } = [%$where];
+    $nested_where;
 
-    if ( $self->has_abbreviation ) {
-        $str .= $self->abbreviation;
-    }
-
-    if ( $self->has_volume ) {
-        $str .= $self->volume;
-    }
-
-    if ( $self->has_pages ) {
-        my $pages = $self->pages;
-        $pages =~ s/\-\-/\-/;
-        $str .= ':' . $pages;
-    }
-    return $str;
 }
 
-sub formatted_citation {
-	my ($self) = @_;
-	my $author_count = $self->total_authors;
-    my $author_str = '';
-    if ( $author_count == 1 ) {
-        $author_str = $self->get_from_authors(0)->last_name;
-    }
-    elsif ( $author_count == 2 ) {
-        $author_str = $self->get_from_authors(0)->last_name . ' & '
-            . $self->get_from_authors(1)->last_name;
-    }
-    elsif ( $author_count > 0) {
-        my $penultimate = $author_count - 2;
-        for my $i ( 0 .. $penultimate ) {
-            if ( $i == $penultimate ) {
-                $author_str
-                    .= $self->get_from_authors($i)->last_name . ' & ';
-                next;
-            }
-            $author_str
-                .= $self->get_from_authors($i)->last_name . ', ';
-        }
-        $author_str .= $self->get_from_authors(-1)->last_name;
-    }
-    my $str = '<b>'. $author_str . ' (' . $self->year . ')</b>';
-    if ( $self->has_title ) {
-        $str .= " '" . $self->title . "' ";
-    }
+before 'query' => sub {
+    my ( $class, $attrs ) = @_;
+    $attrs->{$_} =~ s/\*/\%/g for keys %$attrs;
+    $class->get_query_hook($_)->($class) for $class->all_query_hooks;
+};
 
-    if ( $self->has_abbreviation ) {
-        $str .= ' <i>'.$self->abbreviation. '</i> ';
-    }
-
-    if ( $self->has_volume ) {
-        $str .= $self->volume;
-    }
-
-    if ( $self->has_pages ) {
-        my $pages = $self->pages;
-        $pages =~ s/\-\-/\-/;
-        $str .= ':' . $pages;
-    }
-    return $str;
-}
-
-sub short_citation {
-	my ($self) = @_;
-	my $str = '';
-	$str .= $self->get_from_authors(0)->last_name . ' et al.' if $self->has_authors;
-	$str .= ' (' . $self->year . ')' if $self->year;
-	$str .= ' , PMID:' . $self->pubmed_id . ' ' if $self->pubmed_id && $self->pubmed_id =~ m{^\d+$};
-    return $str;
-}
 
 __PACKAGE__->meta->make_immutable;
 
 1;    # Magic true value required at end of module
-
-# Magic true value required at end of module
 
 __END__
 
@@ -160,8 +57,7 @@ This document describes <MODULE NAME> version 0.0.1
 use <MODULE NAME>;
 
 =for author to fill in:
-Brief code example (
-            s) here showing commonest usage(s).
+Brief code example(s) here showing commonest usage(s).
 This section will be as far as many users bother reading
 so make it as educational and exeplary as possible.
 
@@ -170,7 +66,8 @@ so make it as educational and exeplary as possible.
 
 =for author to fill in:
 Write a full description of the module and its features here.
-Use subsections (=head2, =head3) as appropriate .
+Use subsections (=head2, =head3) as appropriate.
+
 
 =head1 INTERFACE 
 

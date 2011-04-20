@@ -66,7 +66,7 @@ my $build = Modware::Build->new(
         profile        => { type    => ':s' },
         superuser      => { type    => ':s' },
         superpassword  => { type    => ':s' },
-        loader         => { type    => ':s', default => 'preset' },
+        loader         => { type    => ':s' },
         name           => { type    => ':s', default => 'custom' },
         profile        => { type    => ':s', default => 'fallback' },
         load_fixture   => { type    => '!', default => 1 },
@@ -77,7 +77,7 @@ my $build = Modware::Build->new(
         db_config      => { default => $db_config, type => ':s' },
         file_config    => { default => $file_config, type => ':s' },
         fixture_config => { default => $fixture_config, type => ':s' },
-        preset         => { default => 1, type => '!' },
+        preset         => { type    => '!' },
         append_path => {
             default => catfile( 't', 'data', 'preset' ),
             type    => ':s'
@@ -95,6 +95,10 @@ $build->args( 'preset_file',
     catdir( $build->base_dir, 't', 'data', 'preset.tar.gz' ) );
 $build->args( 'tmp_dir', catdir( 't', 'tmp' ) );
 $build->args( 'config' => 'custom' );
+if ( !$build->args('loader') ) {
+    $build->args( 'loader' => 'preset' );
+    $build->args( 'preset' => 1 );
+}
 $build->create_build_script;
 
 1;

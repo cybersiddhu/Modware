@@ -146,7 +146,7 @@ class_has 'query_engine' => (
     default => sub {
         my $chado    = __PACKAGE__->chado;
         my $sql_type = ucfirst lc( $chado->storage->sqlt_type );
-        $sql_type = $sql_type eq 'Oracle' ? $sql_type : 'Generic';
+        $sql_type = 'Generic' if $sql_type !~ /Oracle|Pg/;
         my $engine = 'Modware::Chado::Query::BCS::Engine::' . $sql_type;
         load $engine;
         $engine;

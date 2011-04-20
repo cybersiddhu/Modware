@@ -1,21 +1,22 @@
 package Test::Chado::Role::Handler::Pg;
 
-use version; our $VERSION = qv('1.0.0');
-
 # Other modules:
+use namespace::autoclean;
 use Moose::Role;
+use Try::Tiny;
+use Path::Class;
+use DBI;
+use Carp;
 
 # Module implementation
 #
 
 requires 'driver';
-requires 'connection_info';
 requires 'dsn';
 requires 'superuser';
-requires 'superpass';
+requires 'superpassword';
 requires 'user';
 requires 'password';
-requires 'database';
 
 after 'driver_dsn' => sub {
     my ( $self, $value ) = @_;
@@ -25,47 +26,163 @@ after 'driver_dsn' => sub {
 };
 
 sub create_db {
-    my ($self)   = @_;
+    my ($self) = @_;
+    return 1;
     my $user     = $self->superuser;
     my $password = $self->superpass;
-    my $dbname = $self->database;
+    my $dbname   = $self->database;
     try {
-        $self->super_dbh->do("CREATE DATABASE $dbname"); 
-	}
-	catch {
-		confess "cannot create database $dbname\n";
-	};
+        $self->super_dbh->do("CREATE DATABASE $dbname");
+    }
+    catch {
+        confess "cannot create database $dbname\n";
+    };
 }
 
 sub drop_db {
-	my ($self) = @_;
-	my $dbname = $self->database;
-	try {
-        $self->super_dbh->do("DROP DATABASE $dbname"); 
-	}
-	catch {
-		confess "cannot delete database $dbname\n";
-	};
+    my ($self) = @_;
+    $self->drop_schema;
 }
 
 has 'dbh' => (
     is      => 'ro',
-    isa     => 'DBI',
+    isa     => 'DBI::db',
     default => sub {
-        DBI->connect( $self->connection_info ) or confess $DBI::errstr;
+        my ($self) = @_;
+        my $dbh = DBI->connect( $self->connection_info )
+            or confess $DBI::errstr;
+        $dbh->do(qq{SET client_min_messages=WARNING});
+        return $dbh;
     }
+);
+
+has 'dbh_nocommit' => (
+    is      => 'ro',
+    isa     => 'DBI::db',
+    default => sub {
+        my ($self) = @_;
+        my $dbh
+            = DBI->connect( $self->dsn, $self->user, $self->password,
+            { AutoCommit => 0 } )
+            or confess $DBI::errstr;
+
+        $dbh->do(qq{SET client_min_messages=WARNING});
+        return $dbh;
+    }
+);
+
+has 'attr_hash' => (
+    is      => 'rw',
+    isa     => 'HashRef',
+    traits  => ['Hash'],
+    default => sub { { AutoCommit => 1, RaiseError => 1 } },
+    handles => { add_dbh_attribute => 'set' }
 );
 
 has 'super_dbh' => (
     is      => 'ro',
-    isa     => 'DBI',
+    isa     => 'DBI::db',
     default => sub {
-        DBI->connect( $self->dsn, $self->superuser, $self->superpass )
+        my ($self) = @_;
+        my $dbh
+            = DBI->connect( $self->dsn, $self->superuser,
+            $self->superpassword )
             or confess $DBI::errstr;
+
+        $dbh->do(qq{SET client_min_messages=WARNING});
+        return $dbh;
     }
 );
 
+has 'connection_info' => (
+    is         => 'ro',
+    isa        => 'ArrayRef',
+    lazy       => 1,
+    auto_deref => 1,
+    default    => sub {
+        my ($self) = @_;
+        [ $self->dsn, $self->user, $self->password, $self->attr_hash ];
+    }
+);
 
+sub deploy_schema {
+    my ($self) = @_;
+    my $schema = $self->schema;
+    my $allowed_sources = [ grep { !/Composite/i } $schema->sources ];
+    $schema->deploy( { parser_args => { sources => $allowed_sources } } );
+}
+
+sub prune_fixture {
+    my ($self) = @_;
+    my $dbh = $self->super_dbh;
+
+    my $tsth = $dbh->prepare(qq{ select table_name FROM user_tables });
+    $tsth->execute() or croak $tsth->errstr();
+    while ( my ($table) = $tsth->fetchrow_array() ) {
+        try { $dbh->do(qq{ TRUNCATE TABLE $table CASCADE }) }
+        catch {
+            $dbh->rollback();
+            croak "$_\n";
+        };
+    }
+    $dbh->commit;
+}
+
+sub drop_schema {
+    my ($self) = @_;
+    my $dbh    = $self->dbh_nocommit;
+    my $tsth   = $dbh->prepare(
+        "SELECT relname FROM pg_class WHERE relnamespace IN
+          (SELECT oid FROM pg_namespace WHERE nspname='public')
+          AND relkind='r';"
+    );
+
+    my $vsth = $dbh->prepare(
+        "SELECT viewname FROM pg_views WHERE schemaname NOT IN ('pg_catalog',
+			 'information_schema') AND viewname !~ '^pg_'"
+    );
+
+    my $seqth = $dbh->prepare(
+        "SELECT relname FROM pg_class WHERE relkind = 'S' AND relnamespace IN ( SELECT oid FROM
+	 pg_namespace WHERE nspname NOT LIKE 'pg_%' AND nspname != 'information_schema')"
+    );
+
+    $tsth->execute or croak $tsth->errstr;
+    while ( my ($table) = $tsth->fetchrow_array ) {
+        try {
+            $dbh->do(qq{ drop table $table cascade });
+            $dbh->commit;
+        }
+        catch {
+            $dbh->rollback();
+            croak "$_";
+        };
+    }
+
+    my $seqs = join( ",",
+        map { $_->{relname} }
+            @{ $dbh->selectall_arrayref( $seqth, { Slice => {} } ) } );
+
+    if ($seqs) {
+        try { $dbh->do(qq{ drop sequence if exists $seqs }); $dbh->commit; }
+        catch {
+            $dbh->rollback();
+            croak "$_\n";
+        };
+    }
+
+    my $views = join( ",",
+        map { $_->{viewname} }
+            @{ $dbh->selectall_arrayref( $vsth, { Slice => {} } ) } );
+
+    if ($views) {
+        try { $dbh->do(qq{ drop view if exists $views }); $dbh->commit; };
+        catch {
+            $dbh->rollback();
+            croak "$_\n";
+        };
+    }
+}
 
 1;    # Magic true value required at end of module
 
