@@ -56,9 +56,15 @@ is( $db2->dbxrefs->size, 3,
     'Associated object is also saved in the database' );
 
 my $dbxref3 = $db2->dbxrefs->create( accession => 'NP_4394839' );
-is( $dbxref3->new_record, 1,
+isnt( $dbxref3->new_record, 1,
     'Associated object is saved with create method' );
 is( $db2->dbxrefs->size, 4, 'Parent object confirms the added association' );
+
+## -- deleting related object
+lives_ok{ $db2->dbxrefs->delete($dbxref3)} 'It deletes one associated object';
+is($db2->dbxrefs->size,  3,  'It has one less associated object');
+lives_ok{ $db2->dbxrefs->delete} 'It deletes all associated objects';
+is($db2->dbxrefs->size,  0,  'It has no associated object');
 
 END {
     $db2->dbrow->delete;
