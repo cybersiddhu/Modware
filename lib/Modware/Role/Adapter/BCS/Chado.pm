@@ -316,8 +316,8 @@ sub _insert_multi_dbxrefs {
 sub insert {
     my ( $self, %arg ) = @_;
 
-    croak "cannot create a new object which already exist in the database\n"
-        if $self->has_dbrow;
+    croak "object already exist in the database\n"
+        if !$self->new_record;
 
     ## -- check for attribute probably will go through require pragma once moose support
     ## -- validation through stack roles
@@ -386,7 +386,7 @@ sub new_record {
 
 sub update {
     my ($self) = @_;
-    croak "cannot update a non-persistent object\n" if $self->new_record;
+    croak "cannot update a unsaved object\n" if $self->new_record;
 
 BELONGS_TO:
     for my $fkey ( $self->_all_belongs_to ) {
@@ -414,6 +414,21 @@ BELONGS_TO:
 
     $self->dbrow($dbrow);
     return 1;
+}
+
+sub delete {
+	my ($self) = @_;
+	croak "cannot delete a non existant object\n" if $self->new_record;
+	$self->chado->txn_do( sub { $self->dbrow->delete });
+
+	## -- cleanup the internal state
+    $self->_clear_belongs_to;
+    $self->_clear_mapper;
+    $self->_clear_insert_stash;
+    $self->_clear_has_many;
+    $self->_clear_exist_has_many;
+    $self->_clear_dbrow;
+	return 1;
 }
 
 sub _handle_has_many {
