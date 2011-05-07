@@ -52,11 +52,11 @@ my $dbxref2
 isa_ok( $dbxref2, 'Modware::Chado::Dbxref' );
 is( $dbxref2->new_record, 1, 'Associated object is not saved yet' );
 lives_ok { $db2->save } 'It updates with another associated object';
-is( $dbxref2->dbxrefs->size, 3,
+is( $db2->dbxrefs->size, 3,
     'Associated object is also saved in the database' );
 
 my $dbxref3 = $db2->dbxrefs->create( accession => 'NP_4394839' );
-isnt( $dbxref3->new_record, 1,
+is( $dbxref3->new_record, 1,
     'Associated object is saved with create method' );
 is( $db2->dbxrefs->size, 4, 'Parent object confirms the added association' );
 
