@@ -6,13 +6,14 @@ use namespace::autoclean;
 use Moose;
 use MooseX::Params::Validate;
 use Carp;
+use Modware::Types qw/ResultSet/;
 
 # Module implementation
 #
 
 has collection => (
     is        => 'rw',
-    isa       => 'DBIx::Class::Resultset',
+    isa       => ResultSet,
     predicate => 'has_collection'
 );
 
@@ -60,11 +61,12 @@ sub create {
     croak "need arguments to add new ", $self->_data_access_class, "\n"
         if scalar keys %arg == 0;
 
-    my $pk_col     = $self->meta->pk_column;
+	my $parent = $self->_parent_class;
+    my $pk_col     = $parent->meta->pk_column;
     my $data_class = $self->_data_access_class;
     Class::MOP::load_class($data_class);
     my $data_obj = $data_class->new(%arg);
-    $data_obj->_add_to_mapper( $pk_col, $self->dbrow->$pk_col );
+    $data_obj->_add_to_mapper( $pk_col, $parent->dbrow->$pk_col );
     $data_obj->save;
     return $data_obj;
 }
