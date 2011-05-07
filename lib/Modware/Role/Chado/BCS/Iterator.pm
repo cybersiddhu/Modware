@@ -24,7 +24,7 @@ sub next {
     my ($self) = @_;
     if ( my $next = $self->collection->next ) {
         Class::MOP::load_class( $self->_data_access_class );
-        return $self->data_access_class->new( dbrow => $next );
+        return $self->_data_access_class->new( dbrow => $next );
     }
 
 }
