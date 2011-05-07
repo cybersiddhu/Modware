@@ -3,7 +3,7 @@ package  Modware::Types;
 # Other modules:
 use MooseX::Types -declare => [
     qw/CleanStr UnCleanStr ColumnMap Toggler URI UpdateStash PubYear PubDate PubDateStr
-        PubDateHalfStr/
+        PubDateHalfStr ResultSet/
 ];
 use MooseX::Types::Moose qw/Int Str Any Object Bool HashRef ArrayRef Maybe/;
 use Regexp::Common qw/URI/;
@@ -58,6 +58,8 @@ coerce PubYear, from PubDateHalfStr, via {
     DateTime::Format::Strptime->new( pattern => '%Y-%b' )->parse_datetime($_)
         ->year;
 };
+
+class_type ResultSet,  { class => 'DBIx::Class::ResultSet'};
 
 
 1;    # Magic true value required at end of module
