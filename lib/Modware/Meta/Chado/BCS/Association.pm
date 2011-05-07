@@ -176,19 +176,19 @@ sub add_has_many {
                 {    ## --related will be saved with parent
                     $self->_add_has_many($obj);
                 }
-                else {    ## -- related is saved with foreign key
+                else {    ## -- related is saved with foreign key from parent
                     $obj->_add_to_mapper( $pk_column,
                         $self->dbrow->$pk_column );
                     $obj->save;
                 }
             }
             else {        ## -- existing related record
-                ## --- related will be saved with parent
+                ## --- after the parent is saved related is updated with the foreign key 
                 if ( $self->new_record ) {
                     $self->_add_exist_has_many($obj);
                 }
                 else {
-                    ## --- related is saved with foreign key
+                    ## --- related is updated with foreign key from parent
                     $obj->_add_to_mapper( $pk_column,
                         $self->dbrow->$pk_column );
                     $obj->save;
@@ -197,7 +197,8 @@ sub add_has_many {
             return 1;
         }
         else
-        { ## -- it's a get call and a related object is return only from a persistent
+        { ## -- it's a get call and a related object is return only from an existing
+          ## -- parent
             Class::MOP::load_class('Modware::Chado::BCS::Relation');
             my $rel_obj;
             ## -- parent object
