@@ -67,14 +67,13 @@ sub create {
     Class::MOP::load_class($data_class);
     my $data_obj = $data_class->new(%arg);
     $data_obj->_add_to_mapper( $pk_col, $parent->dbrow->$pk_col );
-    $data_obj->save;
-    return $data_obj;
+    return $data_obj->save;
 }
 
 sub delete {
     my $self = shift;
     my ($obj)
-        = pos_validated_list( @_,
+        = pos_validated_list( \@_,
         { isa => $self->_data_access_class, optional => 1 } );
 
 	if ($obj) {
