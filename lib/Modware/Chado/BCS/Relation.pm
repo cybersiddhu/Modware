@@ -79,11 +79,8 @@ sub delete {
 		$obj->delete;
 		return 1;
 	}
-
-    my $data_class = $self->_data_access_class;
-    Class::MOP::load_class($data_class);
-	while(my $row = $self->collection->next) {
-		$data_class->new(dbrow => $row)->delete;
+	while(my $obj = $self->next) {
+		$obj->delete;
 	}
 	return 1;
 }
