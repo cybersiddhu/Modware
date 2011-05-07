@@ -23,8 +23,9 @@ has '_data_access_class' => (
 );
 
 has '_parent_class' => (
-    is   => 'rw',
-    does => 'Modware::Role::Adapter::BCS::Chado'
+    is        => 'rw',
+    does      => 'Modware::Role::Adapter::BCS::Chado',
+    predicate => 'has_parent_class'
 );
 
 sub size {
@@ -33,11 +34,11 @@ sub size {
 }
 
 sub empty {
-	my ($self) = @_;
+    my ($self) = @_;
     return $self->has_collection ? 0 : 1;
 }
 
-before [qw/add_new create/] => sub {
+before [qw/add_new create delete/] => sub {
     my ($self) = @_;
     croak "parent object is not saved yet: cannot work with related object\n"
         if !$self->has_collection;
@@ -66,6 +67,25 @@ sub create {
     $data_obj->_add_to_mapper( $pk_col, $self->dbrow->$pk_col );
     $data_obj->save;
     return $data_obj;
+}
+
+sub delete {
+    my $self = shift;
+    my ($obj)
+        = pos_validated_list( @_,
+        { isa => $self->_data_access_class, optional => 1 } );
+
+	if ($obj) {
+		$obj->delete;
+		return 1;
+	}
+
+    my $data_class = $self->_data_access_class;
+    Class::MOP::load_class($data_class);
+	while(my $row = $self->collection->next) {
+		$data_class->new(dbrow => $row)->delete;
+	}
+	return 1;
 }
 
 with 'Modware::Role::Chado::BCS::Iterator';
