@@ -28,18 +28,18 @@ has 'bcs_resultset' => (
 );
 
 has 'bcs_source' => (
-    is  => 'rw',
-    isa => 'DBIx::Class::ResultSource', 
+    is      => 'rw',
+    isa     => 'DBIx::Class::ResultSource',
     trigger => sub {
-    	my ($self,  $source) = @_;
-    	my ($col) = $source->primary_columns;
-    	$self->pk_column($col);
+        my ( $self, $source ) = @_;
+        my ($col) = $source->primary_columns;
+        $self->pk_column($col);
     }
 );
 
 has 'pk_column' => (
-	is => 'rw', 
-	isa => 'Str', 
+    is  => 'rw',
+    isa => 'Str',
 );
 
 has '_attr_stack' => (
@@ -50,6 +50,19 @@ has '_attr_stack' => (
     handles => {
         '_track_attr'    => 'push',
         '_tracked_attrs' => 'elements'
+    }
+);
+
+has '_method_map' => (
+    is      => 'rw',
+    isa     => 'HashRef',
+    traits  => [qw/Hash/],
+    default => sub { {} },
+    lazy    => 1,
+    handles => {
+        '_method2class'         => 'get',
+        '_add_method2class'     => 'set',
+        '_clear_method2classes' => 'clear'
     }
 );
 
@@ -239,17 +252,18 @@ sub add_chado_dbxref {
 
         my $chado = $self->chado;
 
-		## -- in case the attribute is getting updated
+        ## -- in case the attribute is getting updated
         if ( defined $old_value and ( $old_value ne $value ) ) {
             my $row = $chado->resultset('General::Dbxref')
                 ->find( { accession => $old_value } );
-			if ($row) {
-				## -- add the new value
-				$row->accession($value);
-				## -- add to the parent object
-				$self->$rel_name(Modware::Chado::Dbxref->new(dbrow => $row));				
-				return;
-			}
+            if ($row) {
+                ## -- add the new value
+                $row->accession($value);
+                ## -- add to the parent object
+                $self->$rel_name(
+                    Modware::Chado::Dbxref->new( dbrow => $row ) );
+                return;
+            }
         }
 
         my $dbxref = Modware::Chado::Dbxref->new( accession => $value );
@@ -260,8 +274,8 @@ sub add_chado_dbxref {
             ->find( { name => $options{db} } );
         my $db
             = $dbrow
-            ? Modware::Chado::Db->new( dbrow  => $dbrow )
-            : Modware::Chado::Db->new( name => $options{db} );
+            ? Modware::Chado::Db->new( dbrow => $dbrow )
+            : Modware::Chado::Db->new( name  => $options{db} );
         $dbxref->db($db);
         $self->$rel_name($dbxref);
     };
