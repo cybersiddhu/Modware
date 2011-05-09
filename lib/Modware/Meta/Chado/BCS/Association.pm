@@ -25,6 +25,7 @@ sub add_belongs_to {
     if ( !$related_class ) {
         $related_class = $meta->base_namespace . '::' . ucfirst( lc $name );
     }
+    $meta->_add_method2class( $name, $related_class );
     Class::MOP::load_class($related_class);
     my $related_source = $related_class->new->meta->bcs_source->source_name;
 
@@ -145,6 +146,8 @@ sub add_has_many {
     if ( !$related_class ) {
         $related_class = $meta->base_namespace . '::' . ucfirst( lc $name );
     }
+    $meta->_add_method2class( $name, $related_class );
+
     Class::MOP::load_class($related_class);
     my $related_source = $related_class->new->meta->bcs_source->source_name;
 
@@ -183,7 +186,7 @@ sub add_has_many {
                 }
             }
             else {        ## -- existing related record
-                ## --- after the parent is saved related is updated with the foreign key 
+                ## --- after the parent is saved related is updated with the foreign key
                 if ( $self->new_record ) {
                     $self->_add_exist_has_many($obj);
                 }
@@ -198,7 +201,7 @@ sub add_has_many {
         }
         else
         { ## -- it's a get call and a related object is return only from an existing
-          ## -- parent
+            ## -- parent
             Class::MOP::load_class('Modware::Chado::BCS::Relation');
             my $rel_obj;
             ## -- parent object
@@ -231,6 +234,94 @@ sub add_has_many {
             package_name => $meta->name
         )
     );
+}
+
+sub add_many_to_many {
+    my ( $meta, $name, %options ) = @_;
+
+    my ($has_many_method) = keys %{ $options{through} };
+    croak
+        "$has_many_method is not mapped to any class: * many_to_many method cannot be installed\n"
+        if !$meta->_has_method2class($has_many_method);
+
+    my $has_many_class = $meta->_method2class($has_many_method);
+    Class::MOP::load_class($has_many_class);
+    my $belongs_to_method = $options{through}->{$has_many_method};
+    croak "$link_class do not have any method $belongs_to_method defined\n"
+        croak
+        "$belongs_to_method is not mapped to any class: * many_to_many method cannot be installed\n"
+        if !$link_class->meta->_has_method2class($belongs_to_method);
+    $belongs_to_class = $link_class->meta->_method2class($belongs_to_method);
+    Class::MOP::load_class($belongs_to_class);
+
+    my $pk_column    = $meta->pk_column;
+    my $bt_pk_column = $belongs_to_class->meta->pk_column;
+
+    my $code = sub {
+        my $self = shift;
+        my ($obj)
+            = pos_validated_list( \@_,
+            { isa => $belongs_to_class, optional => 1 } );
+
+        # -- set call
+        if ( defined $obj ) {
+            if ( $obj->new_record ) {    ## -- new related record
+                if ( $self->new_record )
+                {    ## --related will be saved with parent
+                    $self->_add_many_to_many($obj);
+                }
+                else {    ## -- related is saved with foreign key from parent
+                    my $new_hm_class = $has_many_class->new;
+                    $new_hm_class->_add_to_mapper( $pk_column,
+                        $self->dbrow->$pk_column );
+                    $new_hm_class->add_to_mapper( $bt_pk_column,
+                        $obj->save->dbrow->$bt_pk_column );
+                    $new_hm_class->save;
+                }
+            }
+            else {        ## -- existing related record
+                ## --- after the parent is saved related is updated with the foreign key
+                if ( $self->new_record ) {
+                    $self->_add_exist_many_to_many($obj);
+                }
+                else {
+                    ## --- related is linked
+					my $new_hm_class = $has_many_class->new;
+                    $new_hm_class->_add_to_mapper( $pk_column,
+                        $self->dbrow->$pk_column );
+                    $new_hm_class->add_to_mapper( $bt_pk_column,
+                        $obj->dbrow->$bt_pk_column );
+                    $new_hm_class->save;
+                }
+            }
+            return 1;
+        }
+        else
+        { ## -- it's a get call and a related object is return only from an existing
+            ## -- parent
+            Class::MOP::load_class('Modware::Chado::BCS::Relation');
+            my $rel_obj;
+            ## -- parent object
+            if ( $self->new_record ) {
+                $rel_obj = Modware::Chado::BCS::Relation->new;
+            }
+            else {
+                if ( wantarray() ) {
+                    return
+                        map { $_->$belongs_to_method }
+                        $self->$has_many_method;
+                }
+                my $method = $bcs_accs . '_rs';
+                $rel_obj = Modware::Chado::BCS::Relation->new(
+                    collection           => $dbrow->$method,
+                    '_data_access_class' => $related_class,
+                    '_parent_class'      => $self
+                );
+            }
+            return $rel_obj;
+        }
+    };
+
 }
 
 1;    # Magic true value required at end of module

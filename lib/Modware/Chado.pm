@@ -28,6 +28,16 @@ sub chado_has_many {
     $meta->add_has_many( $name, %options );
 }
 
+sub chado_has_many {
+    my ( $meta, $name, %options ) = @_;
+    croak
+        "use the * through => { from => to } * parameter to pass map through linking model class\n"
+        if scalar keys %options == 0;
+    croak "* through => {from => to } * parameter is neccessary\n"
+        if not defined $options{through};
+    $meta->add_many_to_many( $name, %options );
+}
+
 sub chado_property {
     my ( $meta, $name, %options ) = @_;
     $meta->add_chado_prop( $name, %options );
@@ -65,13 +75,14 @@ Moose::Exporter->setup_import_methods(
         'chado_property',         'chado_dbxref',
         'chado_type',             'chado_multi_properties',
         'chado_secondary_dbxref', 'chado_multi_dbxrefs',
-        'chado_belongs_to',  'chado_has_many'
+        'chado_belongs_to',       'chado_has_many',
+        'chado_many_to_many'
     ],
 );
 
 sub init_meta {
     my ( $pkg, %arg ) = @_;
-    Moose->init_meta(%arg,  base_class => 'Modware::Chado::Create::BCS');
+    Moose->init_meta( %arg, base_class => 'Modware::Chado::Create::BCS' );
 
     Moose::Util::MetaRole::apply_metaroles(
         for             => $arg{for_class},

@@ -62,7 +62,8 @@ has '_method_map' => (
     handles => {
         '_method2class'         => 'get',
         '_add_method2class'     => 'set',
-        '_clear_method2classes' => 'clear'
+        '_clear_method2classes' => 'clear',
+        '_has_method2class'     => 'defined'
     }
 );
 

@@ -68,6 +68,30 @@ has '_existing_has_many' => (
     }
 );
 
+has '_many_to_many' => (
+    is      => 'rw',
+    isa     => 'ArrayRef',
+    traits  => [qw/Array/],
+    default => sub { [] },
+    handles => {
+        '_add_many_to_many'   => 'push',
+        '_all_many_to_many'   => 'elements',
+        '_clear_many_to_many' => 'clear',
+    }
+);
+
+has '_existing_many_to_many' => (
+    is      => 'rw',
+    isa     => 'ArrayRef',
+    traits  => [qw/Array/],
+    default => sub { [] },
+    handles => {
+        '_add_exist_many_to_many'   => 'push',
+        '_all_exist_many_to_many'   => 'elements',
+        '_clear_exist_many_to_many' => 'clear',
+    }
+);
+
 has '_read_hooks' => (
     is      => 'rw',
     isa     => 'HashRef[CodeRef]',
