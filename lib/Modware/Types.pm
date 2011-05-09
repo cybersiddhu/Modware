@@ -60,6 +60,7 @@ coerce PubYear, from PubDateHalfStr, via {
 };
 
 class_type Schema, { class => 'Bio::Chado::Schema' };
+class_type Row, { class => 'DBIx::Class::Row' };
 
 1;    # Magic true value required at end of module
 
