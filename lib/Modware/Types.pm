@@ -3,7 +3,7 @@ package  Modware::Types;
 # Other modules:
 use MooseX::Types -declare => [
     qw/CleanStr UnCleanStr ColumnMap Toggler URI UpdateStash PubYear PubDate PubDateStr
-        PubDateHalfStr/
+        PubDateHalfStr Schema/
 ];
 use MooseX::Types::Moose qw/Int Str Any Object Bool HashRef ArrayRef Maybe/;
 use Regexp::Common qw/URI/;
@@ -59,6 +59,7 @@ coerce PubYear, from PubDateHalfStr, via {
         ->year;
 };
 
+class_type Schema, { class => 'Bio::Chado::Schema' };
 
 1;    # Magic true value required at end of module
 
