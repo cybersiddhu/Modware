@@ -2,6 +2,7 @@ package Modware::Role::DataSource::Chado::BCS::Engine;
 
 # Other modules:
 use namespace::autoclean;
+use Modware::Types qw/Schema/;
 use Moose::Role;
 
 # Module implementation
@@ -10,7 +11,7 @@ use Moose::Role;
 requires 'transform';
 has 'schema' => (
 	is => 'rw', 
-	isa => 'Bio::Chado::Schema'
+	isa => Schema
 );
 
 1;    # Magic true value required at end of module
