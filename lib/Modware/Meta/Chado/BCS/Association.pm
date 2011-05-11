@@ -49,10 +49,6 @@ sub add_belongs_to {
 
         # -- set call
         if ( defined $obj ) {
-            ## -- here the parent object assumes the related object do not exist in the
-            ## -- database level. If a new instance of existing related object gets added
-            ## -- again,  the parent object's create/update method will be blocked at the
-            ## -- database level(existing foreign key error).
             if ( $obj->new_record ) {    ## -- new related record
                 ## -- new parent object: related object will be saved by insert
                 ## -- existing parent object: related object will be saved by update
@@ -169,11 +165,6 @@ sub add_has_many {
 
         # -- set call
         if ( defined $obj ) {
-            ## -- here the parent object assumes the related object do not exist in the
-            ## -- database level. If a new instance of existing related object gets added
-            ## -- again,  the parent object's create/update method will be blocked at the
-            ## -- database level(existing foreign key error).
-
             if ( $obj->new_record ) {    ## -- new related record
                 if ( $self->new_record )
                 {    ## --related will be saved with parent
@@ -202,11 +193,11 @@ sub add_has_many {
         else
         { ## -- it's a get call and a related object is return only from an existing
             ## -- parent
-            Class::MOP::load_class('Modware::Chado::BCS::Relation');
+            Class::MOP::load_class('Modware::Chado::BCS::Relation::HasMany');
             my $rel_obj;
             ## -- parent object
             if ( $self->new_record ) {
-                $rel_obj = Modware::Chado::BCS::Relation->new;
+                $rel_obj = Modware::Chado::BCS::Relation::HasMany->new;
             }
             else {
                 my $dbrow = $self->dbrow;
@@ -216,7 +207,7 @@ sub add_has_many {
                         $dbrow->$bcs_accs;
                 }
                 my $method = $bcs_accs . '_rs';
-                $rel_obj = Modware::Chado::BCS::Relation->new(
+                $rel_obj = Modware::Chado::BCS::Relation::HasMany->new(
                     collection           => $dbrow->$method,
                     '_data_access_class' => $related_class,
                     '_parent_class'      => $self
@@ -261,7 +252,7 @@ sub add_many_to_many {
     Class::MOP::load_class($bt_class);
 
     my $pk_column    = $meta->pk_column;
-    my $bt_pk_column = $bt_class->meta->pk_column;
+    my $bt_column = $bt_class->meta->pk_column;
 
     my $bcs_source = $meta->bcs_source;
     my $hm_source  = $hm_class->meta->bcs_source->source_name;
@@ -282,53 +273,57 @@ sub add_many_to_many {
 
         # -- set call
         if ( defined $obj ) {
-            if ( $obj->new_record ) {    ## -- new related record
+            if ( $obj->new_record ) {## -- new related record
                 if ( $self->new_record )
-                {    ## --related will be saved with parent
-                    $self->_add_many_to_many($obj);
+                {    ## -- parent,  link and related will be saved
+                    my $new_obj = $hm_class->new;
+                    $new_obj->_add_belongs_to( $bt_column, $obj );
+                    $self->_add_has_many($new_obj);
                 }
-                else {    ## -- related is saved with foreign key from parent
+                else {## -- link and related is saved with appropiate foreign keys
                     my $new_obj = $hm_class->new;
                     $new_obj->_add_to_mapper( $pk_column,
                         $self->dbrow->$pk_column );
-                    $new_obj->add_to_mapper( $bt_pk_column,
-                        $obj->save->dbrow->$bt_pk_column );
+                    $new_obj->_add_to_mapper( $bt_column,
+                        $obj->save->dbrow->$bt_column );
                     $new_obj->save;
                 }
             }
-            else {        ## -- existing related record
-                ## --- after the parent is saved related is updated with the foreign key
-                if ( $self->new_record ) {
-                    $self->_add_exist_many_to_many($obj);
+            else { ## -- existing related record
+                if ( $self->new_record ) { ## -- new parent and link classes will be saved
+                	my $new_obj = $hm_class->new;
+                	$new_obj->_add_to_mapper($bt_column,  $obj->dbrow->$bt_column);
+                    $self->_add_has_many($new_obj);
                 }
-                else {
-                    ## --- related is linked
+                else { ## -- new link class is saved
                     my $new_obj = $hm_class->new;
                     $new_obj->_add_to_mapper( $pk_column,
                         $self->dbrow->$pk_column );
-                    $new_obj->add_to_mapper( $bt_pk_column,
-                        $obj->dbrow->$bt_pk_column );
+                    $new_obj->add_to_mapper( $bt_column,
+                        $obj->dbrow->$bt_column );
                     $new_obj->save;
                 }
             }
             return 1;
         }
         else {
-            Class::MOP::load_class('Modware::Chado::BCS::Relation');
+            Class::MOP::load_class(
+                'Modware::Chado::BCS::Relation::Many2Many');
             my $rel_obj;
             if ( $self->new_record ) {    ## -- empty relation
-                $rel_obj = Modware::Chado::BCS::Relation->new;
+                $rel_obj = Modware::Chado::BCS::Relation::Many2Many->new;
             }
             else {    # -- list or iterator based on context
                 if ( wantarray() ) {
                     return map { $_->$bt_method } $self->$has_many_method;
                 }
                 my $method = $bcs_accs . '_rs';
-                $rel_obj = Modware::Chado::BCS::Relation->new(
+                $rel_obj = Modware::Chado::BCS::Relation::Many2Many->new(
                     collection => $self->dbrow->search_related( $hm_bcs, {} )
                         ->search_related( $bt_bcs, {} ),
-                    '_data_access_class' => $bt_class,
-                    '_parent_class'      => $self
+                    '_associated_class' => $bt_class,
+                    '_link_class'       => $hm_class,
+                    '_parent_class'     => $self
                 );
             }
             return $rel_obj;
