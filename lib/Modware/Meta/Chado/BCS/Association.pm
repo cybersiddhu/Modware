@@ -239,11 +239,11 @@ sub add_has_many {
 sub add_many_to_many {
     my ( $meta, $name, %options ) = @_;
 
-	## -- the logic below is to set up
-	# - has_many and belongs_to methods
-	# - model classes through has_many and belongs_to relations
-	# - primary keys for model class(link class through has_many relations)  
-	# - bcs accessors for has_many and belongs_to relations
+    ## -- the logic below is to set up
+    # - has_many and belongs_to methods
+    # - model classes through has_many and belongs_to relations
+    # - primary keys for model class(link class through has_many relations)
+    # - bcs accessors for has_many and belongs_to relations
 
     my ($has_many_method) = keys %{ $options{through} };
     croak
@@ -253,8 +253,7 @@ sub add_many_to_many {
     my $hm_class = $meta->_method2class($has_many_method);
     Class::MOP::load_class($hm_class);
     my $bt_method = $options{through}->{$has_many_method};
-    croak "$link_class do not have any method $bt_method defined\n"
-        croak
+    croak "$link_class do not have any method $bt_method defined\n" croak
         "$bt_method is not mapped to any class:  many_to_many method cannot be installed\n"
         if !$link_class->meta->_has_method2class($bt_method);
 
@@ -264,11 +263,22 @@ sub add_many_to_many {
     my $pk_column    = $meta->pk_column;
     my $bt_pk_column = $bt_class->meta->pk_column;
 
+    my $bcs_source = $meta->bcs_source;
+    my $hm_source  = $hm_class->meta->bcs_source->source_name;
+    my $hm_bcs     = first {
+        $hm_source eq $bcs_source->related_source($_)->source_name;
+    }
+    $bcs_source->relationships;
+
+    my $bt_source = $bt_class->meta->bcs_source->source_name;
+    my $bt_bcs    = first {
+        $bt_source = $hm_source->related_source($_)->source_name;
+    }
+
     my $code = sub {
         my $self = shift;
         my ($obj)
-            = pos_validated_list( \@_,
-            { isa => $bt_class, optional => 1 } );
+            = pos_validated_list( \@_, { isa => $bt_class, optional => 1 } );
 
         # -- set call
         if ( defined $obj ) {
@@ -293,7 +303,7 @@ sub add_many_to_many {
                 }
                 else {
                     ## --- related is linked
-					my $new_obj = $hm_class->new;
+                    my $new_obj = $hm_class->new;
                     $new_obj->_add_to_mapper( $pk_column,
                         $self->dbrow->$pk_column );
                     $new_obj->add_to_mapper( $bt_pk_column,
@@ -303,23 +313,21 @@ sub add_many_to_many {
             }
             return 1;
         }
-        else
-        { 
+        else {
             Class::MOP::load_class('Modware::Chado::BCS::Relation');
             my $rel_obj;
-            if ( $self->new_record ) { ## -- empty relation
+            if ( $self->new_record ) {    ## -- empty relation
                 $rel_obj = Modware::Chado::BCS::Relation->new;
             }
-            else { # -- list or iterator based on context
+            else {    # -- list or iterator based on context
                 if ( wantarray() ) {
-                    return
-                        map { $_->$bt_method }
-                        $self->$has_many_method;
+                    return map { $_->$bt_method } $self->$has_many_method;
                 }
                 my $method = $bcs_accs . '_rs';
                 $rel_obj = Modware::Chado::BCS::Relation->new(
-                    collection           => $dbrow->$method,
-                    '_data_access_class' => $related_class,
+                    collection => $self->dbrow->search_related( $hm_bcs, {} )
+                        ->search_related( $bt_bcs, {} ),
+                    '_data_access_class' => $bt_class,
                     '_parent_class'      => $self
                 );
             }
