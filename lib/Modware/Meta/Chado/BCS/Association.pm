@@ -25,7 +25,6 @@ sub add_belongs_to {
     if ( !$related_class ) {
         $related_class = $meta->base_namespace . '::' . ucfirst( lc $name );
     }
-    $meta->_add_method2class( $name, $related_class );
     Class::MOP::load_class($related_class);
     my $related_source = $related_class->new->meta->bcs_source->source_name;
 
@@ -39,6 +38,9 @@ sub add_belongs_to {
 
     my $rel_info = $bcs_source->relationship_info($bcs_accs);
     my ($fk_column) = keys %{ $rel_info->{attrs}->{fk_columns} };
+
+    $meta->_add_method2class( $name, $related_class );
+    $meta->_add_class2bcs( $related_class, $bcs );
 
     #association(object[optional]) -- dense logic alarm
     my $code = sub {
@@ -60,8 +62,7 @@ sub add_belongs_to {
                 ## -- updates and the update method of related object gets called during the
                 ## -- parent's update method.
                 $self->new_record
-                    ? $self->_add_to_mapper( $fk_column,
-                    $obj->dbrow->$fk_column )
+                    ? $self->dbrow->$fk_column( $obj->dbrow->$fk_column )
                     : $self->_add_belongs_to( $fk_column, $obj );
             }
             return 1;
@@ -142,7 +143,6 @@ sub add_has_many {
     if ( !$related_class ) {
         $related_class = $meta->base_namespace . '::' . ucfirst( lc $name );
     }
-    $meta->_add_method2class( $name, $related_class );
 
     Class::MOP::load_class($related_class);
     my $related_source = $related_class->new->meta->bcs_source->source_name;
@@ -155,6 +155,9 @@ sub add_has_many {
         $bcs_source->relationships;
     }
     my $pk_column = $meta->pk_column;
+    $meta->_add_method2class( $name, $related_class );
+    $meta->_add_class2rel( $related_class,
+        [ $pk_column, $bcs_accs, 'has_many' ] );
 
     #association(object[optional]) -- dense logic alarm
     my $code = sub {
@@ -251,7 +254,7 @@ sub add_many_to_many {
     $bt_class = $link_class->meta->_method2class($bt_method);
     Class::MOP::load_class($bt_class);
 
-    my $pk_column    = $meta->pk_column;
+    my $pk_column = $meta->pk_column;
     my $bt_column = $bt_class->meta->pk_column;
 
     my $bcs_source = $meta->bcs_source;
@@ -265,6 +268,7 @@ sub add_many_to_many {
     my $bt_bcs    = first {
         $bt_source = $hm_source->related_source($_)->source_name;
     }
+    $meta->_add_bcs2column( $hm_bcs, $pk_column );
 
     my $code = sub {
         my $self = shift;
@@ -273,14 +277,15 @@ sub add_many_to_many {
 
         # -- set call
         if ( defined $obj ) {
-            if ( $obj->new_record ) {## -- new related record
+            if ( $obj->new_record ) {    ## -- new related record
                 if ( $self->new_record )
                 {    ## -- parent,  link and related will be saved
                     my $new_obj = $hm_class->new;
                     $new_obj->_add_belongs_to( $bt_column, $obj );
                     $self->_add_has_many($new_obj);
                 }
-                else {## -- link and related is saved with appropiate foreign keys
+                else
+                { ## -- link and related is saved with appropiate foreign keys
                     my $new_obj = $hm_class->new;
                     $new_obj->_add_to_mapper( $pk_column,
                         $self->dbrow->$pk_column );
@@ -289,13 +294,15 @@ sub add_many_to_many {
                     $new_obj->save;
                 }
             }
-            else { ## -- existing related record
-                if ( $self->new_record ) { ## -- new parent and link classes will be saved
-                	my $new_obj = $hm_class->new;
-                	$new_obj->_add_to_mapper($bt_column,  $obj->dbrow->$bt_column);
+            else {    ## -- existing related record
+                if ( $self->new_record )
+                {     ## -- new parent and link classes will be saved
+                    my $new_obj = $hm_class->new;
+                    $new_obj->_add_to_mapper( $bt_column,
+                        $obj->dbrow->$bt_column );
                     $self->_add_has_many($new_obj);
                 }
-                else { ## -- new link class is saved
+                else {    ## -- new link class is saved
                     my $new_obj = $hm_class->new;
                     $new_obj->_add_to_mapper( $pk_column,
                         $self->dbrow->$pk_column );

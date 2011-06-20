@@ -53,6 +53,20 @@ has '_attr_stack' => (
     }
 );
 
+has '_class_map' => (
+    is      => 'rw',
+    isa     => 'HashRef',
+    traits  => [qw/Hash/],
+    default => sub { {} },
+    lazy    => 1,
+    handles => {
+        '_class2bcs'       => 'get',
+        '_add_class2bcs'   => 'set',
+        '_clear_class2bcs' => 'clear',
+        '_has_class2bcs'   => 'defined'
+    }
+);
+
 has '_method_map' => (
     is      => 'rw',
     isa     => 'HashRef',

@@ -24,11 +24,15 @@ has 'chado' => (
 );
 
 has 'dbrow' => (
-    is        => 'rw',
-    isa       => 'DBIx::Class::Row',
-    predicate => 'has_dbrow',
-    clearer   => '_clear_dbrow',
-    trigger   => \&read
+    is      => 'rw',
+    isa     => 'DBIx::Class::Row',
+    clearer => '_clear_dbrow',
+    trigger => \&read,
+    default => sub {
+        my ($self) = @_;
+        return $self->chado->resultset( $self->meta->bcs_resultset )->new;
+    },
+    lazy => 1
 );
 
 has '_belongs_to' => (
@@ -362,7 +366,7 @@ BELONGS_TO:
         next BELONGS_TO
             if !$obj->does('Modware::Role::Adapter::BCS::Chado');
         my $related_obj = $obj->save;
-        $self->_add_to_mapper( $fkey, $related_obj->dbrow->$fkey );
+        $self->dbrow->$fkey( $related_obj->dbrow->$fkey );
     }
 
 PERSISTENT:
@@ -382,13 +386,7 @@ PERSISTENT:
     return if defined $arg{fake};
 
     my $chado = $self->chado;
-    my $dbrow = $chado->txn_do(
-        sub {
-            my $value = $chado->resultset( $meta->bcs_resultset )
-                ->create( $self->insert_hashref );
-            $value;
-        }
-    );
+    my $dbrow = $chado->txn_do( sub { return $self->dbrow->insert } );
 
     $self->_handle_has_many($dbrow);
 
@@ -405,7 +403,7 @@ PERSISTENT:
 
 sub new_record {
     my $self = shift;
-    return $self->has_dbrow ? 0 : 1;
+    return $self->dbrow->in_storage ? 0 : 1;
 }
 
 sub update {
@@ -441,18 +439,18 @@ BELONGS_TO:
 }
 
 sub delete {
-	my ($self) = @_;
-	croak "cannot delete a non existant object\n" if $self->new_record;
-	$self->chado->txn_do( sub { $self->dbrow->delete });
+    my ($self) = @_;
+    croak "cannot delete a non existant object\n" if $self->new_record;
+    $self->chado->txn_do( sub { $self->dbrow->delete } );
 
-	## -- cleanup the internal state
+    ## -- cleanup the internal state
     $self->_clear_belongs_to;
     $self->_clear_mapper;
     $self->_clear_insert_stash;
     $self->_clear_has_many;
     $self->_clear_exist_has_many;
     $self->_clear_dbrow;
-	return 1;
+    return 1;
 }
 
 sub _handle_has_many {
@@ -476,7 +474,7 @@ HAS_MANY:
 
 sub save {
     my ($self) = @_;
-    return $self->has_dbrow ? $self->update : $self->insert;
+    return $self->new_record ? $self->insert : $self->update;
 }
 
 1;    # Magic true value required at end of module

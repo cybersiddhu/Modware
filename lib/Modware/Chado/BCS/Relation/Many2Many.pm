@@ -46,9 +46,9 @@ sub create {
 
     my $asc_obj = $asc_class->new(%arg);
     $asc_obj->save; 
+
     my $bt_column = $asc_obj->meta->pk_column;
     my $pk_col     = $parent->meta->pk_column;
-
     my $link_obj = $link_class->new;
     $link_obj->_add_to_mapper( $pk_col, $parent->dbrow->$pk_col );
     $link_obj->_add_to_mapper($bt_column,  $asc_obj->dbrow->$bt_column);
@@ -60,9 +60,13 @@ sub delete {
     my $self = shift;
     my ($obj)
         = pos_validated_list( \@_,
-        { isa => $self->_data_access_class, optional => 1 } );
+        { isa => $self->_associated_class, optional => 1 } );
 
+	my $pk_column;
     if ($obj) {
+    	$pk_column = $obj->meta->pk_column;
+    	my $link_class = $self->_link_class;
+    	Class::MOP::load_class($link_class);
         $obj->delete;
         return 1;
     }
