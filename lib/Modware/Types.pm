@@ -3,7 +3,7 @@ package  Modware::Types;
 # Other modules:
 use MooseX::Types -declare => [
     qw/CleanStr UnCleanStr ColumnMap Toggler URI UpdateStash PubYear PubDate PubDateStr
-        PubDateHalfStr Schema/
+        PubDateHalfStr Schema Row/
 ];
 use MooseX::Types::Moose qw/Int Str Any Object Bool HashRef ArrayRef Maybe/;
 use Regexp::Common qw/URI/;
