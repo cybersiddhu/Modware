@@ -42,6 +42,10 @@ sub add_belongs_to {
     $meta->_add_method2class( $name, $related_class );
     $meta->_add_class2bcs( $related_class, $bcs );
 
+
+    ## -- remember it need both bcs_relation and foreign key,  first one for accessing the
+    ## -- bcs object and the next one for accessing the value of database column
+
     #association(object[optional]) -- dense logic alarm
     my $code = sub {
         my $self = shift;
@@ -89,6 +93,7 @@ sub add_belongs_to {
             if $self->new_record;
         my $obj = $related_class->new(%arg)->save;
         $self->_add_to_mapper( $fk_column, $obj->dbrow->$fk_column );
+        $self->save;
         return $obj;
     };
 
@@ -175,19 +180,19 @@ sub add_has_many {
                 }
                 else {    ## -- related is saved with foreign key from parent
                     $obj->_add_to_mapper( $pk_column,
-                        $self->dbrow->$pk_column );
+                        ($self->dbrow->$id)[0] );
                     $obj->save;
                 }
             }
             else {        ## -- existing related record
                 ## --- after the parent is saved related is updated with the foreign key
                 if ( $self->new_record ) {
-                    $self->_add_exist_has_many($obj);
+                    $self->_add_has_many($obj);
                 }
                 else {
                     ## --- related is updated with foreign key from parent
                     $obj->_add_to_mapper( $pk_column,
-                        $self->dbrow->$pk_column );
+                        ($self->dbrow->$id)[0] );
                     $obj->save;
                 }
             }

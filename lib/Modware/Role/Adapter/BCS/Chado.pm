@@ -358,6 +358,9 @@ sub insert {
 
     #now all belongs_to related/ dependent objects
 
+    ## -- remember it need both bcs_relation and foreign key,  first one for accessing the
+    ## -- bcs object and the next one for accessing the value of database column
+
 # -- it is done before the create hooks as those might look for shared db/cv/cvterm(s)
 # as the belongs_to code does the lookup for shared db/cv/cvterm well before the lookup of create hook methods.
 BELONGS_TO:
