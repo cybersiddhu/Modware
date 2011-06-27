@@ -3,7 +3,7 @@ package  Modware::Types;
 # Other modules:
 use MooseX::Types -declare => [
     qw/CleanStr UnCleanStr ColumnMap Toggler URI UpdateStash PubYear PubDate PubDateStr
-        PubDateHalfStr/
+        PubDateHalfStr PubDateHalfInt Schema Row/
 ];
 use MooseX::Types::Moose qw/Int Str Any Object Bool HashRef ArrayRef Maybe/;
 use Regexp::Common qw/URI/;
@@ -46,6 +46,8 @@ subtype PubYear,        as Str, where {/^\d+$/};
 subtype PubDate,        as Str, where {/^\d{2,4}\-\d{1,2}\-\d{1,2}$/};
 subtype PubDateStr,     as Str, where {/^\d{2,4}\-\w{3,6}\-\d{1,2}$/};
 subtype PubDateHalfStr, as Str, where {/^\d{2,4}\-\w{3,6}$/};
+subtype PubDateHalfInt, as Str, where {/^\d{2,4}\-\d{1,2}$/};
+
 coerce PubYear, from PubDate, via {
     DateTime::Format::Strptime->new( pattern => '%Y-%m-%d' )
         ->parse_datetime($_)->year;
@@ -58,7 +60,13 @@ coerce PubYear, from PubDateHalfStr, via {
     DateTime::Format::Strptime->new( pattern => '%Y-%b' )->parse_datetime($_)
         ->year;
 };
+coerce PubYear, from PubDateHalfInt, via {
+    DateTime::Format::Strptime->new( pattern => '%Y-%m' )->parse_datetime($_)
+        ->year;
+};
 
+class_type Schema, { class => 'Bio::Chado::Schema' };
+class_type Row, { class => 'DBIx::Class::Row' };
 
 1;    # Magic true value required at end of module
 
