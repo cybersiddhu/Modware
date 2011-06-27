@@ -12,9 +12,9 @@ use Carp;
 
 sub add_new {
     my ( $self, %arg ) = @_;
-    croak "need arguments to add new ", $self->_associated_class, "\n"
+    croak "need arguments to add new ", $self->_related_class, "\n"
         if scalar keys %arg == 0;
-    my $asc_class = $self->_associated_class;
+    my $asc_class = $self->_related_class;
     Class::MOP::load_class($asc_class);
     my $obj = $asc_class->new(%arg);
     $self->_parent_class->_add_has_many($obj);
@@ -23,15 +23,15 @@ sub add_new {
 
 sub create {
     my ( $self, %arg ) = @_;
-    croak "need arguments to add new ", $self->_associated_class, "\n"
+    croak "need arguments to add new ", $self->_related_class, "\n"
         if scalar keys %arg == 0;
 
 	my $parent = $self->_parent_class;
     my $pk_col     = $parent->meta->pk_column;
-    my $asc_class = $self->_associated_class;
+    my $asc_class = $self->_related_class;
     Class::MOP::load_class($asc_class);
     my $obj = $asc_class->new(%arg);
-    $obj->_add_to_mapper( $pk_col, $parent->dbrow->$pk_col );
+    $obj->dbrow->$pk_col(($parent->dbrow->id)[0] );
     return $obj->save;
 }
 

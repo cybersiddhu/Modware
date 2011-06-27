@@ -458,20 +458,13 @@ sub delete {
 
 sub _handle_has_many {
     my ( $self, $dbrow ) = @_;
-    my $meta = $self->meta;
-
-    my $pk_column = $meta->pk_column;
+    my $pk_column = $self->meta->pk_column;
 HAS_MANY:
     for my $obj ( $self->_all_has_many ) {
         next HAS_MANY
             if !$obj->does('Modware::Role::Adapter::BCS::Chado');
-        $obj->_add_to_mapper( $pk_column, $dbrow->$pk_column );
+        $obj->dbrow->$pk_column( ($dbrow->$pk_column)[0] );
         $obj->save;
-    }
-
-    for my $exist_obj ( $self->_all_exist_has_many ) {
-        $exist_obj->_add_to_mapper( $pk_column, $dbrow->$pk_column );
-        $exist_obj->save;
     }
 }
 

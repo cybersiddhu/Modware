@@ -15,7 +15,7 @@ requires 'create';
 requires 'delete';
 requires 'add_new';
 
-has '_associated_class' => (
+has '_related_class' => (
     is        => 'rw',
     isa       => 'Str',
     predicate => '_has_associated_class'

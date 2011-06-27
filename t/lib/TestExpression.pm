@@ -11,9 +11,10 @@ chado_has 'checksum' => ( column => 'md5checksum' );
 chado_has 'description';
 chado_has 'name' => ( column => 'uniquename' );
 chado_has_many 'expression_images' =>
-    ( class => 'Test::Chado::ExpressionImage' );
+    ( class => 'Test::Modware::Chado::ExpressionImage' );
 chado_many_to_many 'images' =>
-    ( through => { 'expression_images' => 'image' } );
+    ( through => 'Test::Modware::Chado::ExpressionImage' ,  class =>
+    'Test::Modware::Chado::Expression::Image');
 
 package Test::Modware::Chado::ExpressionImage;
 
@@ -35,7 +36,8 @@ chado_has 'uri'  => ( column => 'eimage_uri' );
 chado_has_many 'expression_images' =>
     ( class => 'Test::Chado::Expression::Image' );
 chado_many_to_many 'expressions' =>
-    ( through => { 'expression_images' => 'expression' } );
+    ( through => 'Test::Chado::Modware::ExpressionImage' ,  class =>
+    'Test::Chado::Modware::Expression' } );
 
 1;    # Magic true value required at end of module
 
