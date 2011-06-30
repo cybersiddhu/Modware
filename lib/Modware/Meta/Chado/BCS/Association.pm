@@ -31,105 +31,105 @@ sub add_belongs_to {
         $related_source eq $bcs_source->related_source($_)->source_name;
     }
     $bcs_source->relationships;
-}
 
-my $rel_info = $bcs_source->relationship_info($bcs_accs);
-my ($fk_column) = keys %{ $rel_info->{attrs}->{fk_columns} };
+    my $rel_info = $bcs_source->relationship_info($bcs_accs);
+    my ($fk_column) = keys %{ $rel_info->{attrs}->{fk_columns} };
 
-$meta->_add_method2class( $name, $related_class );
-$meta->_add_class2bcs( $related_class, $bcs );
+    $meta->_add_method2class( $name, $related_class );
+    $meta->_add_class2bcs( $related_class, $bcs );
 
 ## -- remember it need both bcs_relation and foreign key,  first one for accessing the
 ## -- bcs object and the next one for accessing the value of database column
 
-#association(object[optional]) -- dense logic alarm
-my $code = sub {
-    my $self = shift;
-    my ($obj)
-        = pos_validated_list( \@_, { isa => $related_class, optional => 1 } );
+    #association(object[optional]) -- dense logic alarm
+    my $code = sub {
+        my $self = shift;
+        my ($obj)
+            = pos_validated_list( \@_,
+            { isa => $related_class, optional => 1 } );
 
-    # -- set call
-    if ( defined $obj ) {
-        if ( $obj->new_record ) {    ## -- new related record
-            ## -- new parent object: related object will be saved by insert
-            ## -- existing parent object: related object will be saved by update
-            $self->_add_belongs_to( $fk_column, $obj );
+        # -- set call
+        if ( defined $obj ) {
+            if ( $obj->new_record ) {    ## -- new related record
+                ## -- new parent object: related object will be saved by insert
+                ## -- existing parent object: related object will be saved by update
+                $self->_add_belongs_to( $fk_column, $obj );
+            }
+            else {                       ## -- existing related record
+                ## -- parent object is new: it add a foreign key
+                ## -- parent object exist: it assumes the related object might have some
+                ## -- updates and the update method of related object gets called during the
+                ## -- parent's update method.
+                $self->new_record
+                    ? $self->dbrow->$fk_column( $obj->dbrow->$fk_column )
+                    : $self->_add_belongs_to( $fk_column, $obj );
+            }
+            return 1;
         }
-        else {                       ## -- existing related record
-            ## -- parent object is new: it add a foreign key
-            ## -- parent object exist: it assumes the related object might have some
-            ## -- updates and the update method of related object gets called during the
-            ## -- parent's update method.
-            $self->new_record
-                ? $self->dbrow->$fk_column( $obj->dbrow->$fk_column )
-                : $self->_add_belongs_to( $fk_column, $obj );
-        }
-        return 1;
-    }
-    else
-    { ## -- it's a get call and a related object is return only from a persistent
-        ## -- parent object
-        if ( !$self->new_record ) {
-            my $dbrow = $self->dbrow;
-            if ( defined $dbrow->$fk_column ) {
-                return $related_class->new(
-                    dbrow => $dbrow->$bcs_accs->get_from_storage );
+        else
+        { ## -- it's a get call and a related object is return only from a persistent
+            ## -- parent object
+            if ( !$self->new_record ) {
+                my $dbrow = $self->dbrow;
+                if ( defined $dbrow->$fk_column ) {
+                    return $related_class->new(
+                        dbrow => $dbrow->$bcs_accs->get_from_storage );
+                }
             }
         }
-    }
-};
+    };
 
-#create_association(params)
-my $code2 = sub {
-    my ( $self, %arg ) = @_;
-    croak "need arguments to create $related_class\n"
-        if scalar keys %arg == 0;
-    croak ref($self), " needs to be saved before creating association\n"
-        if $self->new_record;
-    my $obj = $related_class->new(%arg)->save;
-    $self->dbrow->$fk_column( $obj->dbrow->$fk_column );
-    $self->save;
-    return $obj;
-};
+    #create_association(params)
+    my $code2 = sub {
+        my ( $self, %arg ) = @_;
+        croak "need arguments to create $related_class\n"
+            if scalar keys %arg == 0;
+        croak ref($self), " needs to be saved before creating association\n"
+            if $self->new_record;
+        my $obj = $related_class->new(%arg)->save;
+        $self->dbrow->$fk_column( $obj->dbrow->$fk_column );
+        $self->save;
+        return $obj;
+    };
 
-#new_association(params)
-my $code3 = sub {
-    my ( $self, %arg ) = @_;
-    croak "need arguments to create $related_class\n"
-        if scalar keys %arg == 0;
-    croak ref($self), " needs to be saved before creating association\n"
-        if $self->new_record;
-    my $obj = $related_class->new(%arg);
-    $self->_add_belongs_to( $fk_column, $obj );
-    return $obj;
-};
+    #new_association(params)
+    my $code3 = sub {
+        my ( $self, %arg ) = @_;
+        croak "need arguments to create $related_class\n"
+            if scalar keys %arg == 0;
+        croak ref($self), " needs to be saved before creating association\n"
+            if $self->new_record;
+        my $obj = $related_class->new(%arg);
+        $self->_add_belongs_to( $fk_column, $obj );
+        return $obj;
+    };
 
-$meta->add_method(
-    $name,
-    Class::MOP::Method->wrap(
-        $code,
-        name         => $name,
-        package_name => $meta->name
-    )
-);
+    $meta->add_method(
+        $name,
+        Class::MOP::Method->wrap(
+            $code,
+            name         => $name,
+            package_name => $meta->name
+        )
+    );
 
-$meta->add_method(
-    'create_' . $name,
-    Class::MOP::Method->wrap(
-        $code2,
-        name         => 'create_' . $name,
-        package_name => $meta->name
-    )
-);
+    $meta->add_method(
+        'create_' . $name,
+        Class::MOP::Method->wrap(
+            $code2,
+            name         => 'create_' . $name,
+            package_name => $meta->name
+        )
+    );
 
-$meta->add_method(
-    'new_' . $name,
-    Class::MOP::Method->wrap(
-        $code3,
-        name         => 'new_' . $name,
-        package_name => $meta->name
-    )
-);
+    $meta->add_method(
+        'new_' . $name,
+        Class::MOP::Method->wrap(
+            $code3,
+            name         => 'new_' . $name,
+            package_name => $meta->name
+        )
+    );
 
 }
 
@@ -237,20 +237,22 @@ sub add_many_to_many {
     Class::MOP::load_class($bt_class);
     Class::MOP::load_class($hm_class);
 
-    my $pk_column = $meta->pk_column;
-    my $bt_column = $bt_class->meta->pk_column;
-
+    my $pk_column  = $meta->pk_column;
     my $bcs_source = $meta->bcs_source;
-    my $hm_source  = $hm_class->meta->bcs_source->source_name;
-    my $hm_bcs     = first {
+
+    my $hm_source = $hm_class->meta->bcs_source->source_name;
+    my $hm_bcs    = first {
         $hm_source eq $bcs_source->related_source($_)->source_name;
     }
     $bcs_source->relationships;
 
+    my $bt_column = $bt_class->meta->pk_column;
     my $bt_source = $bt_class->meta->bcs_source->source_name;
     my $bt_bcs    = first {
-        $bt_source = $hm_source->related_source($_)->source_name;
+        $hm_source eq $bt_source->related_source($_)->source_name;
     }
+    $bt_source->relationships;
+
     $meta->_add_bcs2column( $hm_bcs, $pk_column );
 
     my $code = sub {
@@ -262,7 +264,7 @@ sub add_many_to_many {
         if ( defined $obj ) {
             if ( $obj->new_record ) {    ## -- new related record
                 if ( $self->new_record )
-                {    ## -- parent,  link and related will be saved
+                {    ## -- parent,  link and related will be saved later
                     my $new_obj = $hm_class->new;
                     $new_obj->_add_belongs_to( $bt_column, $obj );
                     $self->_add_has_many($new_obj);
@@ -270,53 +272,55 @@ sub add_many_to_many {
                 else
                 { ## -- link and related is saved with appropiate foreign keys
                     my $new_obj = $hm_class->new;
-                    $new_obj->_add_to_mapper( $pk_column,
-                        $self->dbrow->$pk_column );
-                    $new_obj->_add_to_mapper( $bt_column,
+                    $new_obj->dbrow->$pk_column( ( $self->dbrow->$id )[0] );
+                    $new_obj->dbrow->$bt_column(
                         $obj->save->dbrow->$bt_column );
                     $new_obj->save;
                 }
             }
             else {    ## -- existing related record
                 if ( $self->new_record )
-                {     ## -- new parent and link classes will be saved
+                {     ## -- new parent and link classes will be saved later
                     my $new_obj = $hm_class->new;
-                    $new_obj->_add_to_mapper( $bt_column,
-                        $obj->dbrow->$bt_column );
+                    $new_obj->dbrow->$bt_column( $obj->dbrow->$bt_column );
                     $self->_add_has_many($new_obj);
                 }
                 else {    ## -- new link class is saved
                     my $new_obj = $hm_class->new;
-                    $new_obj->_add_to_mapper( $pk_column,
-                        $self->dbrow->$pk_column );
-                    $new_obj->add_to_mapper( $bt_column,
-                        $obj->dbrow->$bt_column );
+                    $new_obj->dbrow->$pk_column( $self->dbrow->$pk_column );
+                    $new_obj->dbrow->$bt_column, $obj->dbrow->$bt_column );
                     $new_obj->save;
                 }
             }
             return 1;
         }
         else {
-            Class::MOP::load_class(
-                'Modware::Chado::BCS::Relation::Many2Many');
-            my $rel_obj;
-            if ( $self->new_record ) {    ## -- empty relation
-                $rel_obj = Modware::Chado::BCS::Relation::Many2Many->new;
-            }
-            else {    # -- list or iterator based on context
-                if ( wantarray() ) {
-                    return map { $_->$bt_method } $self->$has_many_method;
+                Class::MOP::load_class(
+                    'Modware::Chado::BCS::Relation::Many2Many');
+                my $rel_obj;
+                if ( $self->new_record ) {    ## -- empty relation
+                    $rel_obj = Modware::Chado::BCS::Relation::Many2Many->new;
                 }
-                my $method = $bcs_accs . '_rs';
-                $rel_obj = Modware::Chado::BCS::Relation::Many2Many->new(
-                    collection => $self->dbrow->search_related( $hm_bcs, {} )
-                        ->search_related( $bt_bcs, {} ),
-                    '_associated_class' => $bt_class,
-                    '_link_class'       => $hm_class,
-                    '_parent_class'     => $self
-                );
-            }
-            return $rel_obj;
+                else {    # -- list or iterator based on context
+                    if ( wantarray() ) {
+                        return
+                            map { $bt_class->new( dbrow => $_ ) }
+                            $self->chado->resultset( $meta->bcs_resultset )
+                            ->search_related( $hm_bcs, {}, {} )
+                            ->search_related( $bt_bcs, {}, {} );
+                    }
+                    my $method = $bcs_accs . '_rs';
+                    $rel_obj = Modware::Chado::BCS::Relation::Many2Many->new(
+                        collection =>
+                            $self->chado->resultset( $meta->bcs_resultset )
+                            ->search_related( $hm_bcs, {}, {} )
+                            ->search_related( $bt_bcs, {}, {} ),
+                        '_related_class' => $bt_class,
+                        '_link_class'       => $hm_class,
+                        '_parent_class'     => $self
+                    );
+                }
+                return $rel_obj;
         }
     };
 
