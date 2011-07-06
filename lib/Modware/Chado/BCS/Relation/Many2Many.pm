@@ -19,7 +19,8 @@ sub add_new {
     my ( $self, %arg ) = @_;
     croak "need arguments to add new ", $self->_associated_class, "\n"
         if scalar keys %arg == 0;
-    my $asc_class  = $self->_associated_class;
+
+    my $asc_class  = $self->_related_class;
     my $link_class = $self->_link_class;
     Class::MOP::load_class($asc_class);
     Class::MOP::load_class($link_class);

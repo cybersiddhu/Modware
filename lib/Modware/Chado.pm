@@ -18,24 +18,29 @@ sub chado_belongs_to {
     $meta->add_belongs_to( $name, %options );
 }
 
-sub chado_has {
-    my ( $meta, $name, %options ) = @_;
-    $meta->add_column( $name, %options );
+sub chado_map_attribute {
+    my ( $meta, $from, $to ) = @_;
+    $meta->map_attribute( $from, $to );
+}
+
+sub chado_map_all_attributes {
+	my ($meta, $options ) = @_;
+	$meta->map_all_attributes($options);
+}
+
+sub chado_skip_attribute {
+    my ( $meta, $attr ) = @_;
+    $meta->skip_attribute( $attr );
+}
+
+sub chado_skip_all_attributes {
+    my ( $meta, $attrs ) = @_;
+    $meta->skip_all_attributes( $attrs );
 }
 
 sub chado_has_many {
     my ( $meta, $name, %options ) = @_;
     $meta->add_has_many( $name, %options );
-}
-
-sub chado_has_many {
-    my ( $meta, $name, %options ) = @_;
-    croak
-        "use the * through => { from => to } * parameter to pass map through linking model class\n"
-        if scalar keys %options == 0;
-    croak "* through => {from => to } * parameter is neccessary\n"
-        if not defined $options{through};
-    $meta->add_many_to_many( $name, %options );
 }
 
 sub chado_property {
@@ -71,12 +76,13 @@ sub chado_type {
 Moose::Exporter->setup_import_methods(
     also      => 'Moose',
     with_meta => [
-        'bcs_resultset',          'chado_has',
+        'bcs_resultset',          'chado_map_attribute',
+        'chado_map_all_attributes', 'chado_skip_attribute', 
+        'chado_skip_all_attributes', 
         'chado_property',         'chado_dbxref',
         'chado_type',             'chado_multi_properties',
         'chado_secondary_dbxref', 'chado_multi_dbxrefs',
         'chado_belongs_to',       'chado_has_many',
-        'chado_many_to_many'
     ],
 );
 

@@ -27,16 +27,13 @@ sub add_belongs_to {
 
     Class::MOP::load_class($related_class);
     my $related_source = $related_class->new->meta->bcs_source->source_name;
-    $bcs_accs = first {
+    my  $bcs_accs = first {
         $related_source eq $bcs_source->related_source($_)->source_name;
     }
     $bcs_source->relationships;
 
     my $rel_info = $bcs_source->relationship_info($bcs_accs);
     my ($fk_column) = keys %{ $rel_info->{attrs}->{fk_columns} };
-
-    $meta->_add_method2class( $name, $related_class );
-    $meta->_add_class2bcs( $related_class, $bcs );
 
 ## -- remember it need both bcs_relation and foreign key,  first one for accessing the
 ## -- bcs object and the next one for accessing the value of database column
@@ -169,7 +166,7 @@ sub add_has_many {
                     $self->_add_has_many($obj);
                 }
                 else {    ## -- related is saved with foreign key from parent
-                    $obj->dbrow->$pk_column( ( $self->dbrow->$id )[0] );
+                    $obj->dbrow->$pk_column( ( $self->dbrow->id )[0] );
                     $obj->save;
                 }
             }
@@ -180,7 +177,7 @@ sub add_has_many {
                 }
                 else {
                     ## --- related is updated with foreign key from parent
-                    $obj->dbrow->$pk_column( ( $self->dbrow->$id )[0] );
+                    $obj->dbrow->$pk_column( ( $self->dbrow->id )[0] );
                     $obj->save;
                 }
             }
@@ -272,7 +269,7 @@ sub add_many_to_many {
                 else
                 { ## -- link and related is saved with appropiate foreign keys
                     my $new_obj = $hm_class->new;
-                    $new_obj->dbrow->$pk_column( ( $self->dbrow->$id )[0] );
+                    $new_obj->dbrow->$pk_column( ( $self->dbrow->id )[0] );
                     $new_obj->dbrow->$bt_column(
                         $obj->save->dbrow->$bt_column );
                     $new_obj->save;
@@ -288,7 +285,7 @@ sub add_many_to_many {
                 else {    ## -- new link class is saved
                     my $new_obj = $hm_class->new;
                     $new_obj->dbrow->$pk_column( $self->dbrow->$pk_column );
-                    $new_obj->dbrow->$bt_column, $obj->dbrow->$bt_column );
+                    $new_obj->dbrow->$bt_column( $obj->dbrow->$bt_column );
                     $new_obj->save;
                 }
             }
@@ -309,7 +306,6 @@ sub add_many_to_many {
                             ->search_related( $hm_bcs, {}, {} )
                             ->search_related( $bt_bcs, {}, {} );
                     }
-                    my $method = $bcs_accs . '_rs';
                     $rel_obj = Modware::Chado::BCS::Relation::Many2Many->new(
                         collection =>
                             $self->chado->resultset( $meta->bcs_resultset )

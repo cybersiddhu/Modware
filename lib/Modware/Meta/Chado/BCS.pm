@@ -24,6 +24,7 @@ has 'bcs_resultset' => (
     trigger   => sub {
         my ( $self, $value ) = @_;
         $self->bcs_source( $self->bcs->source($value) );
+        $self->map_attribute($_) for $self->bcs_source->columns;
     }
 );
 
@@ -42,16 +43,6 @@ has 'pk_column' => (
     isa => 'Str',
 );
 
-has '_attr_stack' => (
-    is      => 'rw',
-    isa     => 'ArrayRef',
-    traits  => [qw/Array/],
-    default => sub { [] },
-    handles => {
-        '_track_attr'    => 'push',
-        '_tracked_attrs' => 'elements'
-    }
-);
 
 has '_class_map' => (
     is      => 'rw',
@@ -87,7 +78,23 @@ has 'bcs' => (
     default => 'Bio::Chado::Schema'
 );
 
-has '_column_map' => (
+has '_attr_map' => (
+    is      => 'rw',
+    isa     => 'HashRef',
+    traits  => [qw/Hash/],
+    default => sub {
+        {};
+    },
+    handles => {
+        '_has_mapped_attr'    => 'defined',
+        '_map_attr'    => 'set',
+        '_get_mapped_attr'    => 'get',
+        '_delete_mapped_attr' => 'delete'
+    },
+    lazy => 1
+);
+
+has '_column_type_map' => (
     is      => 'rw',
     isa     => 'HashRef',
     traits  => [qw/Hash/],
@@ -110,44 +117,50 @@ has '_column_map' => (
     }
 );
 
-sub add_column {
-    my ( $meta, $name, %options ) = @_;
-    my $basic = $meta->_init_attr_basic( $name, %options );
-    my $optional = $meta->_init_attr_optional( $name, %options );
-    my %init_hash = ( %$basic, %$optional );
-    my $method;
-    if ( defined $options{column} ) {
-        $method = $options{column};
-        $init_hash{column} = $options{column};
+sub map_attribute {
+    my ( $meta, $from, $to ) = @_;
+    if ($to) {
+        if ( $meta->has_attribute($from) ) {
+            $meta->remove_attribute($from);
+            $meta->_delete_mapped_attr($from);
+        }
     }
     else {
-        $method = $name;
+        $to = $from;
     }
 
+    my $basic = $meta->_init_attr( $from, $to );
+    my %init_hash = %$basic;
     $init_hash{default} = sub {
         my ($self) = @_;
         if ( !$self->new_record ) {
-            return $self->dbrow->$method;
+            return $self->dbrow->$from;
         }
     };
+    $init_hash{trigger} = sub {
+        my ( $self, $value ) = @_;
+        $self->dbrow->$from($value);
+    };
+    $meta->add_attribute( $to => %init_hash );
+    $meta->_map_attr( $from, $to );
+}
 
-    if ( defined $options{primary} ) {
-        $init_hash{is} = 'ro';
+sub map_all_attributes {
+    my ( $meta, $options ) = @_;
+    $meta->map_attribute( $_, $options->{$_} ) for keys %$options;
+}
+
+sub skip_attribute {
+    my ( $meta, $attr ) = @_;
+    if ( $meta->has_attribute($attr) ) {
+        $meta->remove_attribute($attr);
+        $meta->_delete_mapped_attr($attr);
     }
-    else {
-        $init_hash{trigger} = sub {
-            my ( $self, $value ) = @_;
-            if ( $self->new_record ) {
-                $self->_add_to_mapper( $method, $value );
-            }
-            else {
-                $self->dbrow->$method($value);
-            }
-        };
-    }
-    $init_hash{traits} = [qw/Persistent/];
-    $meta->add_attribute( $name => %init_hash );
-    $meta->_track_attr($name);
+}
+
+sub skip_all_attributes {
+    my ( $meta, $attrs ) = @_;
+    $meta->skip_attribute($_) for @$attrs;
 }
 
 sub add_chado_prop {
@@ -412,24 +425,16 @@ sub add_chado_type {
     $meta->_track_attr($name);
 }
 
-sub _init_attr_basic {
-    my ( $meta, $name, %options ) = @_;
-    if ( first { $name eq $_ } $meta->_tracked_attrs ) {
-        croak "$name is duplicate chado attribute,  already added\n";
+sub _init_attr {
+    my ( $meta, $from, $to ) = @_;
+    if ( $meta->_has_mapped_attr($from) ) {
+        croak "$to is duplicate chado attribute,  already added\n";
     }
     my %init_hash;
-    $init_hash{is} = 'rw';
-    return \%init_hash;
-}
-
-sub _init_attr_optional {
-    my ( $meta, $name, %options ) = @_;
-    my %init_hash;
-    my $method = $options{column} ? $options{column} : $name;
-    $init_hash{isa}        = $options{isa} || $meta->_infer_isa($method);
-    $init_hash{predicate}  = 'has_' . $name;
-    $init_hash{lazy}       = 1;
-    $init_hash{lazy_fetch} = 1 if defined $options{lazy_fetch};
+    $init_hash{is}        = $from eq $meta->pk_column ? 'ro' : 'rw';
+    $init_hash{isa}       = $meta->_infer_isa($from);
+    $init_hash{predicate} = 'has_' . $to;
+    $init_hash{lazy}      = 1;
     return \%init_hash;
 }
 
