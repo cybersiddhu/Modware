@@ -569,7 +569,6 @@ use Try::Tiny;
                 )
             }
         );
-
     }
 
     sub keep_state_in_cache {

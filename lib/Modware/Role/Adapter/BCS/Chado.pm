@@ -30,7 +30,7 @@ has 'dbrow' => (
     trigger => \&read,
     default => sub {
         my ($self) = @_;
-        return $self->chado->resultset( $self->meta->bcs_resultset )->new;
+        return $self->chado->resultset( $self->meta->bcs_resultset )->new({});
     },
     lazy => 1
 );
