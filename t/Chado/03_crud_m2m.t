@@ -49,11 +49,11 @@ subtest 'Test::Chado::Expression' => sub {
     is( $exp_db->exp_images->size, 2,
         'has two exp_images through has_many associations' );
 
-    isa_ok($_, 'Test::Modware::Chado::ExpressionImage') for $exp_db->exp_images;
+    isa_ok('Test::Modware::Chado::ExpressionImage') for $exp_db->exp_images;
     is( $exp_db->images->size, 2,
         'has two images through many_to_many assoications' );
 
-    isa_ok($_,'Test::Modware::Chado::Expression::Image') for $exp_db->images;
+    isa_ok('Test::Modware::Chado::Expression::Image') for $exp_db->images;
 
     is_deeply( [ sort { $a cmp $b } map { $_->type } $exp_db->images ],
         [qw/png tiff/], 'has images with correct types' );

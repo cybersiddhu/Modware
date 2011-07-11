@@ -147,9 +147,7 @@ sub add_has_many {
     }
     $bcs_source->relationships;
     my $pk_column = $meta->pk_column;
-    $meta->_add_method2class( $name, $related_class );
-    $meta->_add_class2rel( $related_class,
-        [ $pk_column, $bcs_accs, 'has_many' ] );
+    #$meta->_add_method2class( $name, $related_class );
 
     #association(object[optional]) -- dense logic alarm
     my $code = sub {

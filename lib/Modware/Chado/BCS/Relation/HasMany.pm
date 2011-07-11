@@ -39,7 +39,7 @@ sub delete {
     my $self = shift;
     my ($obj)
         = pos_validated_list( \@_,
-        { isa => $self->_associated_class, optional => 1 } );
+        { isa => $self->_related_class, optional => 1 } );
 
 	if ($obj) {
 		$obj->delete;

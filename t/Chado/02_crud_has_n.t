@@ -37,7 +37,7 @@ is_deeply( [ sort { $a cmp $b } map { $_->accession } $db2->dbxrefs ],
     [qw/Fbg4839 Mod2345/], 'It returns all the saved associated objects' );
 
 my $itr = $db2->dbxrefs;
-isa_ok( $itr, 'Modware::Chado::BCS::Relation' );
+isa_ok( $itr, 'Modware::Chado::BCS::Relation::HasMany' );
 while ( my $dbxref = $itr->next ) {
     isa_ok( $dbxref, 'Modware::Chado::Dbxref' );
 }

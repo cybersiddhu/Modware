@@ -6,12 +6,7 @@ use Modware::Chado;
 # Module implementation
 #
 bcs_resultset 'Organism::Organism';
-
-chado_has 'organism_id' => ( primary => 1 );
-chado_has 'abbreviation';
-chado_has 'genus' => ( lazy => 1 );
-chado_has 'species';
-chado_has 'name' => ( column => 'common_name' );
+chado_skip_attribute '_comment';
 
 1;    # Magic true value required at end of module
 

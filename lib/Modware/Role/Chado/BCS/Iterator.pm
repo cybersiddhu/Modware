@@ -22,14 +22,14 @@ before 'next' => sub {
     my $self = shift;
     carp "cannot iterate without any related object\n" if !$self->has_collection;
     confess "data access class name is not set\n"
-        if !$self->_has_associated_class;
+        if !$self->_related_class;
 };
 
 sub next {
     my ($self) = @_;
     if ( my $next = $self->collection->next ) {
-        Class::MOP::load_class( $self->_associated_class );
-        return $self->_associated_class->new( dbrow => $next );
+        Class::MOP::load_class( $self->_related_class );
+        return $self->_related_class->new( dbrow => $next );
     }
 
 }

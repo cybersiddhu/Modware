@@ -6,9 +6,6 @@ use Modware::Chado;
 # Module implementation
 #
 bcs_resultset 'General::Dbxref';
-
-chado_has 'dbxref_id' => ( primary => 1 );
-chado_has $_ for qw/accession version description/;
 chado_belongs_to 'db' => (class => 'Modware::Chado::Db');
 
 1;    # Magic true value required at end of module
