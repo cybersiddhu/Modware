@@ -8,7 +8,7 @@ use MooseX::Params::Validate;
 use Moose::Role;
 use Class::MOP::Method;
 use List::Util qw/first/;
-use Scalar::Util qw/blessed/;
+use Scalar::Util qw/blessed reftype/;
 use Carp;
 use Class::MOP;
 
@@ -235,20 +235,20 @@ sub add_many_to_many {
     my $pk_column  = $meta->pk_column;
     my $bcs_source = $meta->bcs_source;
 
-    my $hm_source = $hm_class->meta->bcs_source->source_name;
+    my $hm_source = $hm_class->meta->bcs_source;
     my $hm_bcs    = first {
-        $hm_source eq $bcs_source->related_source($_)->source_name;
+        $hm_source->source_name eq $bcs_source->related_source($_)->source_name;
     }
     $bcs_source->relationships;
 
     my $bt_column = $bt_class->meta->pk_column;
-    my $bt_source = $bt_class->meta->bcs_source->source_name;
+    my $bt_source = $bt_class->meta->bcs_source;
     my $bt_bcs    = first {
-        $hm_source eq $bt_source->related_source($_)->source_name;
+        $bt_source->source_name eq $hm_source->related_source($_)->source_name;
     }
-    $bt_source->relationships;
+    $hm_source->relationships;
 
-    $meta->_add_bcs2column( $hm_bcs, $pk_column );
+    #$meta->_add_bcs2column( $hm_bcs, $pk_column );
 
     my $code = sub {
         my $self = shift;
@@ -318,6 +318,14 @@ sub add_many_to_many {
         }
     };
 
+	$meta->add_method(
+        $name,
+        Class::MOP::Method->wrap(
+            $code,
+            name         => $name,
+            package_name => $meta->name
+        )
+    );
 }
 
 1;    # Magic true value required at end of module
