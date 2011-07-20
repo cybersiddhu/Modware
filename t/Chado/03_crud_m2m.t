@@ -7,9 +7,9 @@ use Digest::MD5 qw/md5/;
 my $build = Modware::Build->current;
 Chado->connect( $build->connect_hash );
 
+my $expression;
 use_ok('TestExpression');
-subtest 'Test::Chado::Expression' => sub {
-    my $expression;
+subtest 'Test::Modware::Chado::Expression' => sub {
     lives_ok {
         $expression = Test::Modware::Chado::Expression->create(
             checksum   => md5('exp2'),
@@ -28,7 +28,7 @@ subtest 'Test::Chado::Expression' => sub {
             )
         );
     }
-    'added one image';
+    'saved one image';
 
     lives_ok {
         $expression->images(
@@ -39,61 +39,55 @@ subtest 'Test::Chado::Expression' => sub {
             )
         );
     }
-    'added another image';
+    'saved another image';
 
-    is( $expression->images->size, 0, 'has unsaved images' );
 
-    my $exp_db;
-    lives_ok { $exp_db = $expression->save } 'is saved along with two images';
-
-    is( $exp_db->exp_images->size, 2,
+    is( $expression->expression_images->size, 2,
         'has two exp_images through has_many associations' );
-
-    isa_ok('Test::Modware::Chado::ExpressionImage',  $_) for $exp_db->exp_images;
-    is( $exp_db->images->size, 2,
+    is( $expression->images->size, 2,
         'has two images through many_to_many assoications' );
-
-    isa_ok('Test::Modware::Chado::Expression::Image',  $_) for $exp_db->images;
-
-    is_deeply( [ sort { $a cmp $b } map { $_->type } $exp_db->images ],
+    isa_ok($_,  'Test::Modware::Chado::ExpressionImage') for $expression->expression_images;
+    isa_ok($_,  'Test::Modware::Chado::Expression::Image') for $expression->images;
+    is_deeply( [ sort { $a cmp $b } map { $_->type } $expression->images ],
         [qw/png tiff/], 'has images with correct types' );
 };
 
-subtest 'Test::Chado::Expression returns iterator in scalar context' => sub {
-    my $itr = $exp_db->images;
-    isa_ok( $itr, 'Modware::Iterator::Chado::BCS::Association' );
+subtest 'Test::Modware::Chado::Expression returns iterator in scalar context' => sub {
+    my $itr = $expression->images;
+    isa_ok( $itr, 'Modware::Chado::BCS::Relation::Many2Many' );
     while ( my $row = $itr->next ) {
-        isa_ok( $row, 'Test::Chado::Expression::Image' );
+        isa_ok( $row, 'Test::Modware::Chado::Expression::Image' );
+        like($row->type,  qr/\w+/,  'matches the type of image');
     }
 };
 
-subtest 'Test::Chado::Expression' => sub {
+subtest 'Test::Modware::Chado::Expression' => sub {
     my $image;
     lives_ok {
-        $image = $exp_db->images->add_image(
+        $image = $expression->images->add_new(
             type => 'gif',
             uri  => 'http://gif.com',
             data => 'gif data'
         );
     }
     'adds a new image';
-    isa_ok( $image, 'Test::Chado::Expression::Image' );
+    isa_ok( $image, 'Test::Modware::Chado::Expression::Image' );
     is( $image->new_record, 1, 'image is not yet saved in the database' );
-    lives_ok { $exp_db->save } 'is saved with the new image';
-    is( $exp_db->images->size, 3, 'image is saved in the database' );
+    lives_ok { $expression->save } 'is saved with the new image';
+    is( $expression->images->size, 3, 'image is saved in the database' );
 };
 
-subtest 'Test::Chado::Expression' => sub {
+subtest 'Test::Modware::Chado::Expression' => sub {
     my $image2;
     lives_ok {
-        $image2 = $exp_db->images->create(
+        $image2 = $expression->images->create(
             type => 'gif45',
             uri  => 'http://gif45.com',
             data => 'gif45 data'
         );
     }
     'creates a new image';
-    isa_ok( $image2, 'Test::Chado::Expression::Image' );
+    isa_ok( $image2, 'Test::Modware::Chado::Expression::Image' );
     isnt( $image2->new_record, 1, 'image is saved in the database' );
-    is( $exp_db->images->size, 4, 'has 4 images saved in the database' );
+    is( $expression->images->size, 4, 'has 4 images saved in the database' );
 };

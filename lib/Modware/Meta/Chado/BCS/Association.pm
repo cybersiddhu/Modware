@@ -27,7 +27,7 @@ sub add_belongs_to {
 
     Class::MOP::load_class($related_class);
     my $related_source = $related_class->new->meta->bcs_source->source_name;
-    my  $bcs_accs = first {
+    my $bcs_accs       = first {
         $related_source eq $bcs_source->related_source($_)->source_name;
     }
     $bcs_source->relationships;
@@ -147,6 +147,7 @@ sub add_has_many {
     }
     $bcs_source->relationships;
     my $pk_column = $meta->pk_column;
+
     #$meta->_add_method2class( $name, $related_class );
 
     #association(object[optional]) -- dense logic alarm
@@ -237,14 +238,16 @@ sub add_many_to_many {
 
     my $hm_source = $hm_class->meta->bcs_source;
     my $hm_bcs    = first {
-        $hm_source->source_name eq $bcs_source->related_source($_)->source_name;
+        $hm_source->source_name eq
+            $bcs_source->related_source($_)->source_name;
     }
     $bcs_source->relationships;
 
     my $bt_column = $bt_class->meta->pk_column;
     my $bt_source = $bt_class->meta->bcs_source;
     my $bt_bcs    = first {
-        $bt_source->source_name eq $hm_source->related_source($_)->source_name;
+        $bt_source->source_name eq
+            $hm_source->related_source($_)->source_name;
     }
     $hm_source->relationships;
 
@@ -267,7 +270,7 @@ sub add_many_to_many {
                 else
                 { ## -- link and related is saved with appropiate foreign keys
                     my $new_obj = $hm_class->new;
-                    $new_obj->dbrow->$pk_column( ( $self->dbrow->id )[0] );
+                    $new_obj->dbrow->$pk_column( $self->dbrow->$pk_column );
                     $new_obj->dbrow->$bt_column(
                         $obj->save->dbrow->$bt_column );
                     $new_obj->save;
@@ -289,36 +292,37 @@ sub add_many_to_many {
             }
             return 1;
         }
-        else {
-                Class::MOP::load_class(
-                    'Modware::Chado::BCS::Relation::Many2Many');
-                my $rel_obj;
-                if ( $self->new_record ) {    ## -- empty relation
-                    $rel_obj = Modware::Chado::BCS::Relation::Many2Many->new;
+        else {            # -- get call
+            Class::MOP::load_class(
+                'Modware::Chado::BCS::Relation::Many2Many');
+            my $rel_obj;
+            if ( $self->new_record ) {    ## -- empty relation
+                $rel_obj = Modware::Chado::BCS::Relation::Many2Many->new;
+            }
+            else {    # -- list or iterator based on context
+                if ( wantarray() ) {
+                    return
+                        map { $bt_class->new( dbrow => $_ ) }
+                        $self->chado->resultset( $meta->bcs_resultset )
+                        ->search_related( $hm_bcs, {}, {} )
+                        ->search_related( $bt_bcs, {}, {} );
                 }
-                else {    # -- list or iterator based on context
-                    if ( wantarray() ) {
-                        return
-                            map { $bt_class->new( dbrow => $_ ) }
-                            $self->chado->resultset( $meta->bcs_resultset )
-                            ->search_related( $hm_bcs, {}, {} )
-                            ->search_related( $bt_bcs, {}, {} );
-                    }
-                    $rel_obj = Modware::Chado::BCS::Relation::Many2Many->new(
-                        collection =>
-                            $self->chado->resultset( $meta->bcs_resultset )
-                            ->search_related( $hm_bcs, {}, {} )
-                            ->search_related( $bt_bcs, {}, {} ),
-                        '_related_class' => $bt_class,
-                        '_link_class'       => $hm_class,
-                        '_parent_class'     => $self
-                    );
-                }
-                return $rel_obj;
+                my $rs
+                    = $self->chado->resultset( $meta->bcs_resultset )
+                    ->search_related( $hm_bcs, {}, {} )
+                    ->search_related( $bt_bcs, {}, {} );
+                $rel_obj = Modware::Chado::BCS::Relation::Many2Many->new(
+                    collection       => $rs,
+                    '_related_class' => $bt_class,
+                    '_link_class'    => $hm_class,
+                    '_parent_class'  => $self
+                );
+            }
+            return $rel_obj;
         }
     };
 
-	$meta->add_method(
+    $meta->add_method(
         $name,
         Class::MOP::Method->wrap(
             $code,

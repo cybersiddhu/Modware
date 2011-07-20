@@ -70,7 +70,7 @@ subtest 'Test::Chado::Expression returns iterator in scalar context' => sub {
 subtest 'Test::Chado::Expression' => sub {
     my $image;
     lives_ok {
-        $image = $exp_db->images->add_image(
+        $image = $expression->images->add_new(
             type => 'gif',
             uri  => 'http://gif.com',
             data => 'gif data'
@@ -79,14 +79,14 @@ subtest 'Test::Chado::Expression' => sub {
     'adds a new image';
     isa_ok( $image, 'Test::Chado::Expression::Image' );
     is( $image->new_record, 1, 'image is not yet saved in the database' );
-    lives_ok { $exp_db->save } 'is saved with the new image';
-    is( $exp_db->images->size, 3, 'image is saved in the database' );
+    lives_ok { $expression->save } 'is saved with the new image';
+    is( $expression->images->size, 3, 'image is saved in the database' );
 };
 
 subtest 'Test::Chado::Expression' => sub {
     my $image2;
     lives_ok {
-        $image2 = $exp_db->images->create(
+        $image2 = $expression->images->create(
             type => 'gif45',
             uri  => 'http://gif45.com',
             data => 'gif45 data'
@@ -95,5 +95,5 @@ subtest 'Test::Chado::Expression' => sub {
     'creates a new image';
     isa_ok( $image2, 'Test::Chado::Expression::Image' );
     isnt( $image2->new_record, 1, 'image is saved in the database' );
-    is( $exp_db->images->size, 4, 'has 4 images saved in the database' );
+    is( $expression->images->size, 4, 'has 4 images saved in the database' );
 };

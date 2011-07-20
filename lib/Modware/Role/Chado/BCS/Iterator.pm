@@ -6,14 +6,14 @@ use namespace::autoclean;
 use Moose::Role;
 use Class::MOP;
 use Carp;
-use Modware::Types qw/ResultSet/;
+#use Modware::Types qw/ResultSet/;
 
 # Module implementation
 #
 
 has collection => (
     is        => 'rw',
-    isa       => ResultSet,
+    isa       => 'DBIx::Class::ResultSet',
     predicate => 'has_collection'
 );
 
