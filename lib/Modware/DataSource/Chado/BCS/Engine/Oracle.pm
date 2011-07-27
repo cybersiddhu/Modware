@@ -15,10 +15,11 @@ sub transform {
     my ($schema) = pos_validated_list(
         \@_,
         {   isa      => 'Bio::Chado::Schema',
-            default  => $self->schema,
             optional => 1
         }
     );
+
+    $schema ||= $self->schema;
     croak "need a schema for transformation\n" if !$schema;
 
     $schema->source('Organism::Organism')->remove_column('comment');
@@ -32,7 +33,6 @@ sub transform {
     );
 
     my $syn_source = $schema->source('Cv::Cvtermsynonym');
-    my $class_name = 'Bio::Chado::Schema::' . $syn_source->source_name;
     $syn_source->remove_column('synonym');
     $syn_source->add_column(
         'synonym_' => {
@@ -41,38 +41,9 @@ sub transform {
             size        => 1024
         }
     );
-    $class_name->add_column(
-        'synonym_' => {
-            data_type   => 'varchar',
-            is_nullable => 0,
-            size        => 1024
-        }
-    );
-    $class_name->register_column(
-        'synonym_' => {
-            data_type   => 'varchar',
-            is_nullable => 0,
-            size        => 1024
-        }
-    );
 
     my $feat_source     = $schema->source('Sequence::Feature');
-    my $feat_class = 'Bio::Chado::Schema::' . $feat_source->source_name;
     $feat_source->add_column(
-        'is_deleted' => {
-            data_type     => 'boolean',
-            is_nullable   => 0,
-            default_value => 'false'
-        }
-    );
-    $feat_class->add_column(
-        'is_deleted' => {
-            data_type     => 'boolean',
-            is_nullable   => 0,
-            default_value => 'false'
-        }
-    );
-    $feat_class->register_column(
         'is_deleted' => {
             data_type     => 'boolean',
             is_nullable   => 0,

@@ -17,7 +17,7 @@ use namespace::autoclean;
 
 has 'cvterm_row' => (
     is        => 'rw',
-    isa       => 'HashRef[Bio::Chado::Schema::Cv::Cvterm]',
+    isa       => 'HashRef',
     traits    => ['Hash'],
     predicate => 'has_cvterm_row',
     default   => sub { {} },
@@ -30,7 +30,7 @@ has 'cvterm_row' => (
 
 has 'cvrow' => (
     is      => 'rw',
-    isa     => 'HashRef[Bio::Chado::Schema::Cv::Cv]',
+    isa     => 'HashRef',
     traits  => ['Hash'],
     default => sub { {} },
     handles => {

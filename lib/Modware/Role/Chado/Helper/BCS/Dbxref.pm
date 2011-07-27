@@ -10,7 +10,7 @@ use namespace::autoclean;
 
 has 'dbrow_map' => (
     is         => 'rw',
-    isa        => 'HashRef[Bio::Chado::Schema::General::Db]',
+    isa        => 'HashRef',
     traits     => ['Hash'],
     lazy_build => 1,
     handles    => {

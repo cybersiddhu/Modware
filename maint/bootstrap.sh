@@ -39,7 +39,7 @@ fi
 LLIB=$folder/lib/perl5
 LLIBFILE=$ETC/locallibrc
 LIBEXPORT=$($perl -I$LLIB -Mlocal::lib=$folder)
-echo $LIBEXPORT > $LLIBFILE
+echo $LIBEXPORT >> $LLIBFILE
 
 
 echo " ------------------------------------------------------------ "
