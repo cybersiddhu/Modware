@@ -32,7 +32,8 @@ my $build = Modware::Build->new(
         'MooseX::Role::Parameterized' => '0.19',
         'Regexp::Common'              => '2.122',
         'MooseX::ClassAttribute'      => '0.13',
-        'DBIx::Class::Helpers'        => '2.005000'
+        'DBIx::Class::Helpers'        => '2.005000', 
+        'Data::UUID'  => '1.217'
     },
     build_requires => {
         'ExtUtils::Depends'     => '0.302',

@@ -28,7 +28,6 @@ echo "      List of recommended module for dependency management               "
 echo "               App::cpanoutdated                                         "
 echo "               App::pmuninstall                                          "
 echo "               Devel::loaded                                             "
-echo "      Install them with cpanm <module name>                              "
 echo " ----------------------------------------------------------------------- "
 
 ETC=$folder/etc
