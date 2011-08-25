@@ -615,7 +615,7 @@ use Try::Tiny;
 
         my $object_id = $self->helper->find_cvterm_id_by_term_id(
             term_id => $object,
-            cv      => $obj_inst->namespace
+            cv      => $obj_inst->namespace || $default_cv
         );
 
         if ( !$object_id ) {
