@@ -865,7 +865,7 @@ sub _preload_evcode_cache {
     return if !$rs->count;
 
     my $syn_rs = $rs->first->cvterms->search_related(
-        'cvtermsynonym_cvterms',
+        'cvtermsynonyms',
         {   'type.name' => { -in => [qw/EXACT RELATED/] },
             'cv.name'   => 'synonym_type'
         },
