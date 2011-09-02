@@ -1,5 +1,7 @@
 #!/usr/bin/perl -w
 
+my @synonym_types = map { ($_, uc $_) } qw/exact related/;
+
 package Logger;
 use Log::Log4perl;
 use Log::Log4perl::Appender;
@@ -866,7 +868,7 @@ sub _preload_evcode_cache {
 
     my $syn_rs = $rs->first->cvterms->search_related(
         'cvtermsynonyms',
-        {   'type.name' => { -in => [qw/EXACT RELATED/] },
+        {   'type.name' => { -in => [@synonym_types] },
             'cv.name'   => 'synonym_type'
         },
         { join => [ { 'type' => 'cv' } ] }
@@ -898,7 +900,7 @@ sub _preload_evcode_cache {
 
     my $syn_rs = $rs->first->cvterms->search_related(
         'cvtermsynonyms',
-        {   'type.name' => { -in => [qw/EXACT RELATED/] },
+        {   'type.name' => { -in => [@synonym_types] },
             'cv.name'   => 'synonym_type'
         },
         { join => [ { 'type' => 'cv' } ] }
