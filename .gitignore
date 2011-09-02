@@ -11,6 +11,7 @@ log
 *DS_Store*
 data
 obo
+locallib
 
 #exclude Build.PL
 !Build.PL
